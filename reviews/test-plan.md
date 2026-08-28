@@ -5,7 +5,7 @@ Maps **TP-*** coverage to `tests/`.
 **Ship unit:** `src/cli-template`  
 **Product VERSION:** 1.0.0  
 **Last plan update:** 2026-08-13  
-**Last suite run:** PASS=80 FAIL=0 SKIP=0 (2026-08-13)
+**Last suite run:** PASS=82 FAIL=0 SKIP=0 (2026-08-19)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 

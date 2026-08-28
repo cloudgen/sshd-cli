@@ -5,20 +5,28 @@
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/cli-template?style=flat-square)](https://github.com/cloudgen/cli-template)
 
-POSIX `/bin/sh` **Type 0 template** CLI: `install`, `uninstall`, `where-is-me`, `version`, `about`, and `help`. It does **not** manage the operating system (no `setup`, packages, `/etc`, or sudoers emit). This product **is** the Type 0 bootstrap origin (no live parent).
+**cli-template** is a small POSIX `/bin/sh` program you copy from this repository and install into a bin directory so a normal login can run `install`, `uninstall`, `where-is-me`, `version`, `about`, and `help` without becoming root and without downloading from the network.
 
-Install **location** is still **both**:
-- **local** → `~/.local/bin/cli-template` (normal user)
-- **global** → `/usr/local/bin/cli-template` (root / `--global`)
+| You | The other role | Not this |
+|-----|----------------|----------|
+| A normal login placing the CLI in `~/.local/bin` (or asking root to place it in `/usr/local/bin`) | A root login using `sudo … install` so every user can run the same binary | A host-OS manager, backup/restore tool, sudoers emitter, or online `curl\|sh` installer |
 
-The *channel* is local-only (no online `curl|sh`). Local vs global here means where the binary is placed, not an online vs offline download.
+**Includes / excludes:** Includes **where** the binary is placed (user bin and system bin). Excludes online install, OS `setup`, packages, `/etc`, backup/restore, and sudoers-file emit. This product is the bootstrap origin for that local CLI pattern (no live parent).
+
+**Practice:**
+
+| Step | What it means | What you type |
+|------|---------------|---------------|
+| Install (your bin) | Copies the script to `~/.local/bin/cli-template` so your login can run it. Does not fetch a URL. | `sh src/cli-template install` |
+| Install (everyone) | Same bytes into `/usr/local/bin/cli-template`, mode `0755`, so other users can run it. Needs write access to that directory. | `sudo sh src/cli-template install` |
+| No arguments | Prints help. Does not install and does not start a review. | `cli-template` |
 
 ## Features
 
-- **Self-management**: `install`, `uninstall`, `where-is-me`, `version`, `about`, `help` (local **and** global place/remove)
-- **Type N empty argv**: no arguments shows help (not install-ensure)
+- **Self-management**: `install`, `uninstall`, `where-is-me`, `version`, `about`, `help` (user-bin **and** system-bin place/remove)
+- **Empty argv shows help**: running with no arguments prints help (it does not install)
 - **Managed binary mode 0755**: global install stays readable and runnable for every user
-- **Fail-closed**: unknown commands (including trimmed parent verbs) exit non-zero
+- **Fail-closed**: unknown commands (including verbs this template does not ship) exit non-zero
 - **CIAO / CIAO-Lite** defensive design (Protection Zones, `out_*` output SSOT)
 
 ## Quick Installation
@@ -109,4 +117,4 @@ MIT License — see [`LICENSE.md`](./LICENSE.md).
 
 ## Last Update
 
-2026-08-13 — version **1.0.0** (Type 0 bootstrap origin; forge **cloudgen/cli-template**; author-email **wongcf22@gmail.com**).
+2026-08-19 — version **1.0.0** (bootstrap origin; forge **cloudgen/cli-template**; author-email **wongcf22@gmail.com**; Description voice).
