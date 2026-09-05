@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.1.0  
+**Product VERSION:** 1.2.0  
 **Last plan update:** 2026-09-05  
-**Last suite run:** PASS=93 FAIL=0 SKIP=0 (2026-09-05)
+**Last suite run:** PASS=99 FAIL=0 SKIP=0 (2026-09-05)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -17,7 +17,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 |------|--------|----------|
 | Syntax `sh -n` | have | TP-CLI-01 |
 | version / help / about human + JSON | have | TP-CLI-02..06 |
-| Type O empty argv = install-ensure | have | TP-CLI-07 |
+| Empty argv: non-TTY install-ensure / TTY menu | have | TP-CLI-07, TP-CLI-14 |
 | Unknown + quiet + set -u HOME | have | TP-CLI-08..11 |
 | Storage isolation | have | TP-CLI-12 |
 | No online verbs / no SCRIPT_URL UX | have | TP-CLI-04, TP-CLI-10 |
@@ -40,13 +40,14 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | TP-CLI-04 | help local verbs; no online; no backup/restore/sudoers | test_cli | requirement-shell-cli-interface · bootstrap-chain | **have** |
 | TP-CLI-05 | help JSON short | test_cli | requirement-shell-output-requirements | **have** |
 | TP-CLI-06 | about JSON storage; no domain fields | test_cli | requirement-shell-cli-storage | **have** |
-| TP-CLI-07 | empty argv Type N help | test_cli | requirement-shell-cli-zero-arguments | **have** |
+| TP-CLI-07 | empty argv non-interactive install-ensure | test_cli | requirement-shell-cli-zero-arguments | **have** |
 | TP-CLI-08 | unknown fail-closed | test_cli | requirement-shell-cli-interface | **have** |
 | TP-CLI-09 | quiet suppresses version | test_cli | requirement-shell-output-requirements | **have** |
 | TP-CLI-10 | online verbs rejected | test_cli | requirement-bootstrap-chain | **have** |
 | TP-CLI-11 | env -u HOME version | test_cli | class / defensive | **have** |
 | TP-CLI-12 | storage isolation | test_cli | requirement-shell-cli-storage | **have** |
 | TP-CLI-13 | backup/restore/sudoers verbs unknown | test_cli | requirement-bootstrap-chain · interface | **have** |
+| TP-CLI-14 | empty argv interactive → domain menu (no install) | test_cli | requirement-shell-cli-zero-arguments · requirement-domain-sshd | **have** |
 
 ### TP-LC (local lifecycle)
 

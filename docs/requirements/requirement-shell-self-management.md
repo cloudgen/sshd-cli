@@ -20,7 +20,7 @@ It defines lifecycle capabilities and safety rules for this shell project’s se
 | Box | Meaning | Example |
 |-----|---------|---------|
 | You / this login | The person who installed the CLI | `sshd-cli version-check` · `sshd-cli self-update` |
-| The other role | First-time empty argv (install-ensure) | `requirement-shell-cli-zero-arguments.md` |
+| The other role | Empty argv (TTY menu / pipe install-ensure) | `requirement-shell-cli-zero-arguments.md` |
 | Not this file | apt/apk, host packages, dedicated-account app start/stop | Out of scope for this product |
 
 | Includes | Excludes |
@@ -141,7 +141,7 @@ Root may write global install path; non-root uses user path. Do not assume root 
 | **Companion orchestrator** | `inst_ensure_companion` — always on `install` / empty-argv ensure (including already-installed binary no-op): `path_add_shell` then `sshd_pkg_ensure` |
 | **Termux packages** | Owned by `requirement-domain-sshd` (`sshd_pkg_ensure`); this file owns the call site |
 | **Privilege** | Type 0 only for self-management surface; no dedicated system user |
-| **Version SSOT** | `VERSION` default `1.1.0` in script config block (`VERSION="1.1.0"`) |
+| **Version SSOT** | `VERSION` default `1.2.0` in script config block (`VERSION="1.2.0"`) |
 
 #### Normative acceptance behaviors (this project)
 

@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-interactive-vs-noninteractive.md  
-**Status**: Active (Version 1.1.0)  
+**Status**: Active (Version 1.2.0)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -34,7 +34,7 @@ It defines interactive vs non-interactive behavior for this shell project (globa
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
 | Install from a pipe | Nobody can type yes. The tool **places** the program and prints a short auto-install note. | `curl -fsSL …/sshd-cli \| /bin/sh` |
-| First install on a real terminal | The tool **asks** once. Yes places; no skips without dumping help. | `sshd-cli` (no args, terminal) |
+| First install on a real terminal | No arguments opens the numbered list. To place the program, type `install`. | `sshd-cli` (no args, terminal) · `sshd-cli install` |
 | Uninstall without `--force` off a terminal | The tool **must not** delete. JSON says confirm is required. | `sshd-cli --json self-uninstall` |
 
 Jargon: a **TTY** here means “this login has a real terminal on stdin and stdout.” Measure that **once** at startup (`TTY`); helpers **read `TTY`**.
@@ -149,8 +149,8 @@ interactive   non-interactive
 
 | Command / path | Interactive (TTY, not quiet/json) | Non-interactive / quiet / json |
 |----------------|-----------------------------------|--------------------------------|
-| Zero-arg, **not** installed (letter **O**: no-args = install-ensure) | `inst_maybe_install`: show note + `prompt_yes_no` install confirm | Quiet/json: `inst_perform_install` without prompt (dispatcher **and** helper). Non-TTY human path: auto-install message + install |
-| Zero-arg, **already** installed local or global (**Type O**) | `inst_perform_install` success no-op (“already installed”); **not** help; no re-download without force | Same (quiet/json: structured success no-op) |
+| Zero-arg, **not** installed | Domain **menu** (`sshd_cmd_menu`); **no** install-ensure | Quiet/json: `inst_perform_install` without prompt. Non-TTY human path: auto-install message + install |
+| Zero-arg, **already** installed local or global | Domain **menu** (same as `sshd-cli menu`) | Install-ensure success no-op (“already installed”); **not** help; **not** menu; no re-download without force |
 | `install` | Install with human `out_*` messages | No prompt; honor force for reinstall; JSON structured results |
 | `self-uninstall` | `prompt_yes_no` unless `--force` | Without force: fail closed with explicit “requires --force” (JSON: `out_json_error` / `confirm_required`); never pretend user cancelled; with `--force`: remove without confirm |
 | `self-update` / `version-check` | Human status messages | No prompts; fail loud if `SCRIPT_URL` missing; JSON structured results |
@@ -297,6 +297,6 @@ Mode-related work for sshd-cli is **not done** if any of the following fail:
 
 ---
 
-**Last Updated**: 2026-09-02  
+**Last Updated**: 2026-09-05  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

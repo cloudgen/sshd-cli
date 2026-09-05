@@ -1,6 +1,6 @@
 # sshd-cli - Simplify Termux to install sshd
 
-![Version](https://img.shields.io/badge/Version-1.1.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.2.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/sshd-cli?style=flat-square)](https://github.com/cloudgen/sshd-cli)
@@ -14,7 +14,7 @@
 | Includes | Excludes |
 |----------|----------|
 | Install this helper, then start sshd (Termux often listens on **8022**) | Wrapping `sudo` inside the CLI |
-| Host keys and this login’s `authorized_keys` | Dropbear-only hosts; `pkg`/`apt` inside the CLI; firewall changes |
+| Host keys and this login’s `authorized_keys` | Dropbear-only hosts; wrapping `apt` on Linux; firewall changes |
 
 | Step | What it means | What you type |
 |------|---------------|---------------|
@@ -22,17 +22,17 @@
 | Install OpenSSH on Termux | Termux does not ship `sshd` until you ask. | `sshd-cli install` (runs `pkg install openssh termux-auth`) |
 | Start sshd | Listens so a laptop can connect. Default Termux port is often **8022**. | `sshd-cli start` then `ssh -p 8022 user@host` |
 
-Runtime version SSOT: `VERSION="1.1.0"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
+Runtime version SSOT: `VERSION="1.2.0"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
 
 ## Features
 
 - Defensive design under **CIAO v2.10.*** — Protection Zones, centralized `out_*`, fail-closed install integrity
 - Single-file script for direct execution and online install (`curl | sh` / `wget`)
 - User vs global install (`~/.local/bin`; `/usr/local/bin` or Termux `$PREFIX/bin`)
-- Empty argv = **install-ensure** (not help): not installed → install; already installed → success no-op unless `--force`
+- Empty argv on a **terminal** = numbered **menu**; empty argv **non-interactive** (`curl | sh`, quiet, json) = **install-ensure** (not help)
 - Purpose: **simplify Termux to install sshd** (`status`, `start`, `stop`, `restart`, `port`, `config`, `host-keys`, `auth-keys`)
 - Termux-first paths (`PREFIX`); Linux system sshd is a second home and asks for a **root login** instead of wrapping `sudo`
-- Numbered **menu** of domain commands on a terminal (`sshd-cli menu`) — empty argv stays install-ensure
+- Numbered **menu** of domain commands on a terminal (`sshd-cli` with no args, or `sshd-cli menu`)
 - Automatic SHA-256 companion `${SCRIPT_URL}.sha256` on online install / self-update
 
 ## Quick Installation
@@ -85,11 +85,11 @@ sshd-cli about
 
 On Termux, `install` also ensures OpenSSH and `termux-auth` (`pkg install -y openssh termux-auth`), creates `~/.bashrc` if missing (PATH), and creates `~/.profile` if missing so an SSH login sources `~/.bashrc`. If you will use a password to SSH in, set one with `passwd`.
 
-After install, on a terminal (`menu` — empty argv still means install-ensure):
+After install, on a terminal (no arguments opens the menu):
 
 ```text
-$ sshd-cli menu
-[INFO] **sshd-cli**(*1.1.0*)
+$ sshd-cli
+[INFO] **sshd-cli**(*1.2.0*)
 1. Show sshd status: running, port, and paths
 2. Start sshd: launch the OpenSSH daemon
 3. Stop sshd: end the running daemon
@@ -164,4 +164,4 @@ MIT. See [`LICENSE.md`](./LICENSE.md). Copyright (c) 2026 Cloudgen Wong.
 
 ## Last Update
 
-2026-09-05 — 1.1.0: `install` creates/modifies `~/.bashrc`, creates `~/.profile` if missing, and on Termux runs `pkg install openssh termux-auth`.
+2026-09-05 — 1.2.0: empty argv on a terminal opens the numbered menu; `curl | sh` and other non-interactive runs still install-ensure.

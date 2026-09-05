@@ -107,7 +107,7 @@ Force **MUST NOT** be used as a silent way to skip integrity verification.
 | Command / path | Desired state | Re-run when already good | Force / special |
 |----------------|---------------|--------------------------|-----------------|
 | `install` | Binary present at privilege-correct path | **Success no-op**; human: already installed; JSON success | `FORCE_REINSTALL=1` re-downloads/replaces |
-| Zero-arg install-ensure (**Type O**) | Binary present (local or global) | Second zero-arg when installed: **success no-op** “already installed” (not help, not reinstall) without force | Same force rules as install; see `requirement-shell-cli-zero-arguments.md` |
+| Non-interactive zero-arg install-ensure (**Type O**) | Binary present (local or global) | Second **non-interactive** zero-arg when installed: **success no-op** “already installed” (not help, not menu, not reinstall) without force | Same force rules as install; interactive empty argv is the menu — `requirement-shell-cli-zero-arguments.md` |
 | `inst_maybe_install` | Installed, user declined, **or** quiet/json Case A placed | Already installed → return success without re-prompt storm. Quiet/json when **not** installed **MUST** place (not a success skip). | — |
 | `self-update` | Local version equals remote (or newer under project policy) | **Success no-op** “already latest” when versions equal and force off | When versions differ, reinstall via install path; force may force reinstall; **must not silent-downgrade** without explicit force policy (see self-management term) |
 | `self-uninstall` | Binary absent | **Success no-op** “not installed / nothing to uninstall” | Force may skip interactive confirm only; still no over-delete |

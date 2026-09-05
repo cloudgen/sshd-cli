@@ -109,7 +109,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | **Architectures supported** | any arch with a POSIX sh and the external tools the script invokes (no arch-specific binary) |
 | **Git surface** | used for product publish (`github.com/cloudgen/sshd-cli`) |
 | **Ship unit / install** | yes — repo root `./sshd-cli` + companion `sshd-cli.sha256`; Type 0 online install (peer shell REQs) |
-| **Product version SSOT** | `VERSION="…"` hard-assign in `./sshd-cli` (currently `1.1.0`) |
+| **Product version SSOT** | `VERSION="…"` hard-assign in `./sshd-cli` (currently `1.2.0`) |
 
 **Residual ownership table:**
 
@@ -119,7 +119,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Primary language + toolchain policy | **this file** | posix-sh, unconstrained |
 | Package/build tool + lockfile | **this file** | none / not used |
 | Type 0 CLI surface / flags / dispatch | `requirement-shell-cli-interface` | Do not duplicate |
-| Empty argv Type O install-ensure | `requirement-shell-cli-zero-arguments` | Do not duplicate |
+| Empty argv TTY menu / non-TTY install-ensure | `requirement-shell-cli-zero-arguments` | Do not duplicate |
 | Self-management lifecycle | `requirement-shell-self-management` | Do not duplicate |
 | Automatic companion digest | `requirement-shell-automatic-checksum` | Do not duplicate |
 | Output SSOT (`out_*`) | `requirement-shell-output-requirements` | Do not duplicate |

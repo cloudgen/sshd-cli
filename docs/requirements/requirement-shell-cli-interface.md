@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-interface.md  
-**Status**: Active (Version 1.2.0)  
+**Status**: Active (Version 1.3.0)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -47,7 +47,7 @@ Every CIAO-Lite shell CLI **MUST** expose a documented command set. Commands **M
 | Category | Privilege | Meaning | Portable examples |
 |----------|-----------|---------|-------------------|
 | **Type 0 – Self-management / CLI lifecycle** | Invoking user (no elevation required for user-owned install) | Manage the CLI binary and diagnostics | `version`, `about`, `help`, `version-check`, `self-update`, `self-uninstall` |
-| **Type 0 – Install CLI binary** | Invoking user (root → global path; non-root → user path) | First-time or explicit placement of the CLI | `install`; empty argv **Type O install-ensure** (not installed / local / global) — `requirement-shell-cli-zero-arguments.md` |
+| **Type 0 – Install CLI binary** | Invoking user (root → global path; non-root → user path) | First-time or explicit placement of the CLI | `install`; **non-interactive** empty argv **Type O install-ensure** — `requirement-shell-cli-zero-arguments.md` |
 | **Type 1 – Host preparation** | Elevated (internal escalation when designed) | Host packages, system user create, Docker engine | *Not in scope for current product surface* |
 | **Type 2 – App ops under system user** | Dedicated least-privilege system user | App install/configure/runtime under app identity | *Not in scope for current product surface* |
 
@@ -73,7 +73,7 @@ Additional flags **MAY** be added only when documented here (or a superseding re
 
 1. **Single entry:** A single main dispatcher (e.g. `app_main`) **MUST** parse global flags and route commands.
 2. **Unknown command:** **MUST** fail loudly with a clear error and pointer to `help` (via output SSOT).
-3. **Zero-arg install-ensure:** Empty argv **MUST** mean install-ensure (not help). Not installed → install (TTY may confirm; non-interactive / quiet / json auto). Already installed (global or local) → success no-op (“already installed”), not help and not blind reinstall. Full contract: `requirement-shell-cli-zero-arguments.md`.
+3. **Zero-arg split:** Empty argv **MUST NOT** mean help. **Interactive** (`TTY=1`, not quiet/json) → domain **menu**. **Non-interactive** → install-ensure (not installed → install; already installed → success no-op). Full contract: `requirement-shell-cli-zero-arguments.md`.
 4. **Idempotent install skip:** Install **MUST** no-op when already installed unless force/reinstall policy is set.
 5. **No raw user I/O:** User-facing messages **MUST** go through the centralized `out_*` system (see output template/term).
 
@@ -133,7 +133,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | **Primary executable** | Repo root `./sshd-cli` (POSIX `/bin/sh`, single-file for `curl \| sh`) |
 | **Dispatcher** | `app_main` (always invoked at end of script: `app_main "$@"` — no `${0##*/}` / APP_NAME basename gate; required for `curl \| sh`) |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION` default `1.1.0` (script header / config block: `VERSION="1.1.0"`) |
+| **Version SSOT** | `VERSION` default `1.2.0` (script header / config block: `VERSION="1.2.0"`) |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`, or `${PREFIX}/bin` when Termux `PREFIX/bin` exists; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`) |
 | **Type 1 / Type 2 commands** | **None**. Domain sshd start/stop on Linux may **need a root login**; the CLI does **not** wrap `sudo`. Termux sshd runs as this login. |
@@ -143,7 +143,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 
 | Command | Type | Handler (current) | Required behavior |
 |---------|------|-------------------|-------------------|
-| *(no args — empty argv)* | Type 0 | `app_main` → `inst_maybe_install` / `inst_perform_install` | **Type O install-ensure** (not Type N help): not-installed / local / global; never help; see `requirement-shell-cli-zero-arguments.md` |
+| *(no args — empty argv)* | Type 0 | `app_main` → `sshd_cmd_menu` (TTY) or `inst_perform_install` / `inst_maybe_install` (non-TTY) | Interactive: domain menu. Non-interactive: **Type O install-ensure**. Never help. See `requirement-shell-cli-zero-arguments.md` |
 | `install` | Type 0 | `inst_perform_install` | Place binary for current privilege (root→global, user→local); **always** run `inst_ensure_companion` (create/modify `~/.bashrc`, create `~/.profile` if absent, Termux `pkg install -y openssh termux-auth`); idempotent unless force reinstall of the binary. Dual mention: `requirement-shell-self-management` (rc) · `requirement-domain-sshd` (pkg) |
 | `version` | Type 0 | `app_main` / `app_version` | Print local version; JSON object when `--json` |
 | `about` | Type 0 | `app_about` | Diagnostics: install presence, global/local paths, user, shell, TTY; JSON when `--json`; **no `CHECKSUM` field** |
@@ -159,7 +159,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | `config` | Type 0 domain | `sshd_cmd_config` | Show resolved sshd paths and key settings. Dual mention: `requirement-domain-sshd` |
 | `host-keys` | Type 0 domain | `sshd_cmd_host_keys` | List or generate host keys. Dual mention: `requirement-domain-sshd` |
 | `auth-keys` | Type 0 domain | `sshd_cmd_auth_keys` | List or add this login `authorized_keys`. Dual mention: `requirement-domain-sshd` |
-| `menu` / `main` | Type 0 domain | `sshd_cmd_menu` | Numbered domain list on a terminal. Empty argv stays Type O install-ensure. Dual mention: `requirement-domain-sshd` |
+| `menu` / `main` | Type 0 domain | `sshd_cmd_menu` | Numbered domain list on a terminal. Same handler as interactive empty argv. Dual mention: `requirement-domain-sshd` |
 
 #### Global flags (normative wiring for this project)
 
@@ -173,7 +173,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 #### Dispatcher acceptance criteria (this project)
 
 1. Unknown token after flag parse → `out_die` with pointer to `sshd-cli help`.  
-2. Zero-arg → install-ensure: not installed → install; already installed (local or global) → already-installed success (not help); failures non-zero.  
+2. Zero-arg → interactive menu **or** non-interactive install-ensure (not help); failures non-zero.  
 3. Command routing table in `app_main` **must** include every row in the command table above.  
 4. Help text **must** stay aligned with that table (no orphan commands, no listed-but-unrouted commands).  
 5. User-facing strings **must not** use raw `echo`/`printf` outside the `out_*` system (protected low-level helpers excepted only if already CIAO-marked and not for general messages).
@@ -218,7 +218,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 3. Force manual `sudo` as the only UX for every elevated sub-step when internal escalation is the designed pattern (when Type 1 is introduced).  
 4. Bypass `out_*` with raw user-facing `echo`/`printf` for normal messages.  
 5. Break the contract that `--json` implies quiet and machine-oriented output.  
-6. Drop zero-arg install-ensure for the classic `curl | sh` path (including already-installed success no-op) without an explicit requirement change (`requirement-shell-cli-zero-arguments.md`).  
+6. Drop **non-interactive** zero-arg install-ensure for the classic `curl | sh` path (including already-installed success no-op) without an explicit requirement change (`requirement-shell-cli-zero-arguments.md`). **MUST NOT** send a pipe empty argv to the TTY menu.  
 7. Document flags in help that the dispatcher does not parse (or leave `--force` documented-only).  
 8. Invent a dedicated system user as mandatory for Type 0 CLI self-management without a specialized architecture requirement.
 
@@ -247,7 +247,7 @@ This requirement is satisfied for the sshd-cli shell CLI when all of the followi
 | `docs/requirements/requirement-shell-self-management.md` | Lifecycle command semantics |
 | `docs/requirements/requirement-shell-output-requirements.md` | Output SSOT and channels |
 | `docs/requirements/requirement-shell-interactive-vs-noninteractive.md` | TTY / automation mode behavior |
-| `docs/requirements/requirement-shell-cli-zero-arguments.md` | Empty argv install-ensure (not installed / local / global) |
+| `docs/requirements/requirement-shell-cli-zero-arguments.md` | Empty argv: TTY menu / non-TTY install-ensure |
 | `docs/requirements/requirement-shell-idempotency.md` | Re-run safety for ensure ops |
 | `docs/requirements/requirement-shell-modular-function-design.md` | Prefix ownership (`app_`, `inst_`, `out_*`) |
 | `docs/requirements/index.md` | Registry SSOT |

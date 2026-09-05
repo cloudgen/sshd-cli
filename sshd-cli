@@ -12,7 +12,7 @@
 # (Type 0 lifecycle plus OpenSSH sshd domain: status/start/stop/port/keys).
 # Project requirements (docs/requirements/ only — never cite templates here):
 # - requirement-shell-cli-interface.md
-# - requirement-shell-cli-zero-arguments.md  (Type O empty argv = install-ensure)
+# - requirement-shell-cli-zero-arguments.md  (empty argv: TTY menu / non-TTY install-ensure)
 # - requirement-shell-cli-storage.md         (util_resolve_storage + about fields)
 # - requirement-shell-idempotency.md
 # - requirement-shell-self-management.md
@@ -48,8 +48,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys) plus self-install.}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.1.0"
-: "${VERSION:=1.1.0}"
+VERSION="1.2.0"
+: "${VERSION:=1.2.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -2948,7 +2948,7 @@ app_about() {
     : "${QUIET:=0}"
     : "${APP_NAME:=sshd-cli}"
     # Version comes from global SSOT (VERSION="…" hard-assign near top); default only if unset
-    : "${VERSION:=1.1.0}"
+    : "${VERSION:=1.2.0}"
     if [ -n "${PREFIX-}" ] && [ -d "${PREFIX}/bin" ]; then
     : "${GLOBAL_BIN:=${PREFIX}/bin}"
 else
@@ -3103,7 +3103,7 @@ fi
 
 app_version() {
     : "${APP_NAME:=sshd-cli}"
-    : "${VERSION:=1.1.0}"
+    : "${VERSION:=1.2.0}"
     : "${JSON:=0}"
     if [ "${JSON}" -eq 1 ]; then
         # Same machine contract as historical app_main inline path
@@ -3243,8 +3243,12 @@ app_help() {
 # 2026-08-11:
 #   - Specializee injection anchors (DOMAIN_DISPATCH_*) for A→B products; empty
 #     argv remains Type O — domain setup uses explicit verbs only.
+# 2026-09-05:
+#   - Empty argv split: interactive (TTY, not quiet/json) → domain menu;
+#     non-interactive / curl|sh / quiet / json → Type O install-ensure.
+#     SSOT: requirement-shell-cli-zero-arguments.md
 #
-# Last reviewed: 2026-08-11
+# Last reviewed: 2026-09-05
 # =============================================================================
 
 app_main() {
@@ -3269,17 +3273,16 @@ app_main() {
     export EFFECTIVE_STORAGE_DIR STORAGE_DIR
     export TMPDIR="${EFFECTIVE_STORAGE_DIR}"
 
-    # === ZERO-ARG = Type O install-ensure (curl | sh contract) ===
-    # Product type: Type O (online-install) — not Type N help-default.
-    # Empty argv always means "ensure installed", never help, never domain setup.
-    # Cases: not installed | installed local | installed global
-    # - not installed → install (TTY prompt via inst_maybe_install; non-TTY auto)
-    # - already installed → success no-op (inst_perform_install); no --force required
-    # - --force / FORCE_REINSTALL only for deliberate re-download/replace
-    # Exit status must reflect install outcome (failed download/checksum → non-zero).
+    # === ZERO-ARG ===
+    # Interactive (TTY=1, not quiet/json): domain menu (sshd_cmd_menu).
+    # Non-interactive (pipe / curl|sh / quiet / json / no TTY): Type O install-ensure.
+    # Consume process TTY (measured once at startup). JSON/QUIET env still force install.
     # SSOT: docs/requirements/requirement-shell-cli-zero-arguments.md
-    # Specializee: do NOT replace this block with domain full-setup.
     if [ $# -eq 0 ]; then
+        if [ "${TTY}" -eq 1 ] && [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
+            sshd_cmd_menu
+            exit $?
+        fi
         if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ]; then
             inst_perform_install
             exit $?
@@ -3383,7 +3386,7 @@ app_main() {
 # Always invoke the single dispatcher. Do NOT gate on ${0##*/} matching APP_NAME:
 # under curl | sh / stdin pipe, $0 is the shell (sh/bash/…), not the product
 # filename — a basename gate causes silent no-op and breaks one-liner install.
-# Product law: requirement-shell-cli-zero-arguments.md (Type O) +
+# Product law: requirement-shell-cli-zero-arguments.md (TTY menu / non-TTY install) +
 # requirement-shell-cli-interface.md (single app_main entry). Historical: INC-20260712-001.
 #
 # Single-file install CLI: source-as-library is unsupported; main always runs.

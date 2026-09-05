@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-09-05
+
+### Changed
+
+- Empty argv on a **terminal** opens the numbered domain **menu** (same as `sshd-cli menu`).
+- Empty argv **non-interactive** (`curl | sh`, quiet, json, no TTY) still **install-ensure**.
+
 ## [1.1.0] - 2026-09-05
 
 ### Added

@@ -67,13 +67,25 @@ run_test_cli() {
     assert_not_contains "TP-CLI-06 no CHECKSUM" "$_out" "CHECKSUM"
     assert_contains "TP-CLI-06 sshd_platform" "$_out" '"sshd_platform"'
 
-    # TP-CLI-07 empty argv = Type O install-ensure (not help)
+    # TP-CLI-07 empty argv non-interactive = Type O install-ensure (not help, not menu)
     ci_isolated_env
     _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" sh "${SCRIPT}" 2>&1)
     _ec=$?
     assert_eq "TP-CLI-07 empty argv exit 0" 0 "$_ec"
     assert_file_exists "TP-CLI-07 empty argv installed binary" "${CI_USER_BIN}/${APP_NAME}"
     assert_not_contains "TP-CLI-07 empty argv is not help" "$_out" "Usage:"
+    assert_not_contains "TP-CLI-07 empty argv is not menu" "$_out" "Choose a number"
+    ci_cleanup_env
+
+    # TP-CLI-14 empty argv interactive (TTY=1) = domain menu, not install
+    ci_isolated_env
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" </dev/null 2>&1)
+    _ec=$?
+    assert_eq "TP-CLI-14 interactive empty argv exit 0" 0 "$_ec"
+    assert_contains "TP-CLI-14 interactive empty argv shows menu" "$_out" "Choose a number"
+    assert_contains "TP-CLI-14 interactive empty argv status row" "$_out" "Show sshd status"
+    assert_file_missing "TP-CLI-14 interactive empty argv does not install" "${CI_USER_BIN}/${APP_NAME}"
+    assert_not_contains "TP-CLI-14 interactive empty argv is not help Usage" "$_out" "Usage:"
     ci_cleanup_env
 
     # TP-CLI-08 unknown command fail-closed

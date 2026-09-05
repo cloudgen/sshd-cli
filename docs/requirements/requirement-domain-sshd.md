@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.1.0)  
+**Status**: Active (Version 1.2.0)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -30,7 +30,7 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 |---------|---------------|----------|
 | `./sshd-cli` | Program | Live domain verbs |
 | `sshd-cli help` | Command | Domain rows after Type 0 |
-| `sshd-cli menu` | Terminal list | Numbered domain choices (not empty argv) |
+| `sshd-cli` (no args, terminal) or `sshd-cli menu` | Terminal list | Numbered domain choices |
 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
@@ -60,11 +60,12 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 **Routing:** `app_main` parses these verbs in the same pass as Type 0. Operands after `port` / `host-keys` / `auth-keys` are domain operands, not unknown flags.
 
 **MUST:** Each verb above is also named on `requirement-shell-cli-interface` (dual mention).  
-**MUST NOT:** Replace empty argv with this menu. Empty argv stays Type O install-ensure.
+**MUST:** Interactive empty argv (`TTY=1`, not quiet/json) **MUST** call `sshd_cmd_menu` (same handler as `menu`). Dual mention: `requirement-shell-cli-zero-arguments`.  
+**MUST NOT:** Open this menu on **non-interactive** empty argv (`curl \| sh`, quiet, json, no TTY) — that path stays install-ensure.
 
 ### 2.1.1 Install companion packages (Termux)
 
-`install` and empty-argv install-ensure **MUST** call domain helper `sshd_pkg_ensure` (via `inst_ensure_companion`) **before** the already-installed binary no-op. Dual mention: `requirement-shell-cli-interface` (`install` row) and `requirement-shell-self-management` (orchestrator).
+`install` and **non-interactive** empty-argv install-ensure **MUST** call domain helper `sshd_pkg_ensure` (via `inst_ensure_companion`) **before** the already-installed binary no-op. Dual mention: `requirement-shell-cli-interface` (`install` row) and `requirement-shell-self-management` (orchestrator). Interactive empty argv is the menu and **MUST NOT** run package ensure as a side effect.
 
 | Host | MUST | MUST NOT |
 |------|------|----------|
@@ -160,6 +161,8 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExamplePublicKeyMaterialOnly laptop-user
 **MUST NOT** list install / self-update / version / about inside `menu`.  
 This product has **no test-purpose verbs**. Help has no tester heading.
 
+Interactive empty argv **MUST** show this same list (zero-arguments dual mention).
+
 ### 2.4 Specialized project about items
 
 Human `about` **MUST** add after storage lines: sshd platform, binary, port, running yes/no.  
@@ -170,7 +173,7 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 
 | Item | Value |
 |------|--------|
-| Product | `sshd-cli` 1.1.0 |
+| Product | `sshd-cli` 1.2.0 |
 | Bootstrap origin | `selfmanaged` 1.2.3 (architecture + Type 0 only; A untouched) |
 | Domain prefix | `sshd_*` |
 | Channel | `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli` |
@@ -178,7 +181,7 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 | Login rc companion | Owned by `path_*` / `inst_ensure_companion` (`requirement-shell-self-management`) |
 | In-tool sudo | **none** — no `requirement-shell-sudo-command` |
 | Dest / fence | **none** (class residual: considered — no dest fence conditions) |
-| Menu | Verb `menu`/`main` (Type O owns empty argv) |
+| Menu | Verb `menu`/`main`; also interactive empty argv |
 
 ### 2.6 Why This Requirement Exists (Direct CIAO Alignment)
 
@@ -200,7 +203,7 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 **Future AI assistants or maintainers MUST NOT**:
 
 1. Drop Type 0 routes while adding domain verbs.  
-2. Make empty argv open `menu` (Type O install-ensure stays).  
+2. Open the menu on **non-interactive** empty argv (`curl \| sh` / quiet / json). Interactive empty argv **MUST** open the menu.  
 3. Wrap `sudo` without a studied sudo-command requirement.  
 4. Overwrite existing host private keys on `generate`.  
 5. Put domain law only on the bootstrap origin.  
@@ -216,7 +219,7 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 | `docs/requirements/index.md` | Registry SSOT |
 | `docs/requirements/requirement-shell-cli-interface.md` | Dual mention of domain verbs and `install` companion |
 | `docs/requirements/requirement-shell-self-management.md` | `inst_ensure_companion` orchestrator; login rc |
-| `docs/requirements/requirement-shell-cli-zero-arguments.md` | Empty argv is not menu |
+| `docs/requirements/requirement-shell-cli-zero-arguments.md` | Interactive empty argv = this menu; non-interactive = install-ensure |
 | `docs/requirements/requirement-shell-output-requirements.md` | `out_*` |
 | `docs/requirements/requirement-class-software-dev.md` | Class residual points here |
 | `./sshd-cli` | Implementation |
@@ -225,7 +228,7 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 
 | TP family / ID | Suite | Status |
 |----------------|-------|--------|
-| **TP-CLI-04**, **TP-CLI-06** | `tests/test_cli.sh` | have |
+| **TP-CLI-04**, **TP-CLI-06**, **TP-CLI-14** | `tests/test_cli.sh` | have |
 | **TP-LC-16** | `tests/test_local_lifecycle.sh` | have |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
