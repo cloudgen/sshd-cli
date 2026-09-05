@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.3.0  
+**Product VERSION:** 1.4.0  
 **Last plan update:** 2026-09-05  
-**Last suite run:** PASS=109 FAIL=0 SKIP=0 (2026-09-05)
+**Last suite run:** PASS=114 FAIL=0 SKIP=0 (2026-09-05)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -48,7 +48,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | TP-CLI-12 | storage isolation | test_cli | requirement-shell-cli-storage | **have** |
 | TP-CLI-13 | backup/restore/sudoers verbs unknown | test_cli | requirement-bootstrap-chain · interface | **have** |
 | TP-CLI-14 | empty argv interactive → domain menu (no install); rows 1–4 + Exit 9 | test_cli | requirement-shell-cli-zero-arguments · requirement-domain-sshd | **have** |
-| TP-CLI-15 | status prints Connect: ssh -p … | test_cli | requirement-domain-sshd | **have** |
+| TP-CLI-15 | status Connect: live ssh -p user@ipv4; no `<this-host>` | test_cli | requirement-domain-sshd | **have** |
 
 ### TP-LC (local lifecycle)
 
@@ -70,6 +70,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | TP-LC-14 | existing `~/.profile` body kept | test_local_lifecycle | requirement-shell-self-management | **have** |
 | TP-LC-15 | not Termux: `pkg` not invoked | test_local_lifecycle | requirement-domain-sshd | **have** |
 | TP-LC-16 | Termux mock: `pkg install -y openssh termux-auth` | test_local_lifecycle | requirement-domain-sshd | **have** |
+| TP-LC-17 | install ends by starting sshd (Termux stub) | test_local_lifecycle | requirement-domain-sshd | **have** |
 
 ---
 

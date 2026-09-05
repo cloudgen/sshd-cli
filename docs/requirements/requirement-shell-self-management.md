@@ -138,10 +138,10 @@ Root may write global install path; non-root uses user path. Do not assume root 
 | **Uninstall steps** | `inst_self_uninstall_determine_bin` → `inst_self_uninstall_confirm_and_remove` → `inst_self_uninstall_cleanup_path` |
 | **PATH ensure** | `path_add_shell` / `path_add_bashrc` / zsh / fish — **create `~/.bashrc` if missing**, then append PATH if absent |
 | **Login rc** | `path_ensure_profile` — if `~/.profile` is **absent**, create a file that sources `~/.bashrc`; if **present**, **MUST NOT** overwrite the body |
-| **Companion orchestrator** | `inst_ensure_companion` — always on `install` / empty-argv ensure (including already-installed binary no-op): `path_add_shell` then `sshd_pkg_ensure` |
+| **Companion orchestrator** | `inst_ensure_companion` then `sshd_start_after_install` on `install` / non-interactive empty-argv (including already-installed binary no-op) |
 | **Termux packages** | Owned by `requirement-domain-sshd` (`sshd_pkg_ensure`); this file owns the call site |
 | **Privilege** | Type 0 only for self-management surface; no dedicated system user |
-| **Version SSOT** | `VERSION` default `1.3.0` in script config block (`VERSION="1.3.0"`) |
+| **Version SSOT** | `VERSION` default `1.4.0` in script config block (`VERSION="1.4.0"`) |
 
 #### Normative acceptance behaviors (this project)
 

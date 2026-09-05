@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.3.0)  
+**Status**: Active (Version 1.4.0)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -65,7 +65,13 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 
 ### 2.1.1 Install companion packages (Termux)
 
-`install` and **non-interactive** empty-argv install-ensure **MUST** call domain helper `sshd_pkg_ensure` (via `inst_ensure_companion`) **before** the already-installed binary no-op. Dual mention: `requirement-shell-cli-interface` (`install` row) and `requirement-shell-self-management` (orchestrator). Interactive empty argv is the menu and **MUST NOT** run package ensure as a side effect.
+`install` and **non-interactive** empty-argv install-ensure **MUST** call domain helper `sshd_pkg_ensure` (via `inst_ensure_companion`) **before** the already-installed binary no-op. After the CLI binary is placed **or** the already-installed no-op, **MUST** start sshd (`sshd_start_after_install` → `sshd_cmd_start`). Dual mention: `requirement-shell-cli-interface` (`install` row) and `requirement-shell-self-management` (orchestrator). Interactive empty argv is the menu and **MUST NOT** run package ensure or auto-start as a side effect.
+
+| After CLI place | MUST | MUST NOT |
+|-----------------|------|----------|
+| **Termux** | Start sshd (idempotent if already running). Fail closed if `sshd` is still missing after `pkg`. | Leave sshd stopped after a successful Termux `install` |
+| **POSIX Linux** | Start when this login can (root / writable config). If not, **warn** and still succeed the CLI install | Fail the CLI install solely because system sshd needs root |
+| **JSON `install`** | Start the daemon; **MUST NOT** emit a second JSON object from `start` | Mix two JSON objects on stdout |
 
 | Host | MUST | MUST NOT |
 |------|------|----------|
@@ -118,7 +124,7 @@ Termux detect: `PREFIX` contains `com.termux`, or `TERMUX_VERSION` set, or `/dat
 
 **Semantics:**
 
-1. **status** is read-only. Missing sshd is a warning, not a crash. Human mode **MUST** end with a recommended connect line `ssh -p <port> <user>@<lan-ipv4>` (user from `id -un`; LAN IPv4 from a non-loopback address, prefer Wi-Fi/Ethernet). If no LAN address, use `@<this-host>`. JSON **MUST** include `connect` with that same string. **MUST NOT** freeze a session login or a sample home IP into product law.  
+1. **status** is read-only. Missing sshd is a warning, not a crash. Human mode **MUST** end with a recommended connect line `ssh -p <port> <user>@<lan-ipv4>` when a live IPv4 exists. **User** is `id -un`. **IPv4 SSOT:** `ifconfig wlan0` inet (Termux Wi-Fi). Then `wlan1`, then any `ifconfig` inet, then `ip` fallbacks. **MUST NOT** print a placeholder host (`<this-host>`, `<LAN-IPv4>`, `example.com`). If no usable IPv4: warn and say Next (turn on Wi-Fi, then `status`) — do not invent an address. JSON `connect` is that live string, or empty. **MUST NOT** freeze a session login or a sample home IP into product law.  
 1b. **menu** numbered rows are **only** `status`, `start`, `stop`, `restart`, then **Exit 9**. `port` / `config` / `host-keys` / `auth-keys` stay typed commands (and may be typed at the menu prompt) but **MUST NOT** appear as numbered rows 5–8.  
 2. **start** is idempotent: already running → success no-op. Missing host keys → generate when the host-key dir is writable. `sshd -t` must pass before launch.  
 3. **stop** is idempotent: already stopped → success no-op.  
@@ -126,7 +132,7 @@ Termux detect: `PREFIX` contains `com.termux`, or `TERMUX_VERSION` set, or `/dat
 5. **host-keys generate** creates ed25519 if missing; tries rsa 4096 and warns if declined. Never overwrite existing private host keys.  
 6. **auth-keys add** appends one `ssh-ed25519` / `ssh-rsa` / ecdsa / sk- line from a **file**. Duplicate line → success no-op. Creates `~/.ssh` mode `700` and `authorized_keys` mode `600` when possible.  
 7. **No in-tool sudo.** If a Linux system path is not writable, fail closed and tell the operator to re-run as root or use Termux.  
-8. **No systemd.** Start is `sshd -f <config>`. Stop is signal the sshd pid (pidfile, then `pgrep -x sshd`).
+8. **No systemd.** Start is `sshd -f <config>`. Stop is signal the sshd pid (pidfile, then process match). On Termux, **MUST NOT** treat a host `pgrep -x sshd` as this login’s daemon — pidfile / `${PREFIX}/bin/sshd` only.
 
 **Non-goals:** SSH client `ProxyJump` recipes, Dropbear-only hosts, changing Linux firewall, wrapping `apt`/`dnf` on POSIX Linux, password-auth policy as a verb (shown on `config` only), auto-running `passwd`. Termux `pkg install openssh termux-auth` **is** in scope as the install companion (§2.1.1).
 
@@ -174,16 +180,16 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 
 | Item | Value |
 |------|--------|
-| Product | `sshd-cli` 1.3.0 |
+| Product | `sshd-cli` 1.4.0 |
 | Bootstrap origin | `selfmanaged` 1.2.3 (architecture + Type 0 only; A untouched) |
 | Domain prefix | `sshd_*` |
 | Channel | `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli` |
-| Install companion | `sshd_pkg_ensure` — Termux `pkg install -y openssh termux-auth`; POSIX Linux no-op |
+| Install companion | `sshd_pkg_ensure` then `sshd_start_after_install` |
 | Login rc companion | Owned by `path_*` / `inst_ensure_companion` (`requirement-shell-self-management`) |
 | In-tool sudo | **none** — no `requirement-shell-sudo-command` |
 | Dest / fence | **none** (class residual: considered — no dest fence conditions) |
 | Menu | Verb `menu`/`main`; also interactive empty argv. Rows: 1 status, 2 start, 3 stop, 4 restart, 9 Exit |
-| Status connect hint | `sshd_connect_cmd` + `sshd_lan_ipv4`; human `Connect:` line; JSON field `connect` |
+| Status connect hint | `ifconfig wlan0` via `sshd_ifconfig_ipv4` / `sshd_lan_ipv4`; live `Connect:` line; **no** placeholder host |
 
 ### 2.6 Why This Requirement Exists (Direct CIAO Alignment)
 
@@ -214,7 +220,9 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 8. Skip Termux `pkg install -y openssh termux-auth` on `install` / empty-argv ensure, or wrap `apt` on Linux in its place.  
 9. Auto-run `passwd` or print a password.  
 10. Number `port` / `config` / `host-keys` / `auth-keys` as menu rows 5–8.  
-11. Freeze a session Unix login or a literal LAN IP into product law as the connect example.
+11. Freeze a session Unix login or a literal LAN IP into product law as the connect example.  
+12. Print `<this-host>` or any other placeholder as the ssh host on `status` / `start`.  
+13. Finish Termux `install` without starting sshd, or fail POSIX CLI install only because system sshd needs root.
 
 ## 5. Related artifacts (versioned surface only)
 
@@ -233,7 +241,7 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 | TP family / ID | Suite | Status |
 |----------------|-------|--------|
 | **TP-CLI-04**, **TP-CLI-06**, **TP-CLI-14**, **TP-CLI-15** | `tests/test_cli.sh` | have |
-| **TP-LC-16** | `tests/test_local_lifecycle.sh` | have |
+| **TP-LC-16**, **TP-LC-17** | `tests/test_local_lifecycle.sh` | have |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`

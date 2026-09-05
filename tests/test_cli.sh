@@ -100,6 +100,11 @@ run_test_cli() {
     assert_eq "TP-CLI-15 status exit 0" 0 "$_ec"
     assert_contains "TP-CLI-15 status Connect line" "$_out" "Connect:"
     assert_contains "TP-CLI-15 status ssh -p" "$_out" "ssh -p"
+    assert_not_contains "TP-CLI-15 no placeholder host" "$_out" "<this-host>"
+    case "${_out}" in
+        *@*.*.*.*) t_pass "TP-CLI-15 connect uses dotted-quad IPv4" ;;
+        *) t_fail "TP-CLI-15 connect uses dotted-quad IPv4 (got '$(_trunc "${_out}")')" ;;
+    esac
     _json=$(sh "${SCRIPT}" --json status 2>/dev/null)
     assert_contains "TP-CLI-15 json connect field" "$_json" '"connect":"ssh -p'
 

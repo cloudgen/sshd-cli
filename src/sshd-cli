@@ -48,8 +48,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys) plus self-install.}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.3.0"
-: "${VERSION:=1.3.0}"
+VERSION="1.4.0"
+: "${VERSION:=1.4.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -567,6 +567,7 @@ fi
             out_success "${APP_NAME} is already installed."
             out_info "Use --force only to reinstall deliberately (or run: ${APP_NAME} self-update)."
         fi
+        sshd_start_after_install
         return 0
     fi
 
@@ -614,6 +615,7 @@ fi
         return 1
     fi
 
+    sshd_start_after_install
     return 0
 }
 
@@ -963,6 +965,53 @@ inst_ensure_companion() {
     path_add_shell
     sshd_pkg_ensure
     return 0
+}
+
+# =============================================================================
+# sshd_start_after_install() - Start sshd at the end of install
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# After the CLI is placed (or already-installed no-op), start OpenSSH sshd.
+# Termux: same as `start` (fail closed). POSIX Linux: warn and keep install
+# success when this login cannot start system sshd (not root / no binary).
+# When JSON=1, suppress a second JSON object from sshd_cmd_start (parent
+# install already emitted JSON).
+#
+# Product law: requirement-domain-sshd.md
+#
+# Last reviewed: 2026-09-05
+# =============================================================================
+
+sshd_start_after_install() {
+    : "${JSON:=0}"
+    : "${APP_NAME:=sshd-cli}"
+    : "${SSHD_NESTED_START:=0}"
+    sshd_resolve
+    if sshd_is_termux; then
+        SSHD_NESTED_START=1
+        sshd_cmd_start
+        SSHD_NESTED_START=0
+        return $?
+    fi
+    if [ -z "${SSHD_BIN}" ] || [ ! -x "${SSHD_BIN}" ]; then
+        if [ "${JSON}" -eq 0 ]; then
+            out_warn "OpenSSH sshd is not on this login PATH. ${APP_NAME} is installed. Next: install openssh-server, then ${APP_NAME} start."
+        fi
+        return 0
+    fi
+    if [ "$(id -u 2>/dev/null || echo 1)" -ne 0 ]; then
+        if [ ! -e "${SSHD_CONFIG}" ] || [ ! -w "${SSHD_CONFIG}" ]; then
+            if [ "${JSON}" -eq 0 ]; then
+                out_warn "System sshd start needs a root login. ${APP_NAME} is installed. Next: ${APP_NAME} start as root."
+            fi
+            return 0
+        fi
+    fi
+    SSHD_NESTED_START=1
+    sshd_cmd_start
+    SSHD_NESTED_START=0
+    return $?
 }
 
 # =============================================================================
@@ -2509,7 +2558,7 @@ sshd_resolve() {
         fi
     fi
 
-    if [ -z "${SSHD_BIN}" ]; then
+    if [ -z "${SSHD_BIN}" ] && [ "${SSHD_PLATFORM}" != "termux" ]; then
         if command -v sshd >/dev/null 2>&1; then
             SSHD_BIN=$(command -v sshd)
         elif [ -x /usr/sbin/sshd ]; then
@@ -2537,6 +2586,19 @@ sshd_running_pid() {
             return 0
         fi
         unset _pid
+    fi
+    # Termux: never treat a host Linux sshd (pgrep -x sshd) as this login's daemon.
+    if [ "${SSHD_PLATFORM}" = "termux" ]; then
+        if [ -n "${SSHD_BIN}" ] && [ -x "${SSHD_BIN}" ] && command -v pgrep >/dev/null 2>&1; then
+            _pid=$(pgrep -f "${SSHD_BIN}" 2>/dev/null | head -n 1 || true)
+            if [ -n "${_pid}" ] && kill -0 "${_pid}" 2>/dev/null; then
+                printf '%s' "${_pid}"
+                unset _pid
+                return 0
+            fi
+            unset _pid
+        fi
+        return 1
     fi
     if command -v pgrep >/dev/null 2>&1; then
         _pid=$(pgrep -x sshd 2>/dev/null | head -n 1 || true)
@@ -2583,13 +2645,84 @@ sshd_need_writable() {
 }
 
 # =============================================================================
-# sshd_lan_ipv4() - Best-effort LAN IPv4 for an ssh connect hint
+# sshd_ipv4_usable() - Reject loopback / link-local / empty
+# =============================================================================
+
+sshd_ipv4_usable() {
+    case "${1-}" in
+        ""|127.*|0.*|255.255.255.255|169.254.*) return 1 ;;
+        *.*.*.*)
+            case "${1}" in
+                *[!0-9.]*) return 1 ;;
+                *) return 0 ;;
+            esac
+            ;;
+        *) return 1 ;;
+    esac
+}
+
+# =============================================================================
+# sshd_ifconfig_ipv4() - inet IPv4 from ifconfig [iface]
 # =============================================================================
 #
 # GENERAL PURPOSE:
-# Pick a non-loopback IPv4 this login can be reached on (prefer Wi-Fi/Ethernet
-# then any global-scope address). Used only to print a recommended ssh line.
-# Return-via-stdout (class B). Empty string if none found — not an error.
+# Parse `ifconfig` output for a usable inet address. With an operand, run
+# `ifconfig <iface>` (Termux Wi-Fi is wlan0). With no operand, parse full
+# `ifconfig`. Handles `inet 192.0.2.1` and `inet addr:192.0.2.1`.
+# Return-via-stdout (class B). Empty if none.
+#
+# Product law: requirement-domain-sshd.md
+#
+# Last reviewed: 2026-09-05
+# =============================================================================
+
+sshd_ifconfig_ipv4() {
+    _ifc_out=""
+    if command -v ifconfig >/dev/null 2>&1; then
+        if [ -n "${1-}" ]; then
+            _ifc_out=$(ifconfig "$1" 2>/dev/null || true)
+        else
+            _ifc_out=$(ifconfig 2>/dev/null || true)
+        fi
+    elif command -v busybox >/dev/null 2>&1; then
+        if [ -n "${1-}" ]; then
+            _ifc_out=$(busybox ifconfig "$1" 2>/dev/null || true)
+        else
+            _ifc_out=$(busybox ifconfig 2>/dev/null || true)
+        fi
+    else
+        unset _ifc_out
+        return 0
+    fi
+    printf '%s\n' "${_ifc_out}" | awk '
+        /inet / {
+            ip = ""
+            for (i = 1; i <= NF; i++) {
+                if ($i == "inet") {
+                    ip = $(i + 1)
+                    sub(/^addr:/, "", ip)
+                    break
+                }
+            }
+            split(ip, a, "/")
+            ip = a[1]
+            if (ip ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ && ip !~ /^127\./ && ip !~ /^169\.254\./ && ip !~ /^0\./) {
+                print ip
+                exit
+            }
+        }
+    '
+    unset _ifc_out
+}
+
+# =============================================================================
+# sshd_lan_ipv4() - Live LAN IPv4 for an ssh connect hint
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Termux-first: `ifconfig wlan0` inet address. Then wlan1, then any ifconfig
+# inet. Then `ip route get` src / `ip addr`. Never invent a host token.
+# Return-via-stdout (class B). Empty string if none found.
 #
 # Product law: requirement-domain-sshd.md
 #
@@ -2598,41 +2731,36 @@ sshd_need_writable() {
 
 sshd_lan_ipv4() {
     _ip=""
-    if command -v ip >/dev/null 2>&1; then
-        _ip=$(ip -4 -o addr show scope global 2>/dev/null | awk '
-            $2 ~ /^(wlan|wlp|eth|enp|ens|eno|ap)/ {
-                split($4, a, "/")
-                if (a[1] ~ /^127\./) next
-                if (a[1] ~ /^169\.254\./) next
-                print a[1]
-                exit
-            }
-        ')
-        if [ -z "${_ip}" ]; then
-            _ip=$(ip -4 -o addr show scope global 2>/dev/null | awk '
-                {
-                    split($4, a, "/")
-                    ip=a[1]
-                    if (ip ~ /^127\./) next
-                    if (ip ~ /^169\.254\./) next
-                    if (ip ~ /^0\./) next
-                    print ip
-                    exit
-                }
-            ')
+    if command -v ifconfig >/dev/null 2>&1 || command -v busybox >/dev/null 2>&1; then
+        _ip=$(sshd_ifconfig_ipv4 wlan0)
+        if ! sshd_ipv4_usable "${_ip}"; then
+            _ip=$(sshd_ifconfig_ipv4 wlan1)
+        fi
+        if ! sshd_ipv4_usable "${_ip}"; then
+            _ip=$(sshd_ifconfig_ipv4)
         fi
     fi
-    if [ -z "${_ip}" ] && command -v hostname >/dev/null 2>&1; then
-        _ip=$(hostname -I 2>/dev/null | awk '{
+    if ! sshd_ipv4_usable "${_ip}" && command -v ip >/dev/null 2>&1; then
+        _line=$(ip route get 1.1.1.1 2>/dev/null || ip route get 8.8.8.8 2>/dev/null || true)
+        _ip=$(printf '%s\n' "${_line}" | awk '{
             for (i = 1; i <= NF; i++) {
-                if ($i ~ /^127\./) continue
-                if ($i ~ /:/) continue
-                print $i
-                exit
+                if ($i == "src") { print $(i + 1); exit }
             }
         }')
+        unset _line
+        if ! sshd_ipv4_usable "${_ip}"; then
+            _ip=$(ip addr 2>/dev/null | awk '/inet / {
+                split($2, a, "/")
+                ip = a[1]
+                if (ip ~ /^127\./) next
+                if (ip ~ /^169\.254\./) next
+                if (ip ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) { print ip; exit }
+            }')
+        fi
     fi
-    printf '%s' "${_ip}"
+    if sshd_ipv4_usable "${_ip}"; then
+        printf '%s' "${_ip}"
+    fi
     unset _ip
 }
 
@@ -2642,7 +2770,8 @@ sshd_lan_ipv4() {
 #
 # GENERAL PURPOSE:
 # Build `ssh -p <port> <user>@<lan-ipv4>` from live port, id -un, and
-# sshd_lan_ipv4. Placeholder host if no LAN address. Return-via-stdout (class B).
+# sshd_lan_ipv4. Empty stdout if no live IPv4 — never a placeholder host.
+# Return-via-stdout (class B).
 #
 # Product law: requirement-domain-sshd.md
 #
@@ -2657,10 +2786,8 @@ sshd_connect_cmd() {
         _user=$(id -un 2>/dev/null || echo "user")
     fi
     _lan=$(sshd_lan_ipv4)
-    if [ -n "${_lan}" ]; then
+    if sshd_ipv4_usable "${_lan}"; then
         printf 'ssh -p %s %s@%s' "${SSHD_PORT}" "${_user}" "${_lan}"
-    else
-        printf 'ssh -p %s %s@<this-host>' "${SSHD_PORT}" "${_user}"
     fi
     unset _user _lan
 }
@@ -2708,7 +2835,11 @@ sshd_cmd_status() {
     else
         out_warn "sshd is not running."
     fi
-    out_info "Connect:      ${_connect}"
+    if [ -n "${_connect}" ]; then
+        out_info "Connect:      ${_connect}"
+    else
+        out_warn "No LAN IPv4 found (ifconfig wlan0 had no inet). Next: turn on Wi-Fi, then ${APP_NAME} status."
+    fi
     unset _pid _running _connect
 }
 
@@ -2732,12 +2863,13 @@ sshd_cmd_config() {
 }
 
 sshd_cmd_start() {
+    : "${SSHD_NESTED_START:=0}"
     sshd_need_bin
     sshd_resolve
     if _pid=$(sshd_running_pid); then
-        if [ "${JSON}" -eq 1 ]; then
+        if [ "${JSON}" -eq 1 ] && [ "${SSHD_NESTED_START}" -eq 0 ]; then
             out_json "out_success" "sshd is already running." "pid" "${_pid}" "port" "${SSHD_PORT}"
-        else
+        elif [ "${JSON}" -eq 0 ]; then
             out_success "sshd is already running (pid ${_pid}) on port ${SSHD_PORT}."
         fi
         unset _pid
@@ -2769,11 +2901,15 @@ sshd_cmd_start() {
     fi
     _pid=""
     _pid=$(sshd_running_pid || true)
-    if [ "${JSON}" -eq 1 ]; then
+    if [ "${JSON}" -eq 1 ] && [ "${SSHD_NESTED_START}" -eq 0 ]; then
         out_json "out_success" "sshd started." "pid" "${_pid}" "port" "${SSHD_PORT}"
-    else
+    elif [ "${JSON}" -eq 0 ]; then
         out_success "sshd started on port ${SSHD_PORT}${_pid:+ (pid ${_pid})}."
-        out_info "Connect:      $(sshd_connect_cmd)"
+        _c=$(sshd_connect_cmd)
+        if [ -n "${_c}" ]; then
+            out_info "Connect:      ${_c}"
+        fi
+        unset _c
     fi
     unset _pid
 }
@@ -3030,7 +3166,7 @@ app_about() {
     : "${QUIET:=0}"
     : "${APP_NAME:=sshd-cli}"
     # Version comes from global SSOT (VERSION="…" hard-assign near top); default only if unset
-    : "${VERSION:=1.3.0}"
+    : "${VERSION:=1.4.0}"
     if [ -n "${PREFIX-}" ] && [ -d "${PREFIX}/bin" ]; then
     : "${GLOBAL_BIN:=${PREFIX}/bin}"
 else
@@ -3185,7 +3321,7 @@ fi
 
 app_version() {
     : "${APP_NAME:=sshd-cli}"
-    : "${VERSION:=1.3.0}"
+    : "${VERSION:=1.4.0}"
     : "${JSON:=0}"
     if [ "${JSON}" -eq 1 ]; then
         # Same machine contract as historical app_main inline path
@@ -3232,7 +3368,7 @@ app_help() {
     out_empty_line
 
     out_info "Self-Management (Type 0 - any user):"
-    out_plain "  install              Place ${APP_NAME}; ensure ~/.bashrc and ~/.profile; Termux: pkg install openssh termux-auth"
+    out_plain "  install              Place ${APP_NAME}; ensure rc + Termux openssh/termux-auth; start sshd"
     out_plain "  version              Show current version"
     out_plain "  about                Show detailed diagnostics"
     out_plain "  version-check        Compare local vs remote version (needs SCRIPT_URL)"

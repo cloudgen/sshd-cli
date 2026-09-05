@@ -5,6 +5,22 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-09-05
+
+### Added
+
+- `install` (and non-interactive empty-argv ensure) **starts sshd** when it finishes. Termux fail-closed if `sshd` is still missing. POSIX Linux warns and still succeeds the CLI install when system sshd needs root.
+
+### Fixed
+
+- `status` Connect line used a `<this-host>` placeholder. It now reads **`ifconfig wlan0`** inet (then other ifaces). No placeholder host.
+
+## [1.3.1] - 2026-09-05
+
+### Fixed
+
+- `status` Connect line used a `<this-host>` placeholder when `ip -4 -o` failed on Termux. It now reads the inet address from **`ifconfig wlan0`** (then other ifaces). No placeholder host in the ship unit.
+
 ## [1.3.0] - 2026-09-05
 
 ### Changed

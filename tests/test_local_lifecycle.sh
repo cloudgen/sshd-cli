@@ -136,15 +136,38 @@ run_test_local_lifecycle() {
     ci_cleanup_env
 
     # TP-LC-16 Termux mock: pkg install -y openssh termux-auth
+    # TP-LC-17 install ends by starting sshd (stub daemon)
     ci_isolated_env
-    mkdir -p "${CI_HOME}/stubbin"
+    PREFIX="${CI_HOME}/usr"
+    mkdir -p "${PREFIX}/bin" "${PREFIX}/etc/ssh" "${PREFIX}/var/run" "${CI_HOME}/stubbin"
+    printf '%s\n' 'Port 8022' "PidFile ${PREFIX}/var/run/sshd.pid" > "${PREFIX}/etc/ssh/sshd_config"
+    : > "${PREFIX}/etc/ssh/ssh_host_ed25519_key"
+    cat > "${PREFIX}/bin/sshd" <<EOF
+#!/bin/sh
+if [ "\$1" = "-t" ]; then
+    exit 0
+fi
+nohup sleep 120 >/dev/null 2>&1 &
+echo \$! > "${PREFIX}/var/run/sshd.pid"
+exit 0
+EOF
+    chmod +x "${PREFIX}/bin/sshd"
     printf '%s\n' '#!/bin/sh' "printf '%s\\n' \"\$*\" >> \"${CI_HOME}/pkg-args.log\"" 'exit 0' > "${CI_HOME}/stubbin/pkg"
     chmod +x "${CI_HOME}/stubbin/pkg"
-    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" PATH="${CI_HOME}/stubbin:${PATH}" TERMUX_VERSION=1 sh "${SCRIPT}" install 2>&1)
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" PREFIX="${PREFIX}" PATH="${CI_HOME}/stubbin:${PREFIX}/bin:${PATH}" TERMUX_VERSION=1 sh "${SCRIPT}" install 2>&1)
     _ec=$?
     assert_eq "TP-LC-16 Termux mock install exit 0" 0 "$_ec"
     _pkg_args=$(cat "${CI_HOME}/pkg-args.log" 2>/dev/null || true)
     assert_contains "TP-LC-16 pkg install -y" "$_pkg_args" "install -y openssh termux-auth"
+    assert_contains "TP-LC-17 install started sshd" "$_out" "sshd started"
+    assert_file_exists "TP-LC-17 stub pidfile" "${PREFIX}/var/run/sshd.pid"
+    _stub_pid=$(tr -d ' \n\r\t' < "${PREFIX}/var/run/sshd.pid" 2>/dev/null || true)
+    if [ -n "${_stub_pid}" ] && kill -0 "${_stub_pid}" 2>/dev/null; then
+        t_pass "TP-LC-17 stub sshd pid is live"
+        kill "${_stub_pid}" 2>/dev/null || true
+    else
+        t_fail "TP-LC-17 stub sshd pid is live"
+    fi
     HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" sh "${CI_USER_BIN}/${APP_NAME}" self-uninstall --force >/dev/null 2>&1 || true
     ci_cleanup_env
 }
