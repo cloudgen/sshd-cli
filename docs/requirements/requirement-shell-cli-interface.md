@@ -133,7 +133,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | **Primary executable** | Repo root `./sshd-cli` (POSIX `/bin/sh`, single-file for `curl \| sh`) |
 | **Dispatcher** | `app_main` (always invoked at end of script: `app_main "$@"` — no `${0##*/}` / APP_NAME basename gate; required for `curl \| sh`) |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION` default `1.2.0` (script header / config block: `VERSION="1.2.0"`) |
+| **Version SSOT** | `VERSION` default `1.3.0` (script header / config block: `VERSION="1.3.0"`) |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`, or `${PREFIX}/bin` when Termux `PREFIX/bin` exists; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`) |
 | **Type 1 / Type 2 commands** | **None**. Domain sshd start/stop on Linux may **need a root login**; the CLI does **not** wrap `sudo`. Termux sshd runs as this login. |
@@ -151,7 +151,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | `self-update` | Type 0 | `inst_self_update` | Fetch remote version; reinstall when policy allows; reuse install primitives |
 | `self-uninstall` | Type 0 | `inst_self_uninstall` | Remove managed binary; PATH cleanup only if `~/.local/bin` empty (user installs) |
 | `help` | Type 0 | `app_help` | Full usage in human mode; short JSON note in JSON mode; Environment lists channel vars only — **not** `CHECKSUM` |
-| `status` | Type 0 domain | `sshd_cmd_status` | Show sshd running/port/paths. Dual mention: `requirement-domain-sshd` |
+| `status` | Type 0 domain | `sshd_cmd_status` | Show sshd running/port/paths and a live `ssh -p … user@lan` connect line. Dual mention: `requirement-domain-sshd` |
 | `start` | Type 0 domain | `sshd_cmd_start` | Start sshd. Linux system sshd may need root. Dual mention: `requirement-domain-sshd` |
 | `stop` | Type 0 domain | `sshd_cmd_stop` | Stop sshd. Dual mention: `requirement-domain-sshd` |
 | `restart` | Type 0 domain | `sshd_cmd_restart` | Stop then start. Dual mention: `requirement-domain-sshd` |

@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.2.0)  
+**Status**: Active (Version 1.3.0)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -35,8 +35,8 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
 | Prepare Termux for sshd | `install` places this program, creates `~/.bashrc` / `~/.profile` if needed, and on Termux runs `pkg install -y openssh termux-auth` | `sshd-cli install` |
-| See if sshd is up | Paths, port, pid | `sshd-cli status` |
-| Listen on Termux | Default port is often 8022 | `sshd-cli start` then `ssh -p 8022 user@host` |
+| See if sshd is up | Paths, port, pid, and a copy-paste `ssh -p …` line | `sshd-cli status` |
+| Listen on Termux | Default port is often 8022 | `sshd-cli start` then the Connect line from `status` |
 | Allow a laptop key | Append one public-key file | `sshd-cli auth-keys add ./laptop.pub` |
 
 ---
@@ -118,7 +118,8 @@ Termux detect: `PREFIX` contains `com.termux`, or `TERMUX_VERSION` set, or `/dat
 
 **Semantics:**
 
-1. **status** is read-only. Missing sshd is a warning, not a crash.  
+1. **status** is read-only. Missing sshd is a warning, not a crash. Human mode **MUST** end with a recommended connect line `ssh -p <port> <user>@<lan-ipv4>` (user from `id -un`; LAN IPv4 from a non-loopback address, prefer Wi-Fi/Ethernet). If no LAN address, use `@<this-host>`. JSON **MUST** include `connect` with that same string. **MUST NOT** freeze a session login or a sample home IP into product law.  
+1b. **menu** numbered rows are **only** `status`, `start`, `stop`, `restart`, then **Exit 9**. `port` / `config` / `host-keys` / `auth-keys` stay typed commands (and may be typed at the menu prompt) but **MUST NOT** appear as numbered rows 5–8.  
 2. **start** is idempotent: already running → success no-op. Missing host keys → generate when the host-key dir is writable. `sshd -t` must pass before launch.  
 3. **stop** is idempotent: already stopped → success no-op.  
 4. **port set** rewrites the `Port` line (or appends one). Does not auto-restart; human mode tells the operator to `restart` when sshd is up.  
@@ -154,7 +155,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExamplePublicKeyMaterialOnly laptop-user
 - `config`  
 - `host-keys [list|generate]`  
 - `auth-keys [list|add <file>]`  
-- `menu` — Numbered list of domain commands (terminal only)
+- `menu` — Numbered list: status, start, stop, restart, Exit 9 (terminal only)
 
 `help` Type 0 `install` row **MUST** mention Termux `pkg install openssh termux-auth` and `~/.bashrc` / `~/.profile` ensure (dual mention with the CLI-interface file).
 
@@ -173,7 +174,7 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 
 | Item | Value |
 |------|--------|
-| Product | `sshd-cli` 1.2.0 |
+| Product | `sshd-cli` 1.3.0 |
 | Bootstrap origin | `selfmanaged` 1.2.3 (architecture + Type 0 only; A untouched) |
 | Domain prefix | `sshd_*` |
 | Channel | `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli` |
@@ -181,7 +182,8 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 | Login rc companion | Owned by `path_*` / `inst_ensure_companion` (`requirement-shell-self-management`) |
 | In-tool sudo | **none** — no `requirement-shell-sudo-command` |
 | Dest / fence | **none** (class residual: considered — no dest fence conditions) |
-| Menu | Verb `menu`/`main`; also interactive empty argv |
+| Menu | Verb `menu`/`main`; also interactive empty argv. Rows: 1 status, 2 start, 3 stop, 4 restart, 9 Exit |
+| Status connect hint | `sshd_connect_cmd` + `sshd_lan_ipv4`; human `Connect:` line; JSON field `connect` |
 
 ### 2.6 Why This Requirement Exists (Direct CIAO Alignment)
 
@@ -210,7 +212,9 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 6. Lead help/about with Type 0/Type 1 jargon as the only words.  
 7. Echo secret key **private** material (public key lines on `auth-keys list` are intended).  
 8. Skip Termux `pkg install -y openssh termux-auth` on `install` / empty-argv ensure, or wrap `apt` on Linux in its place.  
-9. Auto-run `passwd` or print a password.
+9. Auto-run `passwd` or print a password.  
+10. Number `port` / `config` / `host-keys` / `auth-keys` as menu rows 5–8.  
+11. Freeze a session Unix login or a literal LAN IP into product law as the connect example.
 
 ## 5. Related artifacts (versioned surface only)
 
@@ -228,7 +232,7 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 
 | TP family / ID | Suite | Status |
 |----------------|-------|--------|
-| **TP-CLI-04**, **TP-CLI-06**, **TP-CLI-14** | `tests/test_cli.sh` | have |
+| **TP-CLI-04**, **TP-CLI-06**, **TP-CLI-14**, **TP-CLI-15** | `tests/test_cli.sh` | have |
 | **TP-LC-16** | `tests/test_local_lifecycle.sh` | have |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  

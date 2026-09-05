@@ -48,8 +48,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys) plus self-install.}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.2.0"
-: "${VERSION:=1.2.0}"
+VERSION="1.3.0"
+: "${VERSION:=1.3.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -2582,6 +2582,89 @@ sshd_need_writable() {
     out_die "This login cannot write ${_target}. On Linux re-run as root. On Termux these paths are usually yours after ${APP_NAME} install."
 }
 
+# =============================================================================
+# sshd_lan_ipv4() - Best-effort LAN IPv4 for an ssh connect hint
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Pick a non-loopback IPv4 this login can be reached on (prefer Wi-Fi/Ethernet
+# then any global-scope address). Used only to print a recommended ssh line.
+# Return-via-stdout (class B). Empty string if none found — not an error.
+#
+# Product law: requirement-domain-sshd.md
+#
+# Last reviewed: 2026-09-05
+# =============================================================================
+
+sshd_lan_ipv4() {
+    _ip=""
+    if command -v ip >/dev/null 2>&1; then
+        _ip=$(ip -4 -o addr show scope global 2>/dev/null | awk '
+            $2 ~ /^(wlan|wlp|eth|enp|ens|eno|ap)/ {
+                split($4, a, "/")
+                if (a[1] ~ /^127\./) next
+                if (a[1] ~ /^169\.254\./) next
+                print a[1]
+                exit
+            }
+        ')
+        if [ -z "${_ip}" ]; then
+            _ip=$(ip -4 -o addr show scope global 2>/dev/null | awk '
+                {
+                    split($4, a, "/")
+                    ip=a[1]
+                    if (ip ~ /^127\./) next
+                    if (ip ~ /^169\.254\./) next
+                    if (ip ~ /^0\./) next
+                    print ip
+                    exit
+                }
+            ')
+        fi
+    fi
+    if [ -z "${_ip}" ] && command -v hostname >/dev/null 2>&1; then
+        _ip=$(hostname -I 2>/dev/null | awk '{
+            for (i = 1; i <= NF; i++) {
+                if ($i ~ /^127\./) continue
+                if ($i ~ /:/) continue
+                print $i
+                exit
+            }
+        }')
+    fi
+    printf '%s' "${_ip}"
+    unset _ip
+}
+
+# =============================================================================
+# sshd_connect_cmd() - Recommended ssh client line (stdout)
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Build `ssh -p <port> <user>@<lan-ipv4>` from live port, id -un, and
+# sshd_lan_ipv4. Placeholder host if no LAN address. Return-via-stdout (class B).
+#
+# Product law: requirement-domain-sshd.md
+#
+# Last reviewed: 2026-09-05
+# =============================================================================
+
+sshd_connect_cmd() {
+    : "${SSHD_PORT:=22}"
+    : "${USERNAME:=unknown}"
+    _user="${USERNAME}"
+    if [ -z "${_user}" ] || [ "${_user}" = "unknown" ]; then
+        _user=$(id -un 2>/dev/null || echo "user")
+    fi
+    _lan=$(sshd_lan_ipv4)
+    if [ -n "${_lan}" ]; then
+        printf 'ssh -p %s %s@%s' "${SSHD_PORT}" "${_user}" "${_lan}"
+    else
+        printf 'ssh -p %s %s@<this-host>' "${SSHD_PORT}" "${_user}"
+    fi
+    unset _user _lan
+}
+
 sshd_cmd_status() {
     sshd_resolve
     _pid=""
@@ -2592,6 +2675,7 @@ sshd_cmd_status() {
         _pid=""
     fi
     : "${_pid:=}"
+    _connect=$(sshd_connect_cmd)
     if [ "${JSON}" -eq 1 ]; then
         out_json "status" "" \
             "app" "${APP_NAME}" \
@@ -2603,8 +2687,9 @@ sshd_cmd_status() {
             "port" "${SSHD_PORT}" \
             "running" "${_running}" \
             "pid" "${_pid}" \
-            "auth_keys" "${SSHD_AUTH_KEYS}"
-        unset _pid _running
+            "auth_keys" "${SSHD_AUTH_KEYS}" \
+            "connect" "${_connect}"
+        unset _pid _running _connect
         return 0
     fi
     out_info "=== ${APP_NAME} sshd status ==="
@@ -2623,7 +2708,8 @@ sshd_cmd_status() {
     else
         out_warn "sshd is not running."
     fi
-    unset _pid _running
+    out_info "Connect:      ${_connect}"
+    unset _pid _running _connect
 }
 
 sshd_cmd_config() {
@@ -2687,7 +2773,7 @@ sshd_cmd_start() {
         out_json "out_success" "sshd started." "pid" "${_pid}" "port" "${SSHD_PORT}"
     else
         out_success "sshd started on port ${SSHD_PORT}${_pid:+ (pid ${_pid})}."
-        out_info "From another machine: ssh -p ${SSHD_PORT} $(id -un)@<this-host>"
+        out_info "Connect:      $(sshd_connect_cmd)"
     fi
     unset _pid
 }
@@ -2918,10 +3004,6 @@ sshd_cmd_menu() {
     out_plain "2. Start sshd: launch the OpenSSH daemon"
     out_plain "3. Stop sshd: end the running daemon"
     out_plain "4. Restart sshd: stop then start"
-    out_plain "5. Show listen port: print Port from sshd_config"
-    out_plain "6. Show sshd config: paths and key settings"
-    out_plain "7. List host keys: files under the host-key folder"
-    out_plain "8. List login keys: this login authorized_keys"
     out_plain "9. Exit"
     out_msg_n "Choose a number, or type the command name: "
     _choice=""
@@ -2931,10 +3013,10 @@ sshd_cmd_menu() {
         2|start) sshd_cmd_start ;;
         3|stop) sshd_cmd_stop ;;
         4|restart) sshd_cmd_restart ;;
-        5|port) sshd_cmd_port ;;
-        6|config) sshd_cmd_config ;;
-        7|host-keys) sshd_cmd_host_keys list ;;
-        8|auth-keys) sshd_cmd_auth_keys list ;;
+        port) sshd_cmd_port ;;
+        config) sshd_cmd_config ;;
+        host-keys) sshd_cmd_host_keys list ;;
+        auth-keys) sshd_cmd_auth_keys list ;;
         9|99|999|exit|"") return 0 ;;
         *) out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help." ;;
     esac
@@ -2948,7 +3030,7 @@ app_about() {
     : "${QUIET:=0}"
     : "${APP_NAME:=sshd-cli}"
     # Version comes from global SSOT (VERSION="…" hard-assign near top); default only if unset
-    : "${VERSION:=1.2.0}"
+    : "${VERSION:=1.3.0}"
     if [ -n "${PREFIX-}" ] && [ -d "${PREFIX}/bin" ]; then
     : "${GLOBAL_BIN:=${PREFIX}/bin}"
 else
@@ -3103,7 +3185,7 @@ fi
 
 app_version() {
     : "${APP_NAME:=sshd-cli}"
-    : "${VERSION:=1.2.0}"
+    : "${VERSION:=1.3.0}"
     : "${JSON:=0}"
     if [ "${JSON}" -eq 1 ]; then
         # Same machine contract as historical app_main inline path

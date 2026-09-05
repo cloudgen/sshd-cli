@@ -84,9 +84,24 @@ run_test_cli() {
     assert_eq "TP-CLI-14 interactive empty argv exit 0" 0 "$_ec"
     assert_contains "TP-CLI-14 interactive empty argv shows menu" "$_out" "Choose a number"
     assert_contains "TP-CLI-14 interactive empty argv status row" "$_out" "Show sshd status"
+    assert_contains "TP-CLI-14 interactive empty argv restart row" "$_out" "4. Restart sshd"
+    assert_contains "TP-CLI-14 interactive empty argv Exit 9" "$_out" "9. Exit"
+    assert_not_contains "TP-CLI-14 no numbered port row" "$_out" "Show listen port"
+    assert_not_contains "TP-CLI-14 no numbered config row" "$_out" "Show sshd config"
+    assert_not_contains "TP-CLI-14 no numbered host-keys row" "$_out" "List host keys"
+    assert_not_contains "TP-CLI-14 no numbered auth-keys row" "$_out" "List login keys"
     assert_file_missing "TP-CLI-14 interactive empty argv does not install" "${CI_USER_BIN}/${APP_NAME}"
     assert_not_contains "TP-CLI-14 interactive empty argv is not help Usage" "$_out" "Usage:"
     ci_cleanup_env
+
+    # TP-CLI-15 status ends with a recommended ssh connect line
+    _out=$(sh "${SCRIPT}" status 2>&1)
+    _ec=$?
+    assert_eq "TP-CLI-15 status exit 0" 0 "$_ec"
+    assert_contains "TP-CLI-15 status Connect line" "$_out" "Connect:"
+    assert_contains "TP-CLI-15 status ssh -p" "$_out" "ssh -p"
+    _json=$(sh "${SCRIPT}" --json status 2>/dev/null)
+    assert_contains "TP-CLI-15 json connect field" "$_json" '"connect":"ssh -p'
 
     # TP-CLI-08 unknown command fail-closed
     _err=$(sh "${SCRIPT}" no-such-command 2>&1 >/dev/null)
