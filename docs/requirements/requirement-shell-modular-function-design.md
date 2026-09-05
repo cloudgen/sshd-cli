@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-modular-function-design.md  
-**Status**: Active (Version 1.0.1)  
+**Status**: Active (Version 1.1.0)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -65,7 +65,7 @@ Optional multi-file layout under `src/` for future authoring **MAY** exist only 
 | `util_` | General utilities | Reusable helpers (backup, path resolve, storage) | `util_backup`, `util_resolve_storage`, `util_get_install_bin_path` |
 | `app_` | General app CLI surface (product-neutral) | Entry, dispatch, about/help/version presentation | `app_main`, `app_about`, `app_help`, `app_version` |
 | `ver_` | Version comparison | Semantic version handling | `ver_gt`, `ver_check` |
-| `path_` | Shell PATH & environment | PATH manipulation and shell config | `path_add_shell`, `path_add_bashrc` |
+| `path_` | Shell PATH & environment | PATH manipulation and shell config (bashrc/profile) | `path_add_shell`, `path_add_bashrc`, `path_ensure_profile` |
 | `prompt_` | Interactive prompts | TTY-safe confirmations and questions | `prompt_yes_no`, `prompt_ask` |
 | `{{APP_NAME}}_` | Domain / product business logic | Product-specific ops (start, configure, deploy) | *None required until domain ops exist* |
 
@@ -150,7 +150,7 @@ function_name() {
 | User-facing output | `out_*` | No raw user messages outside `out_*` |
 | Install + CLI lifecycle | `inst_*` | One install orchestrator; self-update reuses it |
 | Version compare / remote check | `ver_*` | Pure compare helpers stay portable |
-| PATH / shell profile | `path_*` | Duplicate-safe append; safe cleanup helpers elsewhere call these carefully |
+| PATH / shell profile | `path_*` | Duplicate-safe append; create `~/.bashrc` if missing; create `~/.profile` if absent (never overwrite) |
 | CLI entry / dispatch | `app_*` | Single dispatcher; no second parallel main |
 | Interactive confirm | `prompt_*` | Single source for yes/no; non-interactive safe behavior |
 | Backup / storage resolve | `util_*` | Reusable; no domain-specific hardcodes as universal law |
@@ -169,9 +169,9 @@ function_name() {
 | Item | Value for sshd-cli |
 |------|------------------------|
 | **Product / binary** | `sshd-cli` (`APP_NAME`) |
-| **Single shipped script** | Repo root `./sshd-cli` (~2k lines, `#!/bin/sh`) |
-| **`src/` directory** | Present but empty — **not** a multi-file runtime layout yet |
-| **Domain prefix `sshd-cli_*`** | **Not used** today (Type 0 lifecycle only; no product domain ops) |
+| **Single shipped script** | Repo root `./sshd-cli` (`#!/bin/sh`); authoring copy `src/sshd-cli` (same bytes) |
+| **`src/` directory** | Holds the same single-file ship unit (`src/sshd-cli`); **not** a multi-file runtime layout |
+| **Domain prefix `sshd_*`** | Domain ops: `sshd_cmd_*`, `sshd_resolve`, `sshd_pkg_ensure` |
 | **Bootstrap** | Direct execution when `${0##*/}` is `sshd-cli` or `sshd-cli.sh` → `app_main "$@"` |
 
 #### Live prefix inventory (authoritative categories)
@@ -179,12 +179,13 @@ function_name() {
 | Prefix | Live examples in `./sshd-cli` |
 |--------|----------------------------------|
 | `out_` | `out_text`, `out_success`, `out_info`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_msg_n`, `out_empty_line`, `out_double_line`, `out_json`, `out_json_error` |
-| `inst_` | `inst_perform_install`, `inst_perform_install_prepare_target`, `inst_perform_install_download_with_checksum`, `inst_perform_install_download_without_checksum`, `inst_perform_install_atomic_install`, `inst_maybe_install`, `inst_self_update`, `inst_self_uninstall` (+ determine_bin / confirm_and_remove / cleanup_path), `inst_is_installed`, `inst_get_version` |
+| `inst_` | `inst_perform_install`, `inst_ensure_companion`, `inst_perform_install_prepare_target`, `inst_perform_install_download_with_checksum`, `inst_perform_install_download_without_checksum`, `inst_perform_install_atomic_install`, `inst_maybe_install`, `inst_self_update`, `inst_self_uninstall` (+ determine_bin / confirm_and_remove / cleanup_path), `inst_is_installed`, `inst_get_version` |
 | `ver_` | `ver_gt`, `ver_check` |
-| `path_` | `path_add_bashrc`, `path_add_zshrc`, `path_add_fish`, `path_add_shell` |
+| `path_` | `path_add_bashrc`, `path_ensure_profile`, `path_add_zshrc`, `path_add_fish`, `path_add_shell` |
 | `util_` | `util_json_escape`, `util_sha256_file`, `util_fetch_remote_version`, `util_get_install_bin_path`, `util_backup`, `util_resolve_storage` (**wired** from `app_main` / `app_about`; SSOT: `requirement-shell-cli-storage.md`), `util_get_current_shell` |
 | `prompt_` | `prompt_ask`, `prompt_yes_no` |
 | `app_` | `app_about`, `app_version` (dispatcher routes `version` here), `app_help`, `app_main` |
+| `sshd_` | `sshd_is_termux`, `sshd_resolve`, `sshd_pkg_ensure`, `sshd_cmd_status` / `start` / `stop` / `restart` / `port` / `config` / `host_keys` / `auth_keys` / `menu` |
 
 #### Structural notes (implementation status)
 
@@ -279,6 +280,6 @@ A modular-structure change for sshd-cli is **not done** if any of the following 
 
 ---
 
-**Last Updated**: 2026-09-02  
+**Last Updated**: 2026-09-05  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 6, 7, 8, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

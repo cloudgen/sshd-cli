@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-09-05
+
+### Added
+
+- **`install` companion (always, including already-installed CLI):** create `~/.bashrc` if missing and add `USER_BIN` to PATH; create `~/.profile` if missing so a login shell sources `~/.bashrc` (never overwrite an existing `.profile` body).
+- **Termux:** `install` runs `pkg install -y openssh termux-auth`. POSIX Linux does not wrap `apt`.
+- Tests **TP-LC-11..16** for login rc and Termux `pkg` (mocked).
+
+### Changed
+
+- Help `install` row names login rc and Termux packages.
+- Domain law no longer lists wrapping Termux `pkg` as a non-goal.
+
 ## [1.0.0] - 2026-09-05
 
 ### Added

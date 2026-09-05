@@ -48,8 +48,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys) plus self-install.}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.0.0"
-: "${VERSION:=1.0.0}"
+VERSION="1.1.0"
+: "${VERSION:=1.1.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -482,13 +482,16 @@ out_json_error() {
 #
 # GENERAL PURPOSE:
 # Orchestrates the complete installation flow:
+#   0. Companion ensure (always): create/modify ~/.bashrc PATH, create ~/.profile
+#      if absent, Termux `pkg install -y openssh termux-auth`
+#      (requirement-domain-sshd, requirement-shell-self-management)
 #   1. Privilege-aware path setup (root → /usr/local/bin, normal user → ~/.local/bin)
 #   2. Early exit if already installed (unless --force / FORCE_REINSTALL=1)
 #   3. Target directory preparation
 #   4. Secure download with layered checksum verification:
 #        - If CHECKSUM env var is set → strict verification (user/CI pinned version)
 #        - Otherwise → best-effort verification via ${SCRIPT_URL}.sha256 (if present)
-#   5. Atomic move + chmod + PATH update via inst_perform_install_atomic_install()
+#   5. Atomic move + chmod via inst_perform_install_atomic_install()
 #
 # This is the SINGLE SOURCE OF TRUTH for all installation operations
 # (initial install, self-update, and forced reinstall).
@@ -518,7 +521,7 @@ out_json_error() {
 #   - Ensured tmp_file is always cleaned on failure paths.
 #   - Preserved full original defensive header and only appended this Lessons Learned section.
 #
-# Last reviewed: 2026-06-26
+# Last reviewed: 2026-09-05
 # =============================================================================
 
 inst_perform_install() {
@@ -550,6 +553,10 @@ fi
     if [ "${JSON}" -eq 0 ]; then
         out_info "Starting installation of ${APP_NAME} ${REMOTE_VERSION}..."
     fi
+
+    # Companion ensure runs even when the CLI binary is already installed so
+    # a second `install` still heals missing rc files / Termux packages.
+    inst_ensure_companion
 
     if inst_is_installed && [ "${FORCE_REINSTALL}" -eq 0 ]; then
         if [ "${JSON}" -eq 1 ]; then
@@ -892,7 +899,7 @@ inst_perform_install_download_without_checksum() {
 #
 # GENERAL PURPOSE:
 # Makes the downloaded file executable and atomically moves it to the final
-# INSTALL_PATH. Also handles PATH addition for user installs and out_success output.
+# INSTALL_PATH. PATH / rc files are owned by inst_ensure_companion.
 #
 # Last reviewed: 29 April 2026
 # =============================================================================
@@ -915,11 +922,9 @@ inst_perform_install_atomic_install() {
     fi
     chmod 0755 "${INSTALL_PATH}" 2>/dev/null || true
 
-    # Add ~/.local/bin to PATH for normal user installs
-    if [ "$IS_ROOT" -eq 0 ]; then
-        path_add_shell
-    fi
-    
+    # PATH / rc files are ensured in inst_ensure_companion (before binary place
+    # and on already-installed re-runs). Do not duplicate here.
+
     if [ "${JSON}" -eq 1 ]; then
         out_json "out_success" "${APP_NAME} ${REMOTE_VERSION} successfully installed to ${INSTALL_PATH}" "path" "${INSTALL_PATH}"
     else
@@ -928,6 +933,35 @@ inst_perform_install_atomic_install() {
             out_success "✓ Download was cryptographically verified."
         fi
     fi
+    return 0
+}
+
+# =============================================================================
+# inst_ensure_companion() - Login rc + Termux packages (install companion)
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Always-on companion of `install` / empty-argv install-ensure. Creates or
+# modifies this login's ~/.bashrc (PATH), creates ~/.profile if missing, and
+# on Termux runs `pkg install -y openssh termux-auth`. Idempotent. Runs even
+# when the CLI binary is already installed.
+#
+# CIAO PRINCIPLES APPLIED:
+# - Caution (Principle 1): Termux pkg only when this is Termux; never apt on
+#   Linux. Missing pkg on Termux fails closed.
+# - Intentional (Principle 2): rc files vs packages named and separated.
+# - Anti-fragile (Principle 3): create-if-missing; never overwrite .profile.
+# - Over-protect (Principle 4 / 20): duplicate PATH guard; JSON/quiet silent.
+#
+# Product law: requirement-shell-self-management.md · requirement-domain-sshd.md
+#
+# Last reviewed: 2026-09-05
+# =============================================================================
+
+inst_ensure_companion() {
+    : "${JSON:=0}"
+    path_add_shell
+    sshd_pkg_ensure
     return 0
 }
 
@@ -1642,24 +1676,41 @@ ver_check() {
 # GENERAL PURPOSE:
 # Appends the PATH export to ~/.bashrc only if not already present.
 #
-# Returns 0 if added (or was already present), 1 if file missing or failed.
+# Creates ~/.bashrc if missing, then appends the PATH export only if not
+# already present. Returns 0 if created or PATH was added, 1 if already
+# present or create/write failed.
 #
 # PRINTF EXCEPTION (class C – file I/O redirect):
 # printf … >> "$bashrc" writes shell config content to a file, not product
 # stdout/stderr. User-visible “→ Added …” lines use out_plain.
 # See requirement-shell-output-requirements.md §2.1.1.
 #
-# Last reviewed: 2026-07-12
+# Last reviewed: 2026-09-05
 # =============================================================================
 
 path_add_bashrc() {
     : "${HOME:=/tmp}"
     : "${USER_BIN:=${HOME}/.local/bin}"
+    : "${APP_NAME:=sshd-cli}"
+    : "${VERSION:=0}"
+    : "${JSON:=0}"
     local bashrc="${HOME}/.bashrc"
     local path_line
+    local created=0
     path_line=$(printf 'export PATH="%s:$PATH"' "${USER_BIN}")
+
     if [ ! -f "$bashrc" ]; then
-        return 1
+        if ! printf '# Interactive rc created by %s installer (%s)\n' "$APP_NAME" "$VERSION" > "$bashrc"; then
+            if [ "${JSON}" -eq 0 ]; then
+                out_warn "Could not create ${bashrc}. Next: create that file as this login, then re-run ${APP_NAME} install."
+            fi
+            return 1
+        fi
+        chmod 0644 "$bashrc" 2>/dev/null || true
+        created=1
+        if [ "${JSON}" -eq 0 ]; then
+            out_plain "→ Created ${bashrc}"
+        fi
     fi
 
     if ! grep -qF "${USER_BIN}" "$bashrc" 2>/dev/null; then
@@ -1670,7 +1721,61 @@ path_add_bashrc() {
         fi
         return 0
     fi
+    if [ "$created" -eq 1 ]; then
+        return 0
+    fi
     return 1  # already present
+}
+
+# =============================================================================
+# path_ensure_profile() - Create ~/.profile if absent (never overwrite)
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# A login shell (SSH) reads ~/.profile, not ~/.bashrc. If .profile is missing,
+# PATH and interactive rc never run after SSH. Create a short file that sources
+# ~/.bashrc. If the file already exists, leave the body unchanged.
+#
+# Returns 0 if created, 1 if already present or create failed.
+#
+# PRINTF EXCEPTION (class C – file I/O redirect):
+# printf … > "$profile" writes shell config content to a file, not product
+# stdout/stderr. User-visible “→ Created …” lines use out_plain.
+# See requirement-shell-output-requirements.md §2.1.1.
+#
+# Last reviewed: 2026-09-05
+# =============================================================================
+
+path_ensure_profile() {
+    : "${HOME:=/tmp}"
+    : "${APP_NAME:=sshd-cli}"
+    : "${JSON:=0}"
+    local profile="${HOME}/.profile"
+
+    if [ -f "$profile" ]; then
+        return 1
+    fi
+
+    if ! {
+        printf '# BEGIN %s profile source-bashrc\n' "$APP_NAME"
+        printf '# Created so a bash login shell sources interactive rc.\n'
+        printf 'if [ -n "${BASH_VERSION:-}" ]; then\n'
+        printf '    if [ -f "${HOME}/.bashrc" ]; then\n'
+        printf '        . "${HOME}/.bashrc"\n'
+        printf '    fi\n'
+        printf 'fi\n'
+        printf '# END %s profile source-bashrc\n' "$APP_NAME"
+    } > "$profile"; then
+        if [ "${JSON}" -eq 0 ]; then
+            out_warn "Could not create ${profile}. Next: create that file as this login so SSH login reads ~/.bashrc, then re-run ${APP_NAME} install."
+        fi
+        return 1
+    fi
+    chmod 0644 "$profile" 2>/dev/null || true
+    if [ "${JSON}" -eq 0 ]; then
+        out_plain "→ Created ${profile} (login shell sources ~/.bashrc)"
+    fi
+    return 0
 }
 
 # =============================================================================
@@ -1760,18 +1865,20 @@ path_add_fish() {
 #
 # GENERAL PURPOSE:
 # Adds ${USER_BIN} (default ${HOME}/.local/bin) to bash, zsh, and fish
-# configuration files if not already present. Thin orchestrator for path_add_*.
+# configuration files if not already present. Creates ~/.bashrc when missing.
+# Creates ~/.profile when missing so a login shell sources ~/.bashrc.
+# Thin orchestrator for path_add_* / path_ensure_profile.
 #
 # Respects --json mode (silent in JSON).
 #
-# Last reviewed: 29 April 2026
+# Last reviewed: 2026-09-05
 # =============================================================================
 
 path_add_shell() {
     local added=0
     local shell_config="N/A"
 
-    # Bash
+    # Bash (create ~/.bashrc if missing, then PATH)
     if path_add_bashrc; then
         added=1
         shell_config="${HOME}/.bashrc"
@@ -1794,6 +1901,14 @@ path_add_shell() {
             shell_config="${HOME}/.config/fish/config.fish"
         else
             shell_config="${shell_config} ${HOME}/.config/fish/config.fish"
+        fi
+    fi
+
+    # Login rc: create ~/.profile if absent; never overwrite an existing body
+    if path_ensure_profile; then
+        added=1
+        if [ "$shell_config" = "N/A" ]; then
+            shell_config="${HOME}/.profile"
         fi
     fi
 
@@ -2314,6 +2429,55 @@ sshd_is_termux() {
     return 1
 }
 
+# =============================================================================
+# sshd_pkg_ensure() - Termux: pkg install openssh and termux-auth
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# On Termux, ensure OpenSSH sshd and termux-auth (passwd for SSH login) are
+# installed via `pkg install -y openssh termux-auth`. No-op on POSIX Linux
+# (operator uses the distro package manager; this CLI does not wrap apt).
+# Idempotent: already-installed packages succeed. Non-interactive: `-y`.
+#
+# Product law: requirement-domain-sshd.md
+#
+# Last reviewed: 2026-09-05
+# =============================================================================
+
+sshd_pkg_ensure() {
+    : "${JSON:=0}"
+    : "${QUIET:=0}"
+    : "${APP_NAME:=sshd-cli}"
+
+    if ! sshd_is_termux; then
+        return 0
+    fi
+
+    if ! command -v pkg >/dev/null 2>&1; then
+        out_die "Termux package tool pkg was not found, so openssh and termux-auth could not be installed. Next: open a Termux session where pkg works, then run: ${APP_NAME} install"
+    fi
+
+    if [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
+        out_info "Ensuring Termux packages: openssh termux-auth"
+    fi
+
+    if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ]; then
+        if ! pkg install -y openssh termux-auth >/dev/null 2>&1; then
+            out_die "Could not install openssh and termux-auth with pkg. Next: run: pkg install openssh termux-auth"
+        fi
+    else
+        if ! pkg install -y openssh termux-auth; then
+            out_die "Could not install openssh and termux-auth with pkg. Next: run: pkg install openssh termux-auth"
+        fi
+    fi
+
+    if [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
+        out_success "Termux packages openssh and termux-auth are installed."
+        out_info "If you will use a password to SSH in, set one with: passwd"
+    fi
+    return 0
+}
+
 sshd_resolve() {
     : "${HOME:=/tmp}"
     SSHD_PLATFORM="posix"
@@ -2397,9 +2561,9 @@ sshd_need_bin() {
     sshd_resolve
     if [ -z "${SSHD_BIN}" ] || [ ! -x "${SSHD_BIN}" ]; then
         if [ "${SSHD_PLATFORM}" = "termux" ]; then
-            out_die "OpenSSH sshd is not installed. On Termux install it with: pkg install openssh"
+            out_die "OpenSSH sshd is not installed. Next: run ${APP_NAME} install (it runs: pkg install openssh termux-auth), then retry ${APP_NAME} start"
         fi
-        out_die "OpenSSH sshd is not installed. On Debian/Ubuntu: apt install openssh-server. Then retry."
+        out_die "OpenSSH sshd is not installed. On Debian/Ubuntu: apt install openssh-server. Then retry ${APP_NAME} start."
     fi
 }
 
@@ -2415,7 +2579,7 @@ sshd_need_writable() {
         unset _target _dir
         return 0
     fi
-    out_die "This login cannot write ${_target}. On Linux re-run as root. On Termux these paths are usually yours after pkg install openssh."
+    out_die "This login cannot write ${_target}. On Linux re-run as root. On Termux these paths are usually yours after ${APP_NAME} install."
 }
 
 sshd_cmd_status() {
@@ -2620,7 +2784,7 @@ sshd_cmd_port() {
 sshd_cmd_host_keys_generate() {
     sshd_resolve
     if ! command -v ssh-keygen >/dev/null 2>&1; then
-        out_die "ssh-keygen is not installed. On Termux: pkg install openssh"
+        out_die "ssh-keygen is not installed. Next: run ${APP_NAME} install (Termux installs openssh), then retry ${APP_NAME} host-keys generate"
     fi
     sshd_need_writable "${SSHD_HOSTKEY_DIR}/ssh_host_ed25519_key"
     mkdir -p "${SSHD_HOSTKEY_DIR}" || out_die "Could not create ${SSHD_HOSTKEY_DIR}."
@@ -2784,7 +2948,7 @@ app_about() {
     : "${QUIET:=0}"
     : "${APP_NAME:=sshd-cli}"
     # Version comes from global SSOT (VERSION="…" hard-assign near top); default only if unset
-    : "${VERSION:=1.0.0}"
+    : "${VERSION:=1.1.0}"
     if [ -n "${PREFIX-}" ] && [ -d "${PREFIX}/bin" ]; then
     : "${GLOBAL_BIN:=${PREFIX}/bin}"
 else
@@ -2939,7 +3103,7 @@ fi
 
 app_version() {
     : "${APP_NAME:=sshd-cli}"
-    : "${VERSION:=1.0.0}"
+    : "${VERSION:=1.1.0}"
     : "${JSON:=0}"
     if [ "${JSON}" -eq 1 ]; then
         # Same machine contract as historical app_main inline path
@@ -2986,7 +3150,7 @@ app_help() {
     out_empty_line
 
     out_info "Self-Management (Type 0 - any user):"
-    out_plain "  install              Install ${APP_NAME} (root→global, user→~/.local/bin)"
+    out_plain "  install              Place ${APP_NAME}; ensure ~/.bashrc and ~/.profile; Termux: pkg install openssh termux-auth"
     out_plain "  version              Show current version"
     out_plain "  about                Show detailed diagnostics"
     out_plain "  version-check        Compare local vs remote version (needs SCRIPT_URL)"

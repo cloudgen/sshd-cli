@@ -4,7 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| **1.0.0** (current) | Yes — report security issues against this release |
+| **1.1.0** (current) | Yes — report security issues against this release |
+| 1.0.0 | Superseded — prefer current when reporting |
 | Older / unreleased | No public support matrix — prefer current when reporting |
 
 ## Reporting a Vulnerability

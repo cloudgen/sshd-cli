@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-class-software-dev.md  
-**Status**: Active (Version 1.0.1 – sshd-cli class law + residual stack)  
+**Status**: Active (Version 1.0.2 – sshd-cli class law + residual stack)  
 **Area**: class  
 **Key**: `requirement-class-software-dev`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -103,13 +103,13 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | **Cross-compile in scope?** | no |
 | **Primary project/package tool** | **none** — no `package.json` / `pyproject` / language module system; ship unit is the source |
 | **Lockfile policy** | not used |
-| **Test runner** | `tests/run.sh` + `tests/test_cli.sh` + `tests/test_install_lifecycle.sh` (POSIX shell) |
+| **Test runner** | `tests/run.sh` + `tests/test_cli.sh` + `tests/test_local_lifecycle.sh` (POSIX shell) |
 | **Linter/formatter** | none as project law (shellcheck optional for maintainers, not required gate) |
 | **Primary runtime / OS family** | POSIX Linux **and Termux** (Android userspace; `PREFIX` bin/etc). Also compatible UNIX where `/bin/sh` + coreutils/`sha256sum`/`mktemp` exist |
 | **Architectures supported** | any arch with a POSIX sh and the external tools the script invokes (no arch-specific binary) |
 | **Git surface** | used for product publish (`github.com/cloudgen/sshd-cli`) |
 | **Ship unit / install** | yes — repo root `./sshd-cli` + companion `sshd-cli.sha256`; Type 0 online install (peer shell REQs) |
-| **Product version SSOT** | `VERSION="…"` hard-assign in `./sshd-cli` (currently `1.0.0`) |
+| **Product version SSOT** | `VERSION="…"` hard-assign in `./sshd-cli` (currently `1.1.0`) |
 
 **Residual ownership table:**
 
@@ -130,6 +130,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Domain features / help / about extras | `requirement-domain-sshd` | OpenSSH sshd helper (Termux-first) |
 | Coding-style related REQ | `requirement-shell-script-coding` | Specialize-in home; class residual **points** |
 | Actor / role / subject / approver | *none* (considered — **no dest approver**) | No dest review machine |
+| Dest fence conditions | *none* (considered — **no dest fence conditions**) | No dest inbound queue |
 
 ---
 
@@ -209,6 +210,6 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 
 ---
 
-**Last Updated**: 2026-09-04  
+**Last Updated**: 2026-09-05  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 4, 5, 20, 21 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

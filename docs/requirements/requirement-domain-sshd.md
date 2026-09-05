@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.0.0)  
+**Status**: Active (Version 1.1.0)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -18,12 +18,13 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 |-----|---------|---------|
 | You / this login | The person who wants SSH into this device | `sshd-cli status` · `sshd-cli start` |
 | The other role | OpenSSH `sshd` + `sshd_config` + host keys | Termux `$PREFIX/etc/ssh` or Linux `/etc/ssh` |
-| Not this file | Installing *this CLI* (`install`, empty argv, `self-update`) | `requirement-shell-cli-zero-arguments.md` |
+| Not this file | Installing *this CLI* binary (`self-update`, checksum) | `requirement-shell-self-management.md` |
 
 | Includes | Excludes |
 |----------|----------|
 | status / start / stop / restart / port / config / host-keys / auth-keys / menu | Wrapping `sudo` inside this CLI; systemd unit files; SSH *client* session mux |
-| Termux user-level sshd and Linux system sshd with a root login | Inventing a dedicated `sshd-adm` account |
+| Termux `pkg install openssh termux-auth` as a companion of `install` | Wrapping `apt` / `dnf` on POSIX Linux |
+| Termux user-level sshd and Linux system sshd with a root login | Inventing a dedicated `sshd-adm` account; auto-running `passwd` |
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
@@ -33,6 +34,7 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
+| Prepare Termux for sshd | `install` places this program, creates `~/.bashrc` / `~/.profile` if needed, and on Termux runs `pkg install -y openssh termux-auth` | `sshd-cli install` |
 | See if sshd is up | Paths, port, pid | `sshd-cli status` |
 | Listen on Termux | Default port is often 8022 | `sshd-cli start` then `ssh -p 8022 user@host` |
 | Allow a laptop key | Append one public-key file | `sshd-cli auth-keys add ./laptop.pub` |
@@ -59,6 +61,25 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 
 **MUST:** Each verb above is also named on `requirement-shell-cli-interface` (dual mention).  
 **MUST NOT:** Replace empty argv with this menu. Empty argv stays Type O install-ensure.
+
+### 2.1.1 Install companion packages (Termux)
+
+`install` and empty-argv install-ensure **MUST** call domain helper `sshd_pkg_ensure` (via `inst_ensure_companion`) **before** the already-installed binary no-op. Dual mention: `requirement-shell-cli-interface` (`install` row) and `requirement-shell-self-management` (orchestrator).
+
+| Host | MUST | MUST NOT |
+|------|------|----------|
+| **Termux** | `pkg install -y openssh termux-auth` (non-interactive `-y`; quiet/json suppress pkg stdout) | Hang on `pkg` prompts; skip packages because the CLI binary is already placed |
+| **POSIX Linux** | No-op (operator uses the distro package manager) | Wrap `apt` / `dnf` / `yum` inside this CLI |
+| **Termux, `pkg` missing** | Fail closed with operator-readable Next | Pretend sshd is ready |
+| **Termux, pkg fail** | Fail closed: “Could not install openssh and termux-auth. Next: run: pkg install openssh termux-auth” | Continue as success |
+
+**MUST NOT** run `passwd` automatically (secret; interactive). Human mode **MAY** hint: set a password with `passwd` if the operator will use password SSH.
+
+**Invocation sample (same verb as CLI lifecycle):**
+
+```sh
+sshd-cli install
+```
 
 **Invocation samples:**
 
@@ -105,7 +126,7 @@ Termux detect: `PREFIX` contains `com.termux`, or `TERMUX_VERSION` set, or `/dat
 7. **No in-tool sudo.** If a Linux system path is not writable, fail closed and tell the operator to re-run as root or use Termux.  
 8. **No systemd.** Start is `sshd -f <config>`. Stop is signal the sshd pid (pidfile, then `pgrep -x sshd`).
 
-**Non-goals:** SSH client `ProxyJump` recipes, Dropbear-only hosts, changing Linux firewall, wrapping `pkg`/`apt` inside the CLI, password-auth policy as a verb (shown on `config` only).
+**Non-goals:** SSH client `ProxyJump` recipes, Dropbear-only hosts, changing Linux firewall, wrapping `apt`/`dnf` on POSIX Linux, password-auth policy as a verb (shown on `config` only), auto-running `passwd`. Termux `pkg install openssh termux-auth` **is** in scope as the install companion (§2.1.1).
 
 **Filename grammar (when this domain allocates files):** host keys use OpenSSH names, not a dated JSON grant.
 
@@ -134,6 +155,8 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExamplePublicKeyMaterialOnly laptop-user
 - `auth-keys [list|add <file>]`  
 - `menu` — Numbered list of domain commands (terminal only)
 
+`help` Type 0 `install` row **MUST** mention Termux `pkg install openssh termux-auth` and `~/.bashrc` / `~/.profile` ensure (dual mention with the CLI-interface file).
+
 **MUST NOT** list install / self-update / version / about inside `menu`.  
 This product has **no test-purpose verbs**. Help has no tester heading.
 
@@ -147,12 +170,14 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 
 | Item | Value |
 |------|--------|
-| Product | `sshd-cli` 1.0.0 |
+| Product | `sshd-cli` 1.1.0 |
 | Bootstrap origin | `selfmanaged` 1.2.3 (architecture + Type 0 only; A untouched) |
 | Domain prefix | `sshd_*` |
 | Channel | `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli` |
+| Install companion | `sshd_pkg_ensure` — Termux `pkg install -y openssh termux-auth`; POSIX Linux no-op |
+| Login rc companion | Owned by `path_*` / `inst_ensure_companion` (`requirement-shell-self-management`) |
 | In-tool sudo | **none** — no `requirement-shell-sudo-command` |
-| Dest / fence | **none** |
+| Dest / fence | **none** (class residual: considered — no dest fence conditions) |
 | Menu | Verb `menu`/`main` (Type O owns empty argv) |
 
 ### 2.6 Why This Requirement Exists (Direct CIAO Alignment)
@@ -180,19 +205,32 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 4. Overwrite existing host private keys on `generate`.  
 5. Put domain law only on the bootstrap origin.  
 6. Lead help/about with Type 0/Type 1 jargon as the only words.  
-7. Echo secret key **private** material (public key lines on `auth-keys list` are intended).
+7. Echo secret key **private** material (public key lines on `auth-keys list` are intended).  
+8. Skip Termux `pkg install -y openssh termux-auth` on `install` / empty-argv ensure, or wrap `apt` on Linux in its place.  
+9. Auto-run `passwd` or print a password.
 
 ## 5. Related artifacts (versioned surface only)
 
 | Artifact | Role |
 |----------|------|
 | `docs/requirements/index.md` | Registry SSOT |
-| `docs/requirements/requirement-shell-cli-interface.md` | Dual mention of domain verbs |
+| `docs/requirements/requirement-shell-cli-interface.md` | Dual mention of domain verbs and `install` companion |
+| `docs/requirements/requirement-shell-self-management.md` | `inst_ensure_companion` orchestrator; login rc |
 | `docs/requirements/requirement-shell-cli-zero-arguments.md` | Empty argv is not menu |
 | `docs/requirements/requirement-shell-output-requirements.md` | `out_*` |
 | `docs/requirements/requirement-class-software-dev.md` | Class residual points here |
 | `./sshd-cli` | Implementation |
 
-**Last Updated**: 2026-09-04  
+## 6. Design-time verification
+
+| TP family / ID | Suite | Status |
+|----------------|-------|--------|
+| **TP-CLI-04**, **TP-CLI-06** | `tests/test_cli.sh` | have |
+| **TP-LC-16** | `tests/test_local_lifecycle.sh` | have |
+
+**Matrix:** `reviews/requirement-test-matrix.md`  
+**Map:** `reviews/test-plan.md`
+
+**Last Updated**: 2026-09-05  
 **Owner**: Cloudgen Wong  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

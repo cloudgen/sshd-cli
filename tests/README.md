@@ -17,7 +17,7 @@ Exit **0** when all assertions pass; **1** on failure; **2** if ship unit missin
 | `run.sh` | Entrypoint | — |
 | `helpers.sh` | Asserts + isolated HOME | — |
 | `test_cli.sh` | CLI surface, Type O empty argv, domain help, trimmed-verb reject | **TP-CLI-*** |
-| `test_local_lifecycle.sh` | install / self-uninstall / about | **TP-LC-*** |
+| `test_local_lifecycle.sh` | install / self-uninstall / about / login rc / Termux pkg mock | **TP-LC-*** |
 
 ## Isolation
 

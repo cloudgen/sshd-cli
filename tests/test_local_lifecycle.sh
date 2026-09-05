@@ -23,6 +23,16 @@ run_test_local_lifecycle() {
     assert_file_exists "TP-LC-01 binary at USER_BIN" "${CI_USER_BIN}/${APP_NAME}"
     assert_contains "TP-LC-01 install success text" "$_out" "successfully installed"
 
+    # TP-LC-11 install creates ~/.bashrc with USER_BIN PATH
+    assert_file_exists "TP-LC-11 created ~/.bashrc" "${CI_HOME}/.bashrc"
+    _bashrc=$(cat "${CI_HOME}/.bashrc" 2>/dev/null || true)
+    assert_contains "TP-LC-11 bashrc has USER_BIN" "$_bashrc" "${CI_USER_BIN}"
+
+    # TP-LC-12 install creates ~/.profile that sources ~/.bashrc
+    assert_file_exists "TP-LC-12 created ~/.profile" "${CI_HOME}/.profile"
+    _profile=$(cat "${CI_HOME}/.profile" 2>/dev/null || true)
+    assert_contains "TP-LC-12 profile sources bashrc" "$_profile" '. "${HOME}/.bashrc"'
+
     # TP-LC-02 installed version works
     _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" sh "${CI_USER_BIN}/${APP_NAME}" version 2>/dev/null)
     assert_eq "TP-LC-02 installed version exit 0" 0 "$?"
@@ -33,6 +43,10 @@ run_test_local_lifecycle() {
     _ec=$?
     assert_eq "TP-LC-03 reinstall exit 0" 0 "$_ec"
     assert_contains "TP-LC-03 already installed" "$_out" "already installed"
+
+    # TP-LC-13 re-run does not duplicate PATH lines
+    _path_hits=$(grep -cF "${CI_USER_BIN}" "${CI_HOME}/.bashrc" 2>/dev/null || echo 0)
+    assert_eq "TP-LC-13 bashrc PATH line once" "1" "$_path_hits"
 
     # TP-LC-04 about shows installed path
     _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" sh "${CI_USER_BIN}/${APP_NAME}" --json about 2>/dev/null)
@@ -90,6 +104,47 @@ run_test_local_lifecycle() {
     esac
 
     # cleanup remaining binary
+    HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" sh "${CI_USER_BIN}/${APP_NAME}" self-uninstall --force >/dev/null 2>&1 || true
+    ci_cleanup_env
+
+    # TP-LC-14 existing ~/.profile body is kept; ~/.bashrc is modified not replaced
+    ci_isolated_env
+    printf '%s\n' "# keep-me-profile" > "${CI_HOME}/.profile"
+    printf '%s\n' "# keep-me-bashrc" > "${CI_HOME}/.bashrc"
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" sh "${SCRIPT}" install 2>&1)
+    _ec=$?
+    assert_eq "TP-LC-14 install with existing rc exit 0" 0 "$_ec"
+    _profile=$(cat "${CI_HOME}/.profile" 2>/dev/null || true)
+    _bashrc=$(cat "${CI_HOME}/.bashrc" 2>/dev/null || true)
+    assert_contains "TP-LC-14 profile body kept" "$_profile" "keep-me-profile"
+    assert_not_contains "TP-LC-14 profile not replaced with marker block" "$_profile" "BEGIN ${APP_NAME} profile"
+    assert_contains "TP-LC-14 bashrc body kept" "$_bashrc" "keep-me-bashrc"
+    assert_contains "TP-LC-14 bashrc still got PATH" "$_bashrc" "${CI_USER_BIN}"
+    HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" sh "${CI_USER_BIN}/${APP_NAME}" self-uninstall --force >/dev/null 2>&1 || true
+    ci_cleanup_env
+
+    # TP-LC-15 not Termux: pkg is not invoked
+    ci_isolated_env
+    mkdir -p "${CI_HOME}/stubbin"
+    printf '%s\n' '#!/bin/sh' "echo CALLED >> \"${CI_HOME}/pkg-called.log\"" 'exit 1' > "${CI_HOME}/stubbin/pkg"
+    chmod +x "${CI_HOME}/stubbin/pkg"
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" PATH="${CI_HOME}/stubbin:${PATH}" env -u TERMUX_VERSION sh "${SCRIPT}" install 2>&1)
+    _ec=$?
+    assert_eq "TP-LC-15 non-Termux install exit 0" 0 "$_ec"
+    assert_file_missing "TP-LC-15 pkg not called" "${CI_HOME}/pkg-called.log"
+    HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" sh "${CI_USER_BIN}/${APP_NAME}" self-uninstall --force >/dev/null 2>&1 || true
+    ci_cleanup_env
+
+    # TP-LC-16 Termux mock: pkg install -y openssh termux-auth
+    ci_isolated_env
+    mkdir -p "${CI_HOME}/stubbin"
+    printf '%s\n' '#!/bin/sh' "printf '%s\\n' \"\$*\" >> \"${CI_HOME}/pkg-args.log\"" 'exit 0' > "${CI_HOME}/stubbin/pkg"
+    chmod +x "${CI_HOME}/stubbin/pkg"
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" PATH="${CI_HOME}/stubbin:${PATH}" TERMUX_VERSION=1 sh "${SCRIPT}" install 2>&1)
+    _ec=$?
+    assert_eq "TP-LC-16 Termux mock install exit 0" 0 "$_ec"
+    _pkg_args=$(cat "${CI_HOME}/pkg-args.log" 2>/dev/null || true)
+    assert_contains "TP-LC-16 pkg install -y" "$_pkg_args" "install -y openssh termux-auth"
     HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" sh "${CI_USER_BIN}/${APP_NAME}" self-uninstall --force >/dev/null 2>&1 || true
     ci_cleanup_env
 }

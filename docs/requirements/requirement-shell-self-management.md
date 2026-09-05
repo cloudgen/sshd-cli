@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-self-management.md  
-**Status**: Active (Version 1.0.1)  
+**Status**: Active (Version 1.1.0)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -136,12 +136,16 @@ Root may write global install path; non-root uses user path. Do not assume root 
 | **Companion digest** | Default `${SCRIPT_URL}.sha256` via `inst_perform_install_download_without_checksum` — law + transparency: `requirement-shell-automatic-checksum.md` |
 | **Force reinstall** | `FORCE_REINSTALL`; CLI `--force` required by CLI interface requirement |
 | **Uninstall steps** | `inst_self_uninstall_determine_bin` → `inst_self_uninstall_confirm_and_remove` → `inst_self_uninstall_cleanup_path` |
-| **PATH ensure** | `path_add_shell` / bash / zsh / fish helpers on user install |
+| **PATH ensure** | `path_add_shell` / `path_add_bashrc` / zsh / fish — **create `~/.bashrc` if missing**, then append PATH if absent |
+| **Login rc** | `path_ensure_profile` — if `~/.profile` is **absent**, create a file that sources `~/.bashrc`; if **present**, **MUST NOT** overwrite the body |
+| **Companion orchestrator** | `inst_ensure_companion` — always on `install` / empty-argv ensure (including already-installed binary no-op): `path_add_shell` then `sshd_pkg_ensure` |
+| **Termux packages** | Owned by `requirement-domain-sshd` (`sshd_pkg_ensure`); this file owns the call site |
 | **Privilege** | Type 0 only for self-management surface; no dedicated system user |
-| **Version SSOT** | `VERSION` default `1.0.0` in script config block (`VERSION="1.0.0"`) |
+| **Version SSOT** | `VERSION` default `1.1.0` in script config block (`VERSION="1.1.0"`) |
 
 #### Normative acceptance behaviors (this project)
 
+0. **`install` companion (always):** `inst_ensure_companion` runs **before** the already-installed binary no-op. Create/modify this login’s `~/.bashrc` (PATH). If `~/.profile` is missing, create it so a login shell sources `~/.bashrc`. Never replace an existing `.profile` body. Termux package ensure is domain-owned (`requirement-domain-sshd`).  
 1. **`version-check`:** Fetch remote `VERSION` from `SCRIPT_URL`; report local vs remote; JSON fields include local/remote and latest-status semantics; fail if channel missing/unreachable.  
 2. **`self-update`:**  
    - Fail if remote version cannot be fetched.  
@@ -197,7 +201,10 @@ Root may write global install path; non-root uses user path. Do not assume root 
 7. Use raw user-facing `echo`/`printf` instead of the centralized output system.  
 8. Hard-code project secrets or private tokens into update URLs in the tree.  
 9. Require a dedicated system user solely for Type 0 CLI self-update without a specialized architecture requirement.  
-10. Invent a second update implementation path that bypasses `inst_perform_install*`.
+10. Invent a second update implementation path that bypasses `inst_perform_install*`.  
+11. Skip `inst_ensure_companion` on `install` / empty-argv because the CLI binary is already placed.  
+12. Overwrite an existing `~/.profile` body.  
+13. Leave `~/.bashrc` missing when `install` can create it.
 
 **Self-management is critical for long-term maintainability of one-command shell CLIs. Violating this rule is a critical regression.**
 
@@ -228,10 +235,24 @@ Work claiming self-management support for sshd-cli is **not done** if any of the
 | `docs/requirements/requirement-shell-output-requirements.md` | Lifecycle messaging / quiet / JSON |
 | `docs/requirements/requirement-shell-modular-function-design.md` | `inst_*` / `out_*` ownership |
 | `docs/requirements/index.md` | Registry SSOT |
+| `docs/requirements/requirement-domain-sshd.md` | Termux `pkg install` companion |
 | `./sshd-cli` | Implementation under test |
+
+## Design-time verification
+
+| TP family / ID | Suite | Status |
+|----------------|-------|--------|
+| **TP-LC-01..10** | `tests/test_local_lifecycle.sh` | have |
+| **TP-LC-11** create `~/.bashrc` | `tests/test_local_lifecycle.sh` | have |
+| **TP-LC-12** create `~/.profile` | `tests/test_local_lifecycle.sh` | have |
+| **TP-LC-13** no duplicate PATH | `tests/test_local_lifecycle.sh` | have |
+| **TP-LC-14** keep existing `.profile` | `tests/test_local_lifecycle.sh` | have |
+
+**Matrix:** `reviews/requirement-test-matrix.md`  
+**Map:** `reviews/test-plan.md`
 
 ---
 
-**Last Updated**: 2026-09-02  
+**Last Updated**: 2026-09-05  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 5, 10, 11, 14, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

@@ -1,12 +1,12 @@
 **file**: docs/requirements/requirement-shell-idempotency.md  
-**Status**: Active (Version 1.0.1)  
+**Status**: Active (Version 1.1.0)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
 
 This requirement is the **project Single Source of Truth** for **idempotency (re-run safety)** of state-changing operations in the **POSIX shell CLI** for sshd-cli.
 
-It defines re-run safety for ensure-style shell lifecycle commands (install, PATH integration, self-update, self-uninstall, and related helpers). Read-only commands remain outside the “ensure-X” contract except where they must stay safe under repeat invocation.
+It defines re-run safety for ensure-style shell lifecycle commands (install, PATH integration, login rc create-if-absent, Termux package ensure, self-update, self-uninstall, and related helpers). Read-only commands remain outside the “ensure-X” contract except where they must stay safe under repeat invocation.
 
 **Scope:** Detect → ensure → success-if-done semantics; force/reinstall overrides; partial-failure re-entry; PATH and shell-config re-entry; output behavior on no-op.  
 **Out of scope (cited, not re-owned):** Full CLI command table (`requirement-shell-cli-interface.md`); online-install digest algorithm detail; FSM continuous-tick design (no product FSM today).
@@ -96,8 +96,11 @@ Force **MUST NOT** be used as a silent way to skip integrity verification.
 | **Install ensure SSOT** | `inst_perform_install` (+ download/atomic helpers) |
 | **Force reinstall var** | `FORCE_REINSTALL` (default `0`); CLI `--force` must set this per `requirement-shell-cli-interface.md` |
 | **Remote channel** | `SCRIPT_URL` (required for version-check / self-update network steps) |
-| **User PATH integration** | `path_add_*` / `path_add_shell` — append only if marker/line absent |
-| **Uninstall PATH cleanup** | `inst_self_uninstall_cleanup_path` — only if `~/.local/bin` empty |
+| **User PATH integration** | `path_add_*` / `path_add_shell` — **create `~/.bashrc` if missing**; append PATH only if marker/line absent |
+| **Login rc** | `path_ensure_profile` — create `~/.profile` only when **absent**; second run leaves existing body |
+| **Termux packages** | `sshd_pkg_ensure` — `pkg install -y` is success if already installed; skip entirely off Termux |
+| **Companion** | `inst_ensure_companion` on every `install` (including already-installed binary no-op) |
+| **Uninstall PATH cleanup** | `inst_self_uninstall_cleanup_path` — only if `~/.local/bin` empty; **MUST NOT** delete `~/.profile` |
 
 #### Command-level idempotency matrix (normative)
 
@@ -110,21 +113,25 @@ Force **MUST NOT** be used as a silent way to skip integrity verification.
 | `self-uninstall` | Binary absent | **Success no-op** “not installed / nothing to uninstall” | Force may skip interactive confirm only; still no over-delete |
 | `version-check` | N/A (read/compare) | Safe to re-run; network fetch each time is allowed; must not mutate install state | — |
 | `version`, `about`, `help` | N/A (read-only) | Safe to re-run; no install mutation | — |
-| PATH add (`path_add_bashrc` / zsh / fish) | PATH line already present | No second identical append | — |
-| PATH cleanup on uninstall | `~/.local/bin` empty **or** PATH lines already removed | No thrash; if bin dir still has files, **keep** PATH (do not strip shared dir) | — |
+| PATH add (`path_add_bashrc` / zsh / fish) | PATH line already present | No second identical append | Create `~/.bashrc` when missing, then PATH |
+| Login rc (`path_ensure_profile`) | `~/.profile` exists | Leave body; no second create | Create only when absent |
+| Termux packages (`sshd_pkg_ensure`) | `openssh` + `termux-auth` installed **or** not Termux | Success no-op / skip | `pkg install -y` may re-run; must not hang |
+| PATH cleanup on uninstall | `~/.local/bin` empty **or** PATH lines already removed | No thrash; if bin dir still has files, **keep** PATH (do not strip shared dir) | Do not delete `~/.profile` |
 
 #### Concrete detect → act expectations (this project)
 
 1. **Install:** If `inst_is_installed` and `FORCE_REINSTALL=0` → return 0 without download/move.  
 2. **Self-update:** Fetch remote `VERSION` from `SCRIPT_URL`; if equal to local and force off → return 0 without reinstall; if remote unreadable → fail loud (not a silent “already ok”).  
 3. **Self-uninstall:** If no managed binary path resolved → return 0 (not installed).  
-4. **PATH ensure:** Grep/marker check before append; already present is success for the ensure intent.  
+4. **PATH ensure:** Create `~/.bashrc` if missing; grep/marker check before append; already present is success for the ensure intent.  
+4b. **Profile ensure:** If `~/.profile` exists, keep it. If missing, create a source-bashrc sample once.  
+4c. **Companion:** Already-installed CLI binary **MUST NOT** skip rc/package ensure.  
 5. **Atomic install temps:** Failed download paths **MUST** remove temp files; re-run starts clean.  
 6. **Partial install:** Re-run of install after partial failure **MUST** attempt to converge (re-prepare target, re-download, atomic replace) or fail loud — not leave a second half-broken binary without error.
 
 #### Explicitly out of scope until specialized elsewhere
 
-- Type 1 prerequisites / package ensure loops  
+- Type 1 Linux host `apt`/`dnf` ensure loops (Termux `pkg` companion of `install` **is** in scope — `requirement-domain-sshd`)  
 - Type 2 system-user / app service ensure  
 - Continuous FSM `update*` tick thrash (no product FSM in current shell surface)
 
@@ -196,6 +203,6 @@ A state-changing shell change for sshd-cli is **not done** if any of the followi
 
 ---
 
-**Last Updated**: 2026-09-02  
+**Last Updated**: 2026-09-05  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; related `requirement-shell-cli-interface.md`; CIAO Principles 1, 2, 3, 11, 12, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

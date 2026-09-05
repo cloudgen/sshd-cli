@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.0.0  
-**Last plan update:** 2026-08-13  
-**Last suite run:** PASS=79 FAIL=0 SKIP=0 (2026-09-05)
+**Product VERSION:** 1.1.0  
+**Last plan update:** 2026-09-05  
+**Last suite run:** PASS=93 FAIL=0 SKIP=0 (2026-09-05)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -22,7 +22,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | Storage isolation | have | TP-CLI-12 |
 | No online verbs / no SCRIPT_URL UX | have | TP-CLI-04, TP-CLI-10 |
 | Trimmed parent verbs fail closed | have | TP-CLI-13 |
-| Local install / idempotent / uninstall / mode 0755 | have | TP-LC-01..10 |
+| Local install / idempotent / uninstall / mode 0755 / login rc / Termux pkg | have | TP-LC-01..16 |
 | Backup / restore / sudoers emit | n/a | Absent by design (Type 0 template; not a backup product) |
 | Online curl / companion checksum | n/a | Local-only product |
 
@@ -52,16 +52,22 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 
 | TP-ID | Intent | Suite | Primary requirement(s) | Status |
 |-------|--------|-------|------------------------|--------|
-| TP-LC-01 | install → USER_BIN | test_local_lifecycle | requirement-shell-local-self-management | **have** |
-| TP-LC-02 | installed binary version | test_local_lifecycle | local self-management | **have** |
+| TP-LC-01 | install → USER_BIN | test_local_lifecycle | requirement-shell-self-management | **have** |
+| TP-LC-02 | installed binary version | test_local_lifecycle | requirement-shell-self-management | **have** |
 | TP-LC-03 | reinstall already-installed | test_local_lifecycle | requirement-shell-idempotency | **have** |
-| TP-LC-04 | where-is-me | test_local_lifecycle | local self-management | **have** |
-| TP-LC-05 | uninstall JSON no force fail-closed | test_local_lifecycle | interactive-vs-noninteractive | **have** |
-| TP-LC-06 | uninstall --force removes | test_local_lifecycle | local self-management | **have** |
-| TP-LC-07 | uninstall absent no-op | test_local_lifecycle | idempotency | **have** |
-| TP-LC-08 | about shows installed | test_local_lifecycle | local self-management | **have** |
-| TP-LC-09 | installed mode is `0755` | test_local_lifecycle | local self-management §2.3.1 | **have** |
-| TP-LC-10 | reinstall without force heals `0711` → `0755` | test_local_lifecycle | local self-management §2.3.1 | **have** |
+| TP-LC-04 | about installed path | test_local_lifecycle | requirement-shell-self-management | **have** |
+| TP-LC-05 | uninstall JSON no force fail-closed | test_local_lifecycle | requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-LC-06 | uninstall --force removes | test_local_lifecycle | requirement-shell-self-management | **have** |
+| TP-LC-07 | uninstall absent no-op | test_local_lifecycle | requirement-shell-idempotency | **have** |
+| TP-LC-08 | about shows installed | test_local_lifecycle | requirement-shell-self-management | **have** |
+| TP-LC-09 | installed mode is `0755` | test_local_lifecycle | requirement-shell-self-management | **have** |
+| TP-LC-10 | `--force` reinstall heals `0711` → `0755` | test_local_lifecycle | requirement-shell-self-management | **have** |
+| TP-LC-11 | install creates `~/.bashrc` with USER_BIN PATH | test_local_lifecycle | requirement-shell-self-management | **have** |
+| TP-LC-12 | install creates `~/.profile` sourcing bashrc | test_local_lifecycle | requirement-shell-self-management | **have** |
+| TP-LC-13 | reinstall does not duplicate PATH | test_local_lifecycle | requirement-shell-idempotency | **have** |
+| TP-LC-14 | existing `~/.profile` body kept | test_local_lifecycle | requirement-shell-self-management | **have** |
+| TP-LC-15 | not Termux: `pkg` not invoked | test_local_lifecycle | requirement-domain-sshd | **have** |
+| TP-LC-16 | Termux mock: `pkg install -y openssh termux-auth` | test_local_lifecycle | requirement-domain-sshd | **have** |
 
 ---
 

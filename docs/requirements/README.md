@@ -2,7 +2,7 @@
 
 Authoritative product and engineering requirements for this project live here.
 
-**Current state (2026-09-05 — sshd-cli 1.0.0):** **One** Active class requirement (`requirement-class-software-dev`), **ten** Active `requirement-shell-*.md` files (including **script-coding**), and **one** Active domain SSOT (`requirement-domain-sshd`). Registry: `index.md`. Specialized from bootstrap origin **selfmanaged** (A → B). Type 0 self-install plus OpenSSH sshd domain (Termux-first). Product version SSOT: `VERSION="1.0.0"`. Do **not** invent additional requirement paths without a real ownership gap — verify on disk and register new files in `index.md` in the same change.
+**Current state (2026-09-05 — sshd-cli 1.1.0):** **One** Active class requirement (`requirement-class-software-dev`), **ten** Active `requirement-shell-*.md` files (including **script-coding**), and **one** Active domain SSOT (`requirement-domain-sshd`). Registry: `index.md`. Specialized from bootstrap origin **selfmanaged** (A → B). Type 0 self-install plus OpenSSH sshd domain (Termux-first). Product version SSOT: `VERSION="1.1.0"`. Do **not** invent additional requirement paths without a real ownership gap — verify on disk and register new files in `index.md` in the same change.
 
 ## Purpose
 

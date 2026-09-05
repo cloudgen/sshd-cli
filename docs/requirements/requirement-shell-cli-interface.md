@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-interface.md  
-**Status**: Active (Version 1.1.1)  
+**Status**: Active (Version 1.2.0)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -133,7 +133,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | **Primary executable** | Repo root `./sshd-cli` (POSIX `/bin/sh`, single-file for `curl \| sh`) |
 | **Dispatcher** | `app_main` (always invoked at end of script: `app_main "$@"` — no `${0##*/}` / APP_NAME basename gate; required for `curl \| sh`) |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION` default `1.0.0` (script header / config block: `VERSION="1.0.0"`) |
+| **Version SSOT** | `VERSION` default `1.1.0` (script header / config block: `VERSION="1.1.0"`) |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`, or `${PREFIX}/bin` when Termux `PREFIX/bin` exists; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`) |
 | **Type 1 / Type 2 commands** | **None**. Domain sshd start/stop on Linux may **need a root login**; the CLI does **not** wrap `sudo`. Termux sshd runs as this login. |
@@ -144,7 +144,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | Command | Type | Handler (current) | Required behavior |
 |---------|------|-------------------|-------------------|
 | *(no args — empty argv)* | Type 0 | `app_main` → `inst_maybe_install` / `inst_perform_install` | **Type O install-ensure** (not Type N help): not-installed / local / global; never help; see `requirement-shell-cli-zero-arguments.md` |
-| `install` | Type 0 | `inst_perform_install` | Install binary for current privilege (root→global, user→local); idempotent unless force reinstall |
+| `install` | Type 0 | `inst_perform_install` | Place binary for current privilege (root→global, user→local); **always** run `inst_ensure_companion` (create/modify `~/.bashrc`, create `~/.profile` if absent, Termux `pkg install -y openssh termux-auth`); idempotent unless force reinstall of the binary. Dual mention: `requirement-shell-self-management` (rc) · `requirement-domain-sshd` (pkg) |
 | `version` | Type 0 | `app_main` / `app_version` | Print local version; JSON object when `--json` |
 | `about` | Type 0 | `app_about` | Diagnostics: install presence, global/local paths, user, shell, TTY; JSON when `--json`; **no `CHECKSUM` field** |
 | `version-check` | Type 0 | `ver_check` | Compare local vs remote `VERSION` from `SCRIPT_URL`; fail clearly if URL unset/unreachable |
@@ -180,7 +180,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 
 #### Explicitly out of scope until a new requirement
 
-- Type 1: `prerequisites`, `create-user`, Docker host install, wrapping `sudo` inside this CLI  
+- Type 1: `prerequisites`, `create-user`, Docker host install, wrapping `sudo` inside this CLI, wrapping Linux `apt`/`dnf` (Termux `pkg` on `install` is domain companion, not a Type 1 verb)  
 - Type 2: app ops under a dedicated system user  
 - Domain catalog ownership lives on `requirement-domain-sshd` (this file dual-mentions the verbs)  
 
@@ -255,6 +255,6 @@ This requirement is satisfied for the sshd-cli shell CLI when all of the followi
 
 ---
 
-**Last Updated**: 2026-09-02  
+**Last Updated**: 2026-09-05  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 5, 6, 10, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
