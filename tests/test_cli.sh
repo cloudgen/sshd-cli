@@ -34,21 +34,20 @@ run_test_cli() {
     assert_contains "TP-CLI-03 app field" "$_out" "\"app\":\"${APP_NAME}\""
     assert_contains "TP-CLI-03 version field" "$_out" "\"version\":\"${PRODUCT_VERSION}\""
 
-    # TP-CLI-04 help lists local lifecycle; not online; not trimmed parent domain
+    # TP-CLI-04 help lists Type 0 + sshd domain; not checksum pin; not trimmed parent domain
     _out=$(sh "${SCRIPT}" help 2>/dev/null)
     _ec=$?
     assert_eq "TP-CLI-04 help exit 0" 0 "$_ec"
     assert_contains "TP-CLI-04 help install" "$_out" "install"
-    assert_contains "TP-CLI-04 help uninstall" "$_out" "uninstall"
-    assert_contains "TP-CLI-04 help where-is-me" "$_out" "where-is-me"
+    assert_contains "TP-CLI-04 help self-update" "$_out" "self-update"
+    assert_contains "TP-CLI-04 help self-uninstall" "$_out" "self-uninstall"
+    assert_contains "TP-CLI-04 help version-check" "$_out" "version-check"
+    assert_contains "TP-CLI-04 help status" "$_out" "status"
+    assert_contains "TP-CLI-04 help start" "$_out" "start"
     assert_contains "TP-CLI-04 help --json" "$_out" "--json"
     assert_not_contains "TP-CLI-04 no backup verb" "$_out" "backup <"
     assert_not_contains "TP-CLI-04 no restore verb" "$_out" "restore <"
     assert_not_contains "TP-CLI-04 no print-sudoers" "$_out" "print-sudoers"
-    assert_not_contains "TP-CLI-04 no self-update" "$_out" "self-update"
-    assert_not_contains "TP-CLI-04 no self-uninstall" "$_out" "self-uninstall"
-    assert_not_contains "TP-CLI-04 no version-check" "$_out" "version-check"
-    assert_not_contains "TP-CLI-04 no SCRIPT_URL channel" "$_out" "SCRIPT_URL"
     assert_not_contains "TP-CLI-04 no CHECKSUM" "$_out" "CHECKSUM"
 
     # TP-CLI-05 help json
@@ -66,14 +65,16 @@ run_test_cli() {
     assert_not_contains "TP-CLI-06 no deposit_dir" "$_out" '"deposit_dir"'
     assert_not_contains "TP-CLI-06 no restore_host_default" "$_out" '"restore_host_default"'
     assert_not_contains "TP-CLI-06 no CHECKSUM" "$_out" "CHECKSUM"
-    assert_not_contains "TP-CLI-06 no SCRIPT_URL" "$_out" "SCRIPT_URL"
+    assert_contains "TP-CLI-06 sshd_platform" "$_out" '"sshd_platform"'
 
-    # TP-CLI-07 empty argv = Type N help (not install)
-    _out=$(sh "${SCRIPT}" 2>/dev/null)
+    # TP-CLI-07 empty argv = Type O install-ensure (not help)
+    ci_isolated_env
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" sh "${SCRIPT}" 2>&1)
     _ec=$?
     assert_eq "TP-CLI-07 empty argv exit 0" 0 "$_ec"
-    assert_contains "TP-CLI-07 empty argv is help" "$_out" "Usage:"
-    assert_contains "TP-CLI-07 empty argv mentions Type N or help" "$_out" "help"
+    assert_file_exists "TP-CLI-07 empty argv installed binary" "${CI_USER_BIN}/${APP_NAME}"
+    assert_not_contains "TP-CLI-07 empty argv is not help" "$_out" "Usage:"
+    ci_cleanup_env
 
     # TP-CLI-08 unknown command fail-closed
     _err=$(sh "${SCRIPT}" no-such-command 2>&1 >/dev/null)
@@ -97,13 +98,21 @@ run_test_cli() {
         t_fail "TP-CLI-09 quiet expected empty stdout, got '$(_trunc "$_out")'"
     fi
 
-    # TP-CLI-10 online verbs rejected
+    # TP-CLI-10 online verbs are routed (not unknown); skip network
     _err=$(sh "${SCRIPT}" self-update 2>&1 >/dev/null)
-    assert_eq "TP-CLI-10 self-update exit 1" 1 "$?"
-    assert_contains "TP-CLI-10 self-update unknown" "$_err" "Unknown command"
-
+    _ec=$?
+    if printf '%s' "$_err" | grep -q "Unknown command"; then
+        t_fail "TP-CLI-10 self-update must be a known command"
+    else
+        t_pass "TP-CLI-10 self-update is a known command (exit ${_ec})"
+    fi
     _err=$(sh "${SCRIPT}" version-check 2>&1 >/dev/null)
-    assert_eq "TP-CLI-10 version-check exit 1" 1 "$?"
+    _ec=$?
+    if printf '%s' "$_err" | grep -q "Unknown command"; then
+        t_fail "TP-CLI-10 version-check must be a known command"
+    else
+        t_pass "TP-CLI-10 version-check is a known command (exit ${_ec})"
+    fi
 
     # TP-CLI-11 set -u HOME unset still works for version
     _out=$(env -u HOME sh "${SCRIPT}" version 2>/dev/null)

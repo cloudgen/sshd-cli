@@ -1,4 +1,4 @@
-# Lessons — cli-template
+# Lessons — sshd-cli
 
 Durable failure modes. **Always re-check on product review.**
 

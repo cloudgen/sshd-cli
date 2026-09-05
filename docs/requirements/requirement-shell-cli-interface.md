@@ -1,14 +1,40 @@
 **file**: docs/requirements/requirement-shell-cli-interface.md  
-**Status**: Active (Version 2.0.0)  
-**Area**: shell  
-**Key**: `requirement-shell-cli-interface`  
-**Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
+**Status**: Active (Version 1.1.1)  
+**Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for the **POSIX shell CLI interface** of cli-template: command surface, privilege typing, global flags, dispatcher behavior, help/about contracts, and mode rules.
+This requirement is the **project Single Source of Truth** for the **POSIX shell CLI interface** of the sshd-cli tool: command surface, privilege typing, global flags, dispatcher behavior, output modes, and interactive vs non-interactive rules.
 
-It defines a **Type 0–centric local self-managed shell CLI** with **no domain verbs**. Full lifecycle rules live in `requirement-shell-local-self-management.md`.
+It defines a **Type 0–centric self-managed shell CLI** (install / update / uninstall of the tool itself). It does **not** invent Type 1 host-bootstrap or Type 2 system-user app-ops commands unless a future requirement adds them.
+
+**Scope:** User-facing command names, flags, dispatch, privilege labels, and mode contracts.  
+**Out of scope (own requirements when specialized):** Online-install checksum mechanics detail, self-management safety beyond the command surface, shell coding style, full output-function catalog (cited, not re-owned).
+
+### 1.1 Human-facing
+
+**In one sentence:** This file is the **menu**: which words you type (`version`, `help`, `install`, `self-update`, `self-uninstall`, …), which flags (`--quiet`, `--json`, `--force`), and that **you run those as yourself** — this product does not change the host OS or switch to a dedicated account.
+
+| Box | Meaning | Example |
+|-----|---------|---------|
+| You / this login | The person who types the command | `sshd-cli help` · `sshd-cli version` |
+| The other role | Empty argv (install-ensure) and lifecycle safety | `requirement-shell-cli-zero-arguments.md` · `requirement-shell-self-management.md` |
+| Not this file | Checksum, storage paths, `out_*` internals | Peer requirements |
+
+| Includes | Excludes |
+|----------|----------|
+| Command names, flags, “unknown command” fail | Host package install, dedicated-account app ops |
+| Empty-argv **row** pointing at the zero-arguments file | Re-owning the full Case A/B/C matrix |
+
+| Surface | What you open | What for |
+|---------|---------------|----------|
+| `sshd-cli help` | Command | Listed verbs and flags |
+| `./sshd-cli` | Program file | Dispatcher |
+
+| You do… | What it means | What you type |
+|---------|---------------|---------------|
+| See the menu | Help lists install, version, about, self-update, self-uninstall, and flags. An unknown word is an error, not a silent no-op. | `sshd-cli help` |
+| Ask for JSON | Same verbs; structured objects; no human banners. | `sshd-cli --json version` |
 
 ---
 
@@ -16,122 +42,170 @@ It defines a **Type 0–centric local self-managed shell CLI** with **no domain 
 
 ### 2.1 Command surface (portable shape)
 
-Every command **MUST** map to exactly one privilege type. Unclassified commands are incomplete design.
+Every CIAO-Lite shell CLI **MUST** expose a documented command set. Commands **MUST** map to exactly one privilege type. Unclassified commands are incomplete design.
 
-| Category | Privilege | Meaning |
-|----------|-----------|---------|
-| **Type 0 – CLI lifecycle + diagnostics** | Invoking user | `install`, `uninstall`, `where-is-me`, `version`, `about`, `help` |
-| **Type 1 – Narrow elevated host ops** | Controlled sudo | **Not in scope** |
-| **Type 2 – Dedicated system user app ops** | Dedicated app user | **Not in scope** |
+| Category | Privilege | Meaning | Portable examples |
+|----------|-----------|---------|-------------------|
+| **Type 0 – Self-management / CLI lifecycle** | Invoking user (no elevation required for user-owned install) | Manage the CLI binary and diagnostics | `version`, `about`, `help`, `version-check`, `self-update`, `self-uninstall` |
+| **Type 0 – Install CLI binary** | Invoking user (root → global path; non-root → user path) | First-time or explicit placement of the CLI | `install`; empty argv **Type O install-ensure** (not installed / local / global) — `requirement-shell-cli-zero-arguments.md` |
+| **Type 1 – Host preparation** | Elevated (internal escalation when designed) | Host packages, system user create, Docker engine | *Not in scope for current product surface* |
+| **Type 2 – App ops under system user** | Dedicated least-privilege system user | App install/configure/runtime under app identity | *Not in scope for current product surface* |
+
+**Execution rules (core):**
+
+1. Type 0 commands **MUST** run as the invoker without requiring a dedicated system user.
+2. Type 1 (when added later) **MUST** use controlled internal escalation; normal users **MUST NOT** be forced to manually prefix every privileged sub-step as a permanent UX rule.
+3. Type 2 (when added later) **MUST** run as the dedicated system user (context switch if needed). Mixing Type 1 host bootstrap with Type 2 app toolchain in one command is forbidden (see incident policy under system-user / three-layer privilege terms).
+4. Privilege type for each command **MUST** be documented in help and in this requirement’s Implementation Notes.
 
 ### 2.2 Global flags (portable)
 
 | Flag | Env / state | Behavior |
 |------|-------------|----------|
-| `--quiet`, `-q` | `QUIET=1` | Suppress non-error human output; errors still visible |
-| `--json` | `JSON=1` (implies quiet) | Machine-readable structured output |
-| `--debug` | `DEBUG=1` | Extra diagnostics on stderr; must not break JSON purity on stdout |
-| `--force` | `FORCE=1` / force policy | Skip uninstall confirm or force reinstall only where documented |
-| `--global` | `FORCE_GLOBAL=1` | Install to `GLOBAL_BIN` |
+| `--quiet`, `-q` | `QUIET=1` | Suppress non-error human output; errors and fatal paths still visible |
+| `--json` | `JSON=1` (implies quiet) | Machine-readable structured output; no human banner text |
+| `--debug` | `DEBUG=1` | Extra diagnostics when designed (must not break JSON purity on stdout) |
+| `--force` | Force/reinstall policy vars | Skip safe confirms or force reinstall only where documented; never silent security bypass |
 
 Additional flags **MAY** be added only when documented here (or a superseding requirement) and wired in the dispatcher.
 
-**Forbidden flags (trimmed):** `--allow-test-local`, `--disk`, `--ram` (parent domain / sudoers).
+### 2.3 Dispatcher and entry rules (portable)
 
-### 2.3 Dispatcher and entry rules
+1. **Single entry:** A single main dispatcher (e.g. `app_main`) **MUST** parse global flags and route commands.
+2. **Unknown command:** **MUST** fail loudly with a clear error and pointer to `help` (via output SSOT).
+3. **Zero-arg install-ensure:** Empty argv **MUST** mean install-ensure (not help). Not installed → install (TTY may confirm; non-interactive / quiet / json auto). Already installed (global or local) → success no-op (“already installed”), not help and not blind reinstall. Full contract: `requirement-shell-cli-zero-arguments.md`.
+4. **Idempotent install skip:** Install **MUST** no-op when already installed unless force/reinstall policy is set.
+5. **No raw user I/O:** User-facing messages **MUST** go through the centralized `out_*` system (see output template/term).
 
-1. **Single entry:** `app_main` **MUST** parse global flags and route commands.  
-2. **Unknown command:** **MUST** fail loudly with pointer to `help` (via output SSOT).  
-3. **Empty argv:** **Type N → help** (`requirement-shell-cli-zero-arguments.md`).  
-4. **No raw user I/O:** User-facing messages **MUST** go through `out_*`.  
-5. Script end **MUST** call `app_main "$@"` (no basename gate that blocks dispatch).  
-6. Trimmed parent verbs (`backup`, `restore`, `print-sudoers`, `print-sudoers-install-script`, `remove-project-sudoers`) **MUST** fail as unknown.
+### 2.4 Output and mode contracts (portable)
 
-### 2.4 Help surface
+| Mode | Contract |
+|------|----------|
+| Human (default TTY) | Prefixed messages via `out_*`; colors only when TTY and not quiet/json |
+| Quiet | Suppress info/success/plain noise; still show errors / fatal |
+| JSON | Force quiet; emit structured JSON via `out_json` / `out_json_error`; no mixed human lines on success path |
+| Non-interactive | Never hang on prompts; use safe defaults or `--force`/env policy |
+
+Destructive Type 0 actions (e.g. uninstall) **MUST** confirm when interactive unless force policy is set; non-interactive **MUST NOT** block on stdin.
+
+### 2.5 Help surface (portable)
 
 `help` **MUST** list:
 
 - Usage line  
-- Every supported Type 0 command with one-line purpose  
+- Every supported command with one-line purpose  
+- Privilege category (at least Type 0 vs elevated vs system-user when those exist)  
 - Global flags  
-- Honest note that this product is local-only (no curl\|sh)
 
-In JSON mode, help **MUST NOT** dump long human text; return a short structured success/note object.
+In JSON mode, help **MUST NOT** dump long human text; return a short structured success/note object instead.
 
-`help` **MUST NOT** list backup, restore, or sudoers-file verbs.
+**Recommended help section order** (specializee-friendly; Type 0 bootstrap uses Type 0 first):
 
-### 2.5 Implementation Notes (this project)
+1. Title / short description  
+2. Usage  
+3. **Type 0 self-management** commands  
+4. **Domain commands** (when specialized B has a domain surface; **absent** on bootstrap A)  
+5. Global options  
+6. Environment / channel vars (never `CHECKSUM` on help)
 
-| Item | Value for cli-template |
-|------|-------------------------|
-| **Product / binary name** | `cli-template` (`APP_NAME`) |
-| **Primary executable** | `src/cli-template` (POSIX `/bin/sh`, single-file ship unit) |
-| **Dispatcher** | `app_main` |
+Ship-unit injection anchors (comments in `./sshd-cli`): `DOMAIN_HELP_ROWS`, `DOMAIN_ABOUT_FIELDS`, `DOMAIN_DISPATCH_FLAGS`, `DOMAIN_DISPATCH_COMMANDS`, `DOMAIN_DISPATCH_ROUTES`.
+
+### 2.5.1 Specializee contract (bootstrap origin → specialized B)
+
+When specializing product **B** from this bootstrap (**A → B only**):
+
+| Concern | MUST | MUST NOT |
+|---------|------|----------|
+| **Channel** | B Config defaults `REPO_USER` / `REPO_NAME` / `SCRIPT_URL` for **B’s** product channel | Point B’s default channel at A’s raw URL (or A at B’s) without explicit user order |
+| **Identity** | Retarget `APP_NAME`, descriptions, product `VERSION` on B | Leave B’s `APP_NAME` as the bootstrap parent name |
+| **Output** | All domain user/machine messages via `out_*` (temporary shims → `out_*` OK) | Parallel `echo`/`printf` banners or a second JSON family as product UI |
+| **Host-mutating domain** | Privilege gate (**root** / designed escalation) **before** any host mutation on **every** path (interactive **and** non-interactive) | Non-interactive “success” after partial host writes as non-root |
+| **Dispatch** | Single `app_main`; add domain verbs in the same parse pass as Type 0 | Drop Type 0 routes while claiming same architecture as A |
+| **Help / about** | Keep Type 0 rows; add domain rows/fields at the injection anchors | Replace help entirely with domain-only text |
+| **Requirements retarget** | Rewrite product identity only; keep CIAO / peer URLs (`github.com/cloudgen/ciao`, …) | Bulk `sed` org renames that break philosophy links |
+| **Domain law** | After domain extend: one Active `requirement-domain-*` with four pillars | Domain law only on A; reverse-copy B domain onto A |
+
+### 2.6 Implementation Notes (this project)
+
+| Item | Value for sshd-cli |
+|------|------------------------|
+| **Product / binary name** | `sshd-cli` (`APP_NAME`, default `sshd-cli`) |
+| **Primary executable** | Repo root `./sshd-cli` (POSIX `/bin/sh`, single-file for `curl \| sh`) |
+| **Dispatcher** | `app_main` (always invoked at end of script: `app_main "$@"` — no `${0##*/}` / APP_NAME basename gate; required for `curl \| sh`) |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION="1.0.0"` hard-assign in ship unit |
-| **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`; User: `USER_BIN` default `${HOME}/.local/bin` |
-| **Primary install story** | User bin: `~/.local/bin/cli-template` |
-| **Online channel env** | **Not product UX** (trimmed) |
-| **Type 1 / Type 2 commands** | None |
-| **Dedicated system user** | Not required |
-| **About** | Type 0 only; no domain fields |
+| **Version SSOT** | `VERSION` default `1.0.0` (script header / config block: `VERSION="1.0.0"`) |
+| **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`, or `${PREFIX}/bin` when Termux `PREFIX/bin` exists; User: `USER_BIN` default `${HOME}/.local/bin` |
+| **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`) |
+| **Type 1 / Type 2 commands** | **None**. Domain sshd start/stop on Linux may **need a root login**; the CLI does **not** wrap `sudo`. Termux sshd runs as this login. |
+| **Dedicated system user** | **Not required** for Type 0 CLI self-management |
 
 #### Supported commands (normative for this project)
 
-| Command | Type | Handler family | Required behavior |
-|---------|------|----------------|-------------------|
-| *(no args — empty argv)* | Type 0 | `app_main` → `app_help` | **Type N help** — not install |
-| `install` | Type 0 | `inst_local_install` | Copy running ship unit to privilege-correct bin; idempotent unless `--force` |
-| `uninstall` | Type 0 | `inst_local_uninstall` | Remove managed binary; confirm unless `--force` |
-| `where-is-me` | Type 0 | `app_where_is_me` | Running + install paths + installed flag |
-| `version` | Type 0 | `app_version` | Local `VERSION` only; no network |
-| `about` | Type 0 | `app_about` | Diagnostics: install presence, paths, user, shell, TTY, storage; **no** channel one-liner; **no** backup/sudoers fields |
-| `help` | Type 0 | `app_help` | Full usage in human mode; short JSON note in JSON mode |
+| Command | Type | Handler (current) | Required behavior |
+|---------|------|-------------------|-------------------|
+| *(no args — empty argv)* | Type 0 | `app_main` → `inst_maybe_install` / `inst_perform_install` | **Type O install-ensure** (not Type N help): not-installed / local / global; never help; see `requirement-shell-cli-zero-arguments.md` |
+| `install` | Type 0 | `inst_perform_install` | Install binary for current privilege (root→global, user→local); idempotent unless force reinstall |
+| `version` | Type 0 | `app_main` / `app_version` | Print local version; JSON object when `--json` |
+| `about` | Type 0 | `app_about` | Diagnostics: install presence, global/local paths, user, shell, TTY; JSON when `--json`; **no `CHECKSUM` field** |
+| `version-check` | Type 0 | `ver_check` | Compare local vs remote `VERSION` from `SCRIPT_URL`; fail clearly if URL unset/unreachable |
+| `self-update` | Type 0 | `inst_self_update` | Fetch remote version; reinstall when policy allows; reuse install primitives |
+| `self-uninstall` | Type 0 | `inst_self_uninstall` | Remove managed binary; PATH cleanup only if `~/.local/bin` empty (user installs) |
+| `help` | Type 0 | `app_help` | Full usage in human mode; short JSON note in JSON mode; Environment lists channel vars only — **not** `CHECKSUM` |
+| `status` | Type 0 domain | `sshd_cmd_status` | Show sshd running/port/paths. Dual mention: `requirement-domain-sshd` |
+| `start` | Type 0 domain | `sshd_cmd_start` | Start sshd. Linux system sshd may need root. Dual mention: `requirement-domain-sshd` |
+| `stop` | Type 0 domain | `sshd_cmd_stop` | Stop sshd. Dual mention: `requirement-domain-sshd` |
+| `restart` | Type 0 domain | `sshd_cmd_restart` | Stop then start. Dual mention: `requirement-domain-sshd` |
+| `port` | Type 0 domain | `sshd_cmd_port` | Show or set listen Port. Dual mention: `requirement-domain-sshd` |
+| `config` | Type 0 domain | `sshd_cmd_config` | Show resolved sshd paths and key settings. Dual mention: `requirement-domain-sshd` |
+| `host-keys` | Type 0 domain | `sshd_cmd_host_keys` | List or generate host keys. Dual mention: `requirement-domain-sshd` |
+| `auth-keys` | Type 0 domain | `sshd_cmd_auth_keys` | List or add this login `authorized_keys`. Dual mention: `requirement-domain-sshd` |
+| `menu` / `main` | Type 0 domain | `sshd_cmd_menu` | Numbered domain list on a terminal. Empty argv stays Type O install-ensure. Dual mention: `requirement-domain-sshd` |
 
-#### Global flags (normative wiring)
+#### Global flags (normative wiring for this project)
 
 | Flag | Required wiring |
 |------|-----------------|
-| `--quiet`, `-q` | `QUIET=1` in `app_main` |
-| `--json` | `JSON=1` and `QUIET=1` in `app_main` |
-| `--debug` | `DEBUG=1` in `app_main` |
-| `--force` | `FORCE=1` (and install reinstall policy when applicable) |
-| `--global` | `FORCE_GLOBAL=1` |
+| `--quiet`, `-q` | Set `QUIET=1` in `app_main` |
+| `--json` | Set `JSON=1` and `QUIET=1` in `app_main` |
+| `--debug` | Set `DEBUG=1` in `app_main` |
+| `--force` | Parsed by `app_main` → `FORCE=1` and `FORCE_REINSTALL=1`; used by install reinstall, self-update (incl. deliberate downgrade), and uninstall confirm skip |
 
-#### Dispatcher acceptance criteria
+#### Dispatcher acceptance criteria (this project)
 
-1. Unknown token after flag parse → `out_die` with pointer to `cli-template help`.  
-2. Zero-arg → help (not install).  
-3. Command routing table in `app_main` **must** include every row above and **no** trimmed parent verbs.  
-4. Help text **must** stay aligned with that table.
+1. Unknown token after flag parse → `out_die` with pointer to `sshd-cli help`.  
+2. Zero-arg → install-ensure: not installed → install; already installed (local or global) → already-installed success (not help); failures non-zero.  
+3. Command routing table in `app_main` **must** include every row in the command table above.  
+4. Help text **must** stay aligned with that table (no orphan commands, no listed-but-unrouted commands).  
+5. User-facing strings **must not** use raw `echo`/`printf` outside the `out_*` system (protected low-level helpers excepted only if already CIAO-marked and not for general messages).
 
-#### Explicitly out of scope
+#### Explicitly out of scope until a new requirement
 
-- Online: `version-check`, `self-update`, `self-uninstall`, channel `install` via URL  
-- Domain: `backup`, `restore`  
-- Sudoers-file: `print-sudoers`, `print-sudoers-install-script`, `remove-project-sudoers`  
-- Type 1 host-mutating setup  
-- Type 2 app runtime under a dedicated system user  
+- Type 1: `prerequisites`, `create-user`, Docker host install, wrapping `sudo` inside this CLI  
+- Type 2: app ops under a dedicated system user  
+- Domain catalog ownership lives on `requirement-domain-sshd` (this file dual-mentions the verbs)  
 
-### 2.6 Why This Requirement Exists (Direct CIAO Alignment)
+### 2.7 Why This Requirement Exists (Direct CIAO Alignment)
 
-- **CIAO Principle 1 – Caution**: Unknown commands fail loud; force gates destructive ops.  
-- **CIAO Principle 2 – Intentional**: Every command has one privilege type and one handler family.  
-- **CIAO Principle 5 – Single Source of Output**: Central `out_*`.  
-- **CIAO Principle 6 – Single Point of Entry**: `app_main` is the dispatcher SSOT.  
-- **CIAO Principle 9 – Three Types of Commands**: Type 0 lifecycle only.  
-- **CIAO Principle 10 – Least-Privilege User**: No invented system-user requirement for binary lifecycle.  
-- **CIAO Principle 16 – Interactive vs Non-Interactive**: No hang in non-interactive mode.  
-- **CIAO Principle 4 / 20 – Over-protect**: Protection Rule blocks privilege and UX regressions.
+- **CIAO Principle 1 – Caution** (https://github.com/cloudgen/ciao): Unknown commands fail loud; force and prompts gate destructive ops; quiet/json never hide fatal errors incorrectly.  
+- **CIAO Principle 2 – Intentional** (https://github.com/cloudgen/ciao): Every command has one privilege type, one handler, and documented flags.  
+- **CIAO Principle 3 – Anti-fragile** (https://github.com/cloudgen/ciao): Works under TTY, `curl | sh`, quiet, and JSON; root vs user install paths.  
+- **CIAO Principle 5 – Single Source of Output** and **Principle 14 – Security & Traceability** (https://github.com/cloudgen/ciao): Central `out_*`; JSON/human separation.  
+- **CIAO Principle 6 – Single Point of Entry** (https://github.com/cloudgen/ciao): `app_main` is the dispatcher SSOT.  
+- **CIAO Principle 10 – Least-Privilege User** (https://github.com/cloudgen/ciao): Type 0 default for CLI self-care; no invented system-user requirement for binary lifecycle.  
+- **CIAO Principle 16 – Interactive vs Non-Interactive** (https://github.com/cloudgen/ciao): No hang in non-interactive; prompts only when appropriate.  
+- **CIAO Principle 4 (O) / Principle 20 – Over-protect / Protect Against AI & Human Modification** (https://github.com/cloudgen/ciao): Protection Rule below blocks privilege and UX regressions.
 
 ---
 
 ## 3. Design Principles (CIAO / CIAO-Lite)
 
-- **Caution**: Fail closed on unknown verbs, including trimmed parent verbs.  
-- **Intentional**: Type 0 catalog is the whole product surface.  
-- **Anti-fragile**: Same dispatcher contract as parent.  
-- **Over-protect**: Do not silently restore domain verbs “because the name is cli-template.”
+- **Caution:** Fail loud on bad input; never silent wrong privilege context.  
+- **Intentional:** Command table + help + dispatcher stay synchronized.  
+- **Anti-fragile:** Per-user and global install; network/remote optional until `SCRIPT_URL` set.  
+- **Over-protect:** Do not collapse Type 0/1/2, remove JSON quiet contract, or reintroduce raw output for user messages.  
+- **SSOT:** `APP_NAME` / `VERSION` / flags at config defaults; output via `out_*`; dispatch via `app_main`.  
+- **Idempotency:** Already-installed install path is a no-op unless force reinstall.  
+- **Respect old working logic:** Surgical changes only; preserve Protection Zones and battle-tested install/self-management helpers unless explicitly redesigning.
 
 ---
 
@@ -139,58 +213,48 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 
 **Future AI assistants, Grok, or maintainers MUST NOT**:
 
-1. Add domain or sudoers verbs without a new Active requirement and explicit user order.  
-2. Change empty argv from Type N help to install-ensure.  
-3. Bypass `out_*` for user-facing messages.  
-4. Advertise an online install channel in help/about.  
-5. Collapse Type 1/2 into “just run as root.”
+1. Remove or rename the normative Type 0 commands without updating this requirement and help together.  
+2. Add Type 1 or Type 2 commands that mix host bootstrap with app toolchain in a single privileged install (three-layer privilege: Type 0 tool self-management must stay separate from Type 1 host bootstrap and Type 2 system-user app ops).  
+3. Force manual `sudo` as the only UX for every elevated sub-step when internal escalation is the designed pattern (when Type 1 is introduced).  
+4. Bypass `out_*` with raw user-facing `echo`/`printf` for normal messages.  
+5. Break the contract that `--json` implies quiet and machine-oriented output.  
+6. Drop zero-arg install-ensure for the classic `curl | sh` path (including already-installed success no-op) without an explicit requirement change (`requirement-shell-cli-zero-arguments.md`).  
+7. Document flags in help that the dispatcher does not parse (or leave `--force` documented-only).  
+8. Invent a dedicated system user as mandatory for Type 0 CLI self-management without a specialized architecture requirement.
 
-**Violating this rule is a critical CLI-surface regression.**
-
----
-
-## 5. Acceptance criteria
-
-| ID | Criterion |
-|----|-----------|
-| AC-1 | Help lists install / uninstall / where-is-me / version / about / help |
-| AC-2 | Help and about omit backup / restore / print-sudoers |
-| AC-3 | Unknown and trimmed verbs exit non-zero |
-| AC-4 | Empty argv is help |
+**Violating this rule is a critical CLI interface regression.**
 
 ---
 
-## 6. Related requirements (peer keys only)
+## 5. Definition of done (CLI interface)
 
-| Key | Relationship |
-|-----|--------------|
-| `requirement-shell-cli-zero-arguments` | Empty argv |
-| `requirement-shell-local-self-management` | install / uninstall / where-is-me |
-| `requirement-shell-output-requirements` | `out_*` |
-| `requirement-bootstrap-chain` | Trimmed surfaces |
-| `docs/requirements/index.md` | Registry |
+This requirement is satisfied for the sshd-cli shell CLI when all of the following hold:
 
----
-
-## Design-time verification
-
-| TP family / ID | Suite | Status | Note |
-|----------------|-------|--------|------|
-| **TP-CLI-01..13** | `tests/test_cli.sh` | have | includes stripped-verb fail-closed |
-| **TP-LC-*** | `tests/test_local_lifecycle.sh` | have | lifecycle |
-
-**Matrix:** `reviews/requirement-test-matrix.md`  
-**Map:** `reviews/test-plan.md`
-
-## 7. Status history
-
-| Date | Status | Note |
-|------|--------|------|
-| 2026-08-03 | Active 1.0.0 | folder-backup Type 0 + domain verbs |
-| 2026-08-13 | Active 2.0.0 | cli-template Type 0 only |
+1. Every command in §2.6 is routed and documented.  
+2. Global flags in §2.6 are parsed and honored.  
+3. Output modes match §2.4 (including JSON purity).  
+4. Install privilege paths remain invoker-based (root/global vs user/local).  
+5. No Type 1/2 surface claims exist without matching specialized requirements.  
+6. Protection Rule items are not violated in code or docs.  
+7. Traceability: implementation changes cite this file path / key `requirement-shell-cli-interface`.
 
 ---
 
-**Last Updated**: 2026-08-13  
-**Owner**: project maintainers  
-**Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
+## 6. Related artifacts
+
+| Artifact | Role |
+|----------|------|
+| `docs/requirements/requirement-shell-self-management.md` | Lifecycle command semantics |
+| `docs/requirements/requirement-shell-output-requirements.md` | Output SSOT and channels |
+| `docs/requirements/requirement-shell-interactive-vs-noninteractive.md` | TTY / automation mode behavior |
+| `docs/requirements/requirement-shell-cli-zero-arguments.md` | Empty argv install-ensure (not installed / local / global) |
+| `docs/requirements/requirement-shell-idempotency.md` | Re-run safety for ensure ops |
+| `docs/requirements/requirement-shell-modular-function-design.md` | Prefix ownership (`app_`, `inst_`, `out_*`) |
+| `docs/requirements/index.md` | Registry SSOT |
+| `./sshd-cli` | Implementation under test |
+
+---
+
+**Last Updated**: 2026-09-02  
+**Owner**: sshd-cli project maintainers  
+**Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 5, 6, 10, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

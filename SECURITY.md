@@ -4,37 +4,55 @@
 
 | Version | Supported |
 |---------|-----------|
-| 1.0.0 (current) | Yes |
+| **1.0.0** (current) | Yes — report security issues against this release |
+| Older / unreleased | No public support matrix — prefer current when reporting |
 
 ## Reporting a Vulnerability
 
 Please **do not** open a public issue for security-sensitive reports when a private channel is available.
 
-**Maintainer contact (email):** `wongcf22@gmail.com`
+**Maintainer contact (email):** `cloudgen.wong@gmail.com`
 
 - Source of contact: product **author-email** SSOT in [`LICENSE.md`](./LICENSE.md) (Copyright line).  
-- Prefer email (or private GitHub security advisories when enabled) for vulnerability details, reproduction steps, and impact.  
+- Prefer email for vulnerability details, reproduction steps, and impact.  
+- You should receive an acknowledgment when the report is received and actionable.  
 - Do not include exploit weaponization guides in public channels.
+
+For non-sensitive questions, product usage, or general bugs that are not security-sensitive, use normal project channels (for example public issues on the project repository when available).
 
 ## Security Design Principles (CIAO)
 
-This project follows **[CIAO](https://github.com/cloudgen/ciao)** / **[CIAO-Lite](https://github.com/cloudgen/ciao-lite)** defensive design. Security-relevant intent:
+This project follows **[CIAO](https://github.com/cloudgen/ciao)** / **CIAO-Lite** defensive design. Security-relevant intent:
 
 | Letter | Principle | Security application |
 |--------|-----------|----------------------|
-| **C** | **Caution** | Unknown commands fail closed; install fails loud if the target is not writable. |
-| **I** | **Intentional** | Type 0 lifecycle only; no host-mutating domain; no sudoers-file emit. |
-| **A** | **Anti-fragile** | Isolated scratch (`APP_NAME` + `USERNAME`); atomic install place with mode **0755**. |
-| **O** | **Over-protect** | Protection Zones on `out_*` and install; no online channel UX. |
+| **C** | **Caution** | Assume hostile input and misconfiguration. Validate install paths, checksums, sshd config test (`sshd -t`), and privilege boundaries. |
+| **I** | **Intentional** | Type 0 self-management vs sshd domain verbs are separate. Channel URL (`SCRIPT_URL`) and checksum modes are documented. No in-tool `sudo`. |
+| **A** | **Anti-fragile** | Survive Termux (no systemd) and non-interactive `curl \| sh`. Automatic SHA-256 sidecar when available. |
+| **O** | **Over-protect** | Integrity verify before install/update; never overwrite existing host private keys; fail closed when Linux system paths are not writable. |
 
-Full principles: [CIAO](https://github.com/cloudgen/ciao) · [CIAO-Lite](https://github.com/cloudgen/ciao-lite).
+Full principles: [CIAO Defensive Programming](https://github.com/cloudgen/ciao) · agent contract: [CIAO-Lite](https://github.com/cloudgen/ciao-lite).
 
-This section is **design posture**, not a third-party certification claim.
+This section describes **design posture**. It is **not** a claim of third-party certification.
+
+## Install integrity and trust
+
+This product implements **automatic companion-checksum** on online install and self-update. Operator steps live in [`README.md`](./README.md). Trust posture:
+
+| Fact | Honest statement |
+|------|------------------|
+| **Default path** | Automatic companion `${SCRIPT_URL}.sha256` when `CHECKSUM` is unset — no env pin required for normal install. |
+| **Algorithm** | SHA-256 via `sha256sum`. |
+| **Transparency** | Human mode shows companion **link**, expected **value**, and verification **result** (match / mismatch / missing). |
+| **Mismatch** | Abort — do not install mismatched bytes. |
+| **Missing sidecar** | Warning, then continue (not “always verified”). |
+| **Optional pin** | Process-env `CHECKSUM` is **secondary** (CI / out-of-band freeze). Same-origin pin is **not** stronger than automatic mode. Not listed in `help` / `about`. |
+| **Trust bound** | Same-channel SHA-256 proves **byte consistency**. It is not independent authenticity (signing) by itself. |
+| **Forbidden** | Embedding the digest of `./sshd-cli` *inside* `./sshd-cli`. |
 
 ## Scope notes
 
-- This product does **not** emit or install `/etc/sudoers.d` fragments.  
-- This product does **not** write under `/var/backup` or restore archives.  
-- Uninstall removes only the managed binary.  
-- Local `~/.local/bin` install is user-rewritable; prefer global install on multi-user hosts when a shared CLI is desired.  
-- Related docs: [`README.md`](./README.md), [`LICENSE.md`](./LICENSE.md).
+- Preferred language for reports: English.  
+- Out of scope: social engineering of third parties, physical attacks, spam.  
+- Domain: `auth-keys list` prints **public** key lines by design; never print private keys.  
+- Related product docs: [`README.md`](./README.md), [`LICENSE.md`](./LICENSE.md), [`CHANGELOG.md`](./CHANGELOG.md).

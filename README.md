@@ -1,120 +1,171 @@
-# cli-template - Type 0 self-managed CLI template (local and global install)
+# sshd-cli - Simplify Termux to install sshd
 
 ![Version](https://img.shields.io/badge/Version-1.0.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
-[![Stars](https://img.shields.io/github/stars/cloudgen/cli-template?style=flat-square)](https://github.com/cloudgen/cli-template)
+[![Stars](https://img.shields.io/github/stars/cloudgen/sshd-cli?style=flat-square)](https://github.com/cloudgen/sshd-cli)
 
-**cli-template** is a small POSIX `/bin/sh` program you copy from this repository and install into a bin directory so a normal login can run `install`, `uninstall`, `where-is-me`, `version`, `about`, and `help` without becoming root and without downloading from the network.
+**sshd-cli** makes it simple on **Termux** to install and run OpenSSH **sshd**. One program, one login, no systemd.
 
 | You | The other role | Not this |
 |-----|----------------|----------|
-| A normal login placing the CLI in `~/.local/bin` (or asking root to place it in `/usr/local/bin`) | A root login using `sudo … install` so every user can run the same binary | A host-OS manager, backup/restore tool, sudoers emitter, or online `curl\|sh` installer |
+| A Termux login that wants SSH *into* this phone | OpenSSH `sshd` and its files under `$PREFIX/etc/ssh` | A systemd unit editor, a `sudo` wrapper, or an SSH *client* session helper |
 
-**Includes / excludes:** Includes **where** the binary is placed (user bin and system bin). Excludes online install, OS `setup`, packages, `/etc`, backup/restore, and sudoers-file emit. This product is the bootstrap origin for that local CLI pattern (no live parent).
-
-**Practice:**
+| Includes | Excludes |
+|----------|----------|
+| Install this helper, then start sshd (Termux often listens on **8022**) | Wrapping `sudo` inside the CLI |
+| Host keys and this login’s `authorized_keys` | Dropbear-only hosts; `pkg`/`apt` inside the CLI; firewall changes |
 
 | Step | What it means | What you type |
 |------|---------------|---------------|
-| Install (your bin) | Copies the script to `~/.local/bin/cli-template` so your login can run it. Does not fetch a URL. | `sh src/cli-template install` |
-| Install (everyone) | Same bytes into `/usr/local/bin/cli-template`, mode `0755`, so other users can run it. Needs write access to that directory. | `sudo sh src/cli-template install` |
-| No arguments | Prints help. Does not install and does not start a review. | `cli-template` |
+| Install the helper | Puts `sshd-cli` on your PATH so later sshd steps are one command. | `curl -fsSL https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli \| sh` |
+| Install OpenSSH on Termux | Termux does not ship `sshd` until you ask. | `pkg install openssh` |
+| Start sshd | Listens so a laptop can connect. Default Termux port is often **8022**. | `sshd-cli start` then `ssh -p 8022 user@host` |
+
+Runtime version SSOT: `VERSION="1.0.0"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
 
 ## Features
 
-- **Self-management**: `install`, `uninstall`, `where-is-me`, `version`, `about`, `help` (user-bin **and** system-bin place/remove)
-- **Empty argv shows help**: running with no arguments prints help (it does not install)
-- **Managed binary mode 0755**: global install stays readable and runnable for every user
-- **Fail-closed**: unknown commands (including verbs this template does not ship) exit non-zero
-- **CIAO / CIAO-Lite** defensive design (Protection Zones, `out_*` output SSOT)
+- Defensive design under **CIAO v2.10.*** — Protection Zones, centralized `out_*`, fail-closed install integrity
+- Single-file script for direct execution and online install (`curl | sh` / `wget`)
+- User vs global install (`~/.local/bin`; `/usr/local/bin` or Termux `$PREFIX/bin`)
+- Empty argv = **install-ensure** (not help): not installed → install; already installed → success no-op unless `--force`
+- Purpose: **simplify Termux to install sshd** (`status`, `start`, `stop`, `restart`, `port`, `config`, `host-keys`, `auth-keys`)
+- Termux-first paths (`PREFIX`); Linux system sshd is a second home and asks for a **root login** instead of wrapping `sudo`
+- Numbered **menu** of domain commands on a terminal (`sshd-cli menu`) — empty argv stays install-ensure
+- Automatic SHA-256 companion `${SCRIPT_URL}.sha256` on online install / self-update
 
 ## Quick Installation
 
-**Local (Type 0 day-to-day):**
+### Online (recommended)
+
+**Per-user (non-root):**
 
 ```sh
-# From this repository checkout
-sh src/cli-template install
-# or force refresh after updates
-sh src/cli-template install --force
-
-# Ensure ~/.local/bin is on PATH, then:
-cli-template version
+curl -fsSL https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli | sh
 ```
 
-**Global (multi-user hosts):**
+**System-wide (root / elevated):**
 
 ```sh
-sudo sh src/cli-template install
-# or: cli-template install --global   # needs write access to /usr/local/bin
-# Managed binary mode is always 0755 so every user can run the shell ship unit.
+sudo curl -fsSL https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli | sudo sh
 ```
 
-This product is **local-only** for its install channel (no default `SCRIPT_URL` online install). Global vs local here means install *location*, not an online channel.
+Then verify:
 
-**Source repository:** [cloudgen/cli-template](https://github.com/cloudgen/cli-template)  
-Config identity: `REPO_USER=cloudgen`, `REPO_NAME=cli-template` (override with env if needed; does not enable online install while `SCRIPT_URL` is empty).
+```sh
+sshd-cli about
+sshd-cli status
+```
+
+### Integrity (automatic checksum)
+
+The program downloads the companion digest **itself**. You do **not** set `CHECKSUM` for normal online install or self-update.
+
+| Mode | When | Algorithm | What happens |
+|------|------|-----------|--------------|
+| **Automatic (default)** | `CHECKSUM` **unset** | **SHA-256** via `sha256sum` | Fetch `${SCRIPT_URL}.sha256`. Human mode shows companion **link**, expected **value**, and **result**. **Match** → continue. **Mismatch** → **abort**. **Sidecar missing** → **warning**, continue. |
+| **Strict pin (optional)** | `CHECKSUM` set to an out-of-band hex digest | **SHA-256** | Must match the pin; mismatch aborts. CI / freeze only. |
+
+Default companion:
+
+```text
+https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli.sha256
+```
+
+In this repository the companion file is **`sshd-cli.sha256`**. Same-channel SHA-256 proves **consistency** of the two files on that channel; it is not a substitute for signed releases.
+
+### From a local checkout
+
+```sh
+chmod +x ./sshd-cli
+./sshd-cli install
+sshd-cli about
+```
+
+On Termux, install OpenSSH first if you do not have `sshd` yet:
+
+```sh
+pkg install openssh
+```
+
+After install, on a terminal (`menu` — empty argv still means install-ensure):
+
+```text
+$ sshd-cli menu
+[INFO] **sshd-cli**(*1.0.0*)
+1. Show sshd status: running, port, and paths
+2. Start sshd: launch the OpenSSH daemon
+3. Stop sshd: end the running daemon
+4. Restart sshd: stop then start
+5. Show listen port: print Port from sshd_config
+6. Show sshd config: paths and key settings
+7. List host keys: files under the host-key folder
+8. List login keys: this login authorized_keys
+9. Exit
+Choose a number, or type the command name:
+```
+
+Choose a number, or type the command name. `9` exits.
 
 ## Usage
 
 ```sh
-cli-template help
-cli-template about
-cli-template --json about
-
-cli-template install
-cli-template where-is-me
-cli-template uninstall --force
+sshd-cli help
+sshd-cli version
+sshd-cli about
+sshd-cli status
+sshd-cli start
+sshd-cli stop
+sshd-cli port
+sshd-cli port 8022
+sshd-cli host-keys generate
+sshd-cli auth-keys add ./laptop.pub
+sshd-cli menu
 ```
 
-**Environment (selected):**
+Self-management (inherited Type 0): `install`, `version-check`, `self-update`, `self-uninstall`.
 
-| Variable | Role |
-|----------|------|
-| `REPO_USER` | Git host owner (default `cloudgen`) |
-| `REPO_NAME` | Git repository name (default `cli-template`) |
-| `SCRIPT_URL` | Online install channel (default **empty** — local only) |
-| `USER_BIN` | Per-user install destination (default `~/.local/bin`) |
-| `GLOBAL_BIN` | Global install destination (default `/usr/local/bin`) |
+Global flags: `--quiet` / `-q`, `--json`, `--debug`, `--force`.
 
 ## Examples
 
 ```sh
-# Local install (user bin)
-sh src/cli-template install
+# See whether sshd is running (Termux often listens on 8022)
+sshd-cli status
 
-# Global install (system bin)
-sudo sh src/cli-template install
+# Start it, then connect from a laptop
+sshd-cli start
+ssh -p 8022 "$(id -un)"@192.0.2.10
 
-# Diagnostics
-cli-template about
-cli-template --json version
+# Allow a laptop public key
+sshd-cli auth-keys add ./laptop.pub
 ```
+
+`--json` prints machine objects (`sshd-cli --json status`).
 
 ## Platform Compatibility
 
 | Platform | Status |
 |----------|--------|
-| Linux, `/bin/sh` (dash/bash) | Supported |
-| `mktemp`, `date` | Required |
-| macOS / BSD | Not primary; GNU `stat`/`sed -E` assumptions may differ |
+| Termux (Android, OpenSSH via `pkg install openssh`) | Primary target |
+| POSIX Linux with OpenSSH server | Supported; system sshd start/stop/port/host-keys need a **root login** |
+| Other UNIX with `/bin/sh`, `sha256sum`, `mktemp` | Type 0 install should work; sshd paths follow POSIX defaults |
 
 ## Related Projects
 
-- [selfmanaged](https://github.com/cloudgen/selfmanaged) — related Type 0 product (online channel); **not** this product’s origin
-- [folder-backup](https://github.com/cloudgen/folder-backup) — related product (backup/restore/sudoers); **not** this product’s origin
-- [CIAO Defensive Programming](https://github.com/cloudgen/ciao)
-- [CIAO-Lite](https://github.com/cloudgen/ciao-lite)
+- [selfmanaged](https://github.com/cloudgen/selfmanaged) — bootstrap origin (Type 0 install/self-maintenance)
+- [CIAO](https://github.com/cloudgen/ciao) — defensive programming philosophy
+- [CIAO-Lite](https://github.com/cloudgen/ciao-lite) — agent contract
 
 ## Contributing
 
-Keep changes surgical. Honor **CIAO-Lite Protection Zones** in `src/cli-template`. Product behavior must stay consistent with live `docs/requirements/requirement-*.md`. Run `sh tests/run.sh` before proposing commits.
+Keep CIAO Protection Zones. Do not reverse-copy this product onto `selfmanaged`. Run `./tests/run.sh` before claiming a change done. Product law lives under `docs/requirements/`.
 
 ## License
 
-MIT License — see [`LICENSE.md`](./LICENSE.md).
+MIT. See [`LICENSE.md`](./LICENSE.md). Copyright (c) 2026 Cloudgen Wong.
 
 ## Last Update
 
-2026-08-19 — version **1.0.0** (bootstrap origin; forge **cloudgen/cli-template**; author-email **wongcf22@gmail.com**; Description voice).
+2026-09-05 — 1.0.0: purpose is to simplify Termux to install sshd; GitHub home `cloudgen/sshd-cli`.

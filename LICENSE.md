@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 cloudgen <wongcf22@gmail.com>
+Copyright (c) 2026 Cloudgen Wong <cloudgen.wong@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

@@ -1,6 +1,6 @@
 #!/bin/sh
 # =============================================================================
-# tests/run.sh — CI entrypoint for cli-template
+# tests/run.sh — CI entrypoint for sshd-cli
 # =============================================================================
 #
 # GENERAL PURPOSE:
@@ -18,9 +18,9 @@ set -u
 TESTS_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "${TESTS_ROOT}/.." && pwd)
 export TESTS_ROOT REPO_ROOT
-SCRIPT="${REPO_ROOT}/src/cli-template"
+SCRIPT="${REPO_ROOT}/src/sshd-cli"
 export SCRIPT
-APP_NAME="cli-template"
+APP_NAME="sshd-cli"
 export APP_NAME
 
 # shellcheck source=helpers.sh
@@ -39,7 +39,7 @@ _cleanup() {
 }
 trap _cleanup EXIT INT HUP TERM
 
-printf 'cli-template CI tests\n'
+printf 'sshd-cli CI tests\n'
 printf 'script: %s\n' "${SCRIPT}"
 
 if [ ! -f "${SCRIPT}" ]; then

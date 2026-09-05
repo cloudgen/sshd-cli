@@ -1,11 +1,11 @@
-# Test plan — cli-template
+# Test plan — sshd-cli
 
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
-**Ship unit:** `src/cli-template`  
+**Ship unit:** `src/sshd-cli`  
 **Product VERSION:** 1.0.0  
 **Last plan update:** 2026-08-13  
-**Last suite run:** PASS=82 FAIL=0 SKIP=0 (2026-08-19)
+**Last suite run:** PASS=79 FAIL=0 SKIP=0 (2026-09-05)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -17,7 +17,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 |------|--------|----------|
 | Syntax `sh -n` | have | TP-CLI-01 |
 | version / help / about human + JSON | have | TP-CLI-02..06 |
-| Type N empty argv = help | have | TP-CLI-07 |
+| Type O empty argv = install-ensure | have | TP-CLI-07 |
 | Unknown + quiet + set -u HOME | have | TP-CLI-08..11 |
 | Storage isolation | have | TP-CLI-12 |
 | No online verbs / no SCRIPT_URL UX | have | TP-CLI-04, TP-CLI-10 |

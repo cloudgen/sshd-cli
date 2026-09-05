@@ -1,21 +1,22 @@
-# Requirement ↔ test matrix — cli-template
+# Requirement ↔ test matrix — sshd-cli
 
-**Updated:** 2026-08-13  
+**Updated:** 2026-09-05  
 **Product VERSION:** 1.0.0  
 **Suite:** `tests/run.sh`
 
 | Requirement key | Area | TP families | Coverage notes |
 |-----------------|------|-------------|----------------|
-| requirement-class-software-dev | class | TP-CLI-01, TP-CLI-11 | Syntax + stack residual; no online package |
-| requirement-bootstrap-chain | architecture | TP-CLI-04, TP-CLI-10, TP-CLI-13 | Online and domain/backup surfaces absent |
-| requirement-project-folder | architecture | TP-LC-01 | src ship unit + user bin |
-| requirement-shell-cli-interface | shell | TP-CLI-* | Commands, flags, dispatch |
-| requirement-shell-cli-zero-arguments | shell | TP-CLI-07 | Type N help |
-| requirement-shell-local-self-management | shell | TP-LC-* (incl. **09/10** mode) | install/uninstall/where-is-me; **0755** |
+| requirement-class-software-dev | class | TP-CLI-01, TP-CLI-11 | Syntax + posix-sh stack |
+| requirement-shell-cli-interface | shell | TP-CLI-* | Commands, flags, dispatch; domain verbs in help |
+| requirement-shell-cli-zero-arguments | shell | TP-CLI-07 | Type O install-ensure |
+| requirement-shell-self-management | shell | TP-LC-* (incl. **09/10** mode) | install / self-uninstall; **0755** |
 | requirement-shell-output-requirements | shell | TP-CLI-03,05,08,09 | JSON / quiet / errors |
-| requirement-shell-modular-function-design | shell | (indirect) | no `fb_*`; `app_main` / `out_*` |
+| requirement-shell-modular-function-design | shell | (indirect) | `sshd_*` domain prefix; `app_main` / `out_*` |
 | requirement-shell-idempotency | shell | TP-LC-03,07 | Re-install / uninstall absent |
-| requirement-shell-interactive-vs-noninteractive | shell | TP-LC-05 | Uninstall confirm |
+| requirement-shell-interactive-vs-noninteractive | shell | TP-LC-05 | self-uninstall confirm |
 | requirement-shell-cli-storage | shell | TP-CLI-12 | Isolation |
+| requirement-shell-automatic-checksum | shell | TP-LC-01 | Companion path on install (file:// in CI) |
+| requirement-domain-sshd | domain | TP-CLI-04, TP-CLI-06 | help domain rows; about `sshd_platform` |
+| requirement-shell-script-coding | shell | TP-CLI-01, TP-CLI-11 | `sh -n`; `set -u` with HOME unset |
 
-**Absent by design (no TP Core):** online-install, remote self-management, automatic channel checksum, folder-archive backup/restore, sudoers-file emit, domain surface.
+**Absent by design (no TP Core):** folder-archive backup/restore, sudoers-file emit, systemd unit files.

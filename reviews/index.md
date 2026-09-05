@@ -1,4 +1,4 @@
-# Review reports index — cli-template
+# Review reports index — sshd-cli
 
 | Date | Report | Scope | Verdict | Suite |
 |------|--------|-------|---------|-------|
