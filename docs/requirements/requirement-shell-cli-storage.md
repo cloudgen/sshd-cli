@@ -1,13 +1,13 @@
 **file**: docs/requirements/requirement-shell-cli-storage.md  
-**Status**: Active (Version 1.0.1 – sshd-cli storage wire)  
+**Status**: Active (Version 1.0.3)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for **shell CLI storage resolution** of the sshd-cli POSIX `/bin/sh` Type 0 bootstrap CLI: volatile scratch and app-scoped cache path selection, per-user isolation, central resolver ownership, `app_main` wire, and about diagnostics.
+This file is the single home for **where scratch and cache live** for a run of `sshd-cli`: one per-user folder, one resolver, wired from `app_main` and shown on `about`.
 
 **Scope:** Resolve priority chain; isolation; `util_resolve_storage` contract; `EFFECTIVE_STORAGE_DIR` / `TMPDIR` export; about human + JSON fields.  
-**Out of scope (cited, not re-owned):** Binary install paths (`USER_BIN` / `GLOBAL_BIN`); domain project trees (none on this bootstrap product); companion checksum; PATH shell-rc.
+**Out of scope (cited, not re-owned):** Binary install paths (`USER_BIN` / `GLOBAL_BIN`); domain project trees (sshd-cli does not keep a separate project tree; only scratch/cache); companion checksum; PATH shell-rc.
 
 ### 1.1 Human-facing
 
@@ -21,7 +21,7 @@ This requirement is the **project Single Source of Truth** for **shell CLI stora
 
 | Includes | Excludes |
 |----------|----------|
-| One resolver; `about` fields for the chosen path | Domain project trees (this bootstrap has none) |
+| One resolver; `about` fields for the chosen path | Domain project trees (sshd-cli does not keep a separate project tree; only scratch/cache) |
 | Temp downloads under that root | Hard-coded `/tmp/sshd-cli` dumps |
 
 | Surface | What you open | What for |
@@ -98,6 +98,23 @@ First match that is available and writable:
 
 ---
 
+## Under command line for normal user only
+
+When the ship unit detects a **command line for normal user only** (Termux, Git Bash, Windows cmd, or the same class):
+
+| MUST | MUST NOT |
+|------|----------|
+| Keep **normal user privilege** (Type 0) only | Implement or enable **admin privilege** (Type 1) or **dedicated system user privilege** (Type 2) |
+| Document Type 1 **unused** and Type 2 **unused** | In-tool `sudo`; wrap `apt` / `dnf` / `yum`; create a dedicated system user |
+| Termux: named `pkg` as this login remains Type 0 | Recommend `sudo curl \| sh` as the install path |
+| Git Bash / Windows cmd: same privilege ceiling | Invoke Termux `pkg` because Git Bash or Windows cmd was detected |
+
+Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface` · `requirement-shell-termux-ish`.
+
+**This requirement:** scratch/cache resolve stays this-login (`$PREFIX` / user cache); **MUST NOT** write `/etc` dests or Type 2 homes.
+
+---
+
 ## 4. Protection Rule (Sacred)
 
 **Future AI assistants, Grok, or maintainers MUST NOT**:
@@ -109,6 +126,7 @@ First match that is available and writable:
 5. Echo a tier path **without** creating it (or without fail-closed create).  
 6. Bypass Output SSOT for storage failure messages.  
 7. Put CHECKSUM in about storage diagnostics.  
+8. Strip the **Under command line for normal user only** section, or resolve scratch into `/etc` on that class.  
 
 **Violating this rule is a critical storage isolation regression.**
 
@@ -142,6 +160,6 @@ Storage resolve work for sshd-cli is **not done** if any of the following fail:
 
 ---
 
-**Last Updated**: 2026-09-02  
+**Last Updated**: 2026-09-05  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 4, 5, 11, 19, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

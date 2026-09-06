@@ -1,12 +1,12 @@
 **file**: docs/requirements/requirement-shell-interactive-vs-noninteractive.md  
-**Status**: Active (Version 1.2.0)  
+**Status**: Active (Version 1.2.1)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
 
 This requirement is the **project Single Source of Truth** for how the sshd-cli **POSIX shell CLI** behaves in **interactive** (human + TTY) versus **non-interactive** (automation, `curl | sh`, CI/CD, pipes, `--json` / often `--quiet`) environments.
 
-It defines interactive vs non-interactive behavior for this shell project (global flags + `prompt_*` + TTY detection—not a Node Config singleton).
+It defines when `sshd-cli` may **ask** (real terminal) versus when it **must not wait** (pipe, CI, `--json` / `--quiet`). Mode lives in shell globals (`TTY`, `QUIET`, `JSON`) and `prompt_*` — not a second checker in every helper.
 
 **Scope:** Mode detection signals, prompt policy, auto-install vs confirm, force/skip rules, interaction with quiet/json/debug and output SSOT.  
 **Out of scope (cited, not re-owned):** Full command catalog (`requirement-shell-cli-interface.md`); output function catalog (`requirement-shell-output-requirements.md`); self-update integrity (`requirement-shell-self-management.md`); idempotency matrix (`requirement-shell-idempotency.md`).
@@ -143,7 +143,7 @@ interactive   non-interactive
 | **Flag parse SSOT** | `app_main` |
 | **Prompt SSOT** | `prompt_yes_no`, `prompt_ask` |
 | **Output SSOT** | `out_*` (`requirement-shell-output-requirements.md`) |
-| **No Node Config singleton** | Shell globals + helpers are the mode SSOT for this project |
+| **Mode SSOT** | Shell globals + helpers (`TTY` / `QUIET` / `JSON`); not a second checker in every helper |
 
 #### Command-level interactive matrix (normative)
 
@@ -249,6 +249,23 @@ This dual policy is intentional: **pipe / quiet / json first-install proceeds**;
 
 ---
 
+## Under command line for normal user only
+
+When the ship unit detects a **command line for normal user only** (Termux, Git Bash, Windows cmd, or the same class):
+
+| MUST | MUST NOT |
+|------|----------|
+| Keep **normal user privilege** (Type 0) only | Implement or enable **admin privilege** (Type 1) or **dedicated system user privilege** (Type 2) |
+| Document Type 1 **unused** and Type 2 **unused** | In-tool `sudo`; wrap `apt` / `dnf` / `yum`; create a dedicated system user |
+| Termux: named `pkg` as this login remains Type 0 | Recommend `sudo curl \| sh` as the install path |
+| Git Bash / Windows cmd: same privilege ceiling | Invoke Termux `pkg` because Git Bash or Windows cmd was detected |
+
+Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface` · `requirement-shell-termux-ish`.
+
+**This requirement:** `inst_maybe_install` **MUST NOT** recommend `sudo curl | sh`; **MUST NOT** open a Type 1 password-sudo ladder on that class.
+
+---
+
 ## 4. Protection Rule (Sacred)
 
 **Future AI assistants, Grok, or maintainers MUST NOT**:
@@ -263,7 +280,8 @@ This dual policy is intentional: **pipe / quiet / json first-install proceeds**;
 8. Scatter ad-hoc TTY/mode logic that contradicts the global flag SSOT and `prompt_*` contracts.  
 9. Hardcode project-specific secrets or release URLs into prompt strings.  
 10. Let `inst_maybe_install` return success under `--quiet` / `--json` without calling `inst_perform_install` when the program is not installed.  
-11. Re-test `[ -t 0 ]` / `[ -t 1 ]` inside helpers as the sole interactive gate; helpers **MUST** consume process `TTY`.
+11. Re-test `[ -t 0 ]` / `[ -t 1 ]` inside helpers as the sole interactive gate; helpers **MUST** consume process `TTY`.  
+12. Strip the **Under command line for normal user only** section, or recommend `sudo curl | sh` / Type 1 sudo on that class.
 
 **Supporting non-interactive environments cleanly is mandatory for CIAO compliance.**
 

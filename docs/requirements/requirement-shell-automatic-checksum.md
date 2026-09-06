@@ -167,7 +167,7 @@ When this requirement is **Active** for the product:
 | Show companion **link** in human mode | **Implemented** (2026-07-14) — `Companion link: ${SCRIPT_URL}.sha256` |
 | Show expected **value** and **result** (pass/fail with digests) | **Implemented** (2026-07-14) — Expected/Actual SHA-256 lines + `Automatic checksum result: PASS` (or mismatch abort with digests) |
 | `downloaded_checksum_ok` on automatic match | **Implemented** (2026-07-14) — `INST_AUTO_CHECKSUM_OK=1` on companion match; atomic install can report “cryptographically verified” |
-| README leads with automatic mode | **Mostly present**; must not reintroduce env-first pin as primary (product root `README.md` integrity story) |
+| README leads with automatic mode | **Present** in product `README.md` § Integrity (automatic checksum) |
 | `help` / `about` omit `CHECKSUM` | **Implemented** in `app_help` (no Environment line); `app_about` never listed it |
 | Same-origin CHECKSUM example as “highest assurance” | **Must not** — document as advanced/out-of-band only |
 
@@ -225,6 +225,18 @@ Integrity work for sshd-cli is **not done** if any of the following fail:
 
 ---
 
+### Design-time verification
+
+| TP family / ID | Suite | Status |
+|----------------|-------|--------|
+| **TP-CLI-04** / **TP-CLI-06** help/about omit `CHECKSUM` | `tests/test_cli.sh` | have |
+| **TP-CSUM-01** install path prints companion **link**; match → PASS or missing sidecar → warn+continue (file://, no public network) | `tests/test_local_lifecycle.sh` | have |
+
+**Matrix:** `reviews/requirement-test-matrix.md`  
+**Map:** `reviews/test-plan.md`
+
+---
+
 ## 6. Related (versioned requirements surface only)
 
 | Artifact | Role |
@@ -249,6 +261,6 @@ Integrity work for sshd-cli is **not done** if any of the following fail:
 
 ---
 
-**Last Updated**: 2026-09-02  
+**Last Updated**: 2026-09-06  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 5, 14, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

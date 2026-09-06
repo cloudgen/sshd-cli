@@ -1,10 +1,12 @@
 **file**: docs/requirements/requirement-shell-cli-zero-arguments.md  
-**Status**: Active (Version 1.3.0)  
+**Status**: Active (Version 1.3.2)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for **zero-argument (empty argv) dispatcher behavior** of the sshd-cli POSIX `/bin/sh` Type 0 CLI.
+When you run `sshd-cli` with **nothing after the name**, a **terminal** opens the numbered sshd list; a **pipe** (`curl … | sh`) installs the program (or says it is already there). It must not print help.
+
+Catalog: interactive empty argv → menu; non-interactive → Type O install-ensure (not Type N help).
 
 ### 1.0 Product type (template dual-model)
 
@@ -183,7 +185,7 @@ Empty-argv quiet/json in `app_main` is **not** a license for the helper to no-op
 | **Force wiring** | `--force` → `FORCE=1` and `FORCE_REINSTALL=1` in `app_main` |
 | **Output SSOT** | `out_success` / `out_info` / `out_json` / errors via `out_*` |
 | **Channel** | `SCRIPT_URL` (compose from `REPO_USER` / `REPO_NAME` / `APP_NAME`) for download path inside install |
-| **Tests** | `tests/test_cli.sh` (Case A failure when not installed); `tests/test_install_lifecycle.sh` (Case B local + Case C global already-installed → not help; **TP-LC-10** / **TP-INST-MAYBE-01** helper under QUIET/JSON). |
+| **Tests** | `tests/test_cli.sh` (**TP-CLI-07** non-TTY empty argv; **TP-CLI-14** TTY menu); `tests/test_local_lifecycle.sh` (**TP-LC-10** mode heal `0711` → `0755`; quiet/json empty argv still places). |
 
 #### Dispatcher algorithm (normative sketch)
 
@@ -232,6 +234,23 @@ app_main:
 
 ---
 
+## Under command line for normal user only
+
+When the ship unit detects a **command line for normal user only** (Termux, Git Bash, Windows cmd, or the same class):
+
+| MUST | MUST NOT |
+|------|----------|
+| Keep **normal user privilege** (Type 0) only | Implement or enable **admin privilege** (Type 1) or **dedicated system user privilege** (Type 2) |
+| Document Type 1 **unused** and Type 2 **unused** | In-tool `sudo`; wrap `apt` / `dnf` / `yum`; create a dedicated system user |
+| Termux: named `pkg` as this login remains Type 0 | Recommend `sudo curl \| sh` as the install path |
+| Git Bash / Windows cmd: same privilege ceiling | Invoke Termux `pkg` because Git Bash or Windows cmd was detected |
+
+Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface` · `requirement-shell-termux-ish`.
+
+**This requirement:** Type O empty-argv install-ensure stays Type 0 (this-login place + Termux `pkg` companion); **MUST NOT** become a sudo/apt install path.
+
+---
+
 ## 4. Protection Rule (Sacred)
 
 **Future AI assistants, Grok, or maintainers MUST NOT**:
@@ -247,7 +266,8 @@ app_main:
 8. Bypass `out_*` for empty-argv user messages.  
 9. Contradict this file in peer requirements by documenting “already installed → help” as normative empty-argv behavior.  
 10. Let `inst_maybe_install` return success under quiet/json when Case A should place the binary (silent skip). Empty-argv bypass in `app_main` does **not** excuse a helper that no-ops.  
-11. Copy this helper into a specialized product as Case A SSOT while keeping a quiet/json `return 0` without `inst_perform_install`.
+11. Copy this helper into a specialized product as Case A SSOT while keeping a quiet/json `return 0` without `inst_perform_install`.  
+12. Strip the **Under command line for normal user only** section, or turn empty-argv ensure into a Type 1 install on that class.
 
 **Violating this rule is a critical zero-arg / online-install regression.**
 
@@ -265,7 +285,7 @@ This requirement is satisfied when all of the following hold:
 5. `--force` only for deliberate reinstall; not required for ensure.  
 6. `help` works when invoked explicitly.  
 7. Tests cover Case A failure (not installed, bad channel) and already-installed not-help for local (Case B) and global (Case C).  
-8. **TP-LC-10** / **TP-INST-MAYBE-01:** not installed + QUIET/JSON through `inst_maybe_install` places or fail closed.  
+8. **TP-CLI-07:** not installed + QUIET/JSON empty argv places or fail closed (not a silent `return 0`).  
 9. Changes cite `requirement-shell-cli-zero-arguments`.
 
 ### Design-time verification
@@ -274,7 +294,7 @@ This requirement is satisfied when all of the following hold:
 |----------------|-------|--------|
 | **TP-CLI-07** non-interactive empty argv install-ensure | `tests/test_cli.sh` | have |
 | **TP-CLI-14** interactive empty argv menu | `tests/test_cli.sh` | have |
-| **TP-LC-10** / **TP-INST-MAYBE-01** | `tests/test_local_lifecycle.sh` | have |
+| **TP-LC-01** / **TP-LC-03** already-installed no-op | `tests/test_local_lifecycle.sh` | have |
 
 **Map:** `reviews/test-plan.md`
 
@@ -292,7 +312,7 @@ This requirement is satisfied when all of the following hold:
 | `docs/requirements/requirement-shell-output-requirements.md` | out_* / JSON purity |
 | `docs/requirements/requirement-shell-automatic-checksum.md` | Integrity on install download path |
 | Repo root `./sshd-cli` | Implementation (`app_main`, `inst_*`) |
-| `tests/test_cli.sh`, `tests/test_install_lifecycle.sh` | Regression coverage |
+| `tests/test_cli.sh`, `tests/test_local_lifecycle.sh` | Regression coverage |
 
 ---
 
@@ -302,12 +322,14 @@ This requirement is satisfied when all of the following hold:
 |------|--------|----------------|
 | 2026-07-14 | Initial Active v1.0.0: empty argv = install-ensure for not-installed / local / global; forbid help fallthrough | Grok (owner request) |
 | 2026-07-14 | v1.1.0: Classify product as Type O (online-install) under dual-type empty-argv template model | Grok |
-| 2026-08-11 | v1.2.0: Specializee contract — empty argv stays Type O; domain setup uses explicit verbs; test GLOBAL_BIN isolation | Grok (gitlab-nginx specialize reflection) |
+| 2026-08-11 | v1.2.0: Specializee contract — empty argv stays Type O; domain setup uses explicit verbs; test GLOBAL_BIN isolation | Grok |
 | 2026-09-05 | v1.3.0: Interactive empty argv → domain menu; non-interactive empty argv stays Type O install-ensure | Grok (owner request) |
+| 2026-09-05 | v1.3.1: Section **Under command line for normal user only** (Type O ensure stays Type 0 on Termux/Git Bash) | Grok (owner request) |
+| 2026-09-06 | v1.3.2: People-language Purpose; DTV points at live `tests/test_local_lifecycle.sh` (drop ghost `test_install_lifecycle.sh` / `TP-INST-MAYBE-01`) | Grok |
 
 ---
 
-**Last Updated**: 2026-09-05  
+**Last Updated**: 2026-09-06  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 6, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
 

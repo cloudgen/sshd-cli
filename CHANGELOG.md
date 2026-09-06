@@ -5,6 +5,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] - 2026-09-06
+
+### Added
+
+- Named law `requirement-shell-termux-ish` (Termux `pkg` detect/invoke; Git Bash and Windows cmd are the same this-login-only class).
+- Tests **TP-LC-18** / **TP-LC-19** (Git Bash / Windows cmd mock: `pkg` not invoked) and **TP-CSUM-01** (companion link on install).
+
+### Changed
+
+- Help heading is “Self-management (this login)” — not a Type 0 catalog line. `menu` help names the `main` alias.
+- README and requirement leads use people language. POSIX Linux root install is the same one-liner **as root**; Termux / Git Bash / Windows cmd are not told to use `sudo curl | sh`.
+- Coverage maps (`reviews/test-plan.md`, `what-to-review.md`, RTM) match live tests: this product **has** an online channel; empty argv is TTY menu / non-TTY install-ensure.
+
+### Fixed
+
+- Idempotency practice no longer treats a second bare `sshd-cli` on a terminal as “already installed” (that path is the menu).
+- Ghost citations removed (`requirement-bootstrap-chain`, `tests/test_install_lifecycle.sh`, `TP-INST-MAYBE-01`).
+
 ## [1.4.0] - 2026-09-05
 
 ### Added

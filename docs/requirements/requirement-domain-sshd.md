@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.4.0)  
+**Status**: Active (Version 1.4.2)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -23,7 +23,7 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 | Includes | Excludes |
 |----------|----------|
 | status / start / stop / restart / port / config / host-keys / auth-keys / menu | Wrapping `sudo` inside this CLI; systemd unit files; SSH *client* session mux |
-| Termux `pkg install openssh termux-auth` as a companion of `install` | Wrapping `apt` / `dnf` on POSIX Linux |
+| Termux `pkg install openssh termux-auth` as a companion of `install` (names + start after; invoke contract on `requirement-shell-termux-ish`) | Wrapping `apt` / `dnf` on POSIX Linux |
 | Termux user-level sshd and Linux system sshd with a root login | Inventing a dedicated `sshd-adm` account; auto-running `passwd` |
 
 | Surface | What you open | What for |
@@ -65,7 +65,7 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 
 ### 2.1.1 Install companion packages (Termux)
 
-`install` and **non-interactive** empty-argv install-ensure **MUST** call domain helper `sshd_pkg_ensure` (via `inst_ensure_companion`) **before** the already-installed binary no-op. After the CLI binary is placed **or** the already-installed no-op, **MUST** start sshd (`sshd_start_after_install` → `sshd_cmd_start`). Dual mention: `requirement-shell-cli-interface` (`install` row) and `requirement-shell-self-management` (orchestrator). Interactive empty argv is the menu and **MUST NOT** run package ensure or auto-start as a side effect.
+`install` and **non-interactive** empty-argv install-ensure **MUST** call domain helper `sshd_pkg_ensure` (via `inst_ensure_companion`) **before** the already-installed binary no-op. After the CLI binary is placed **or** the already-installed no-op, **MUST** start sshd (`sshd_start_after_install` → `sshd_cmd_start`). Dual mention: `requirement-shell-termux-ish` (detect / invoke contract), `requirement-shell-cli-interface` (`install` row), and `requirement-shell-self-management` (orchestrator). Interactive empty argv is the menu and **MUST NOT** run package ensure or auto-start as a side effect.
 
 | After CLI place | MUST | MUST NOT |
 |-----------------|------|----------|
@@ -180,7 +180,7 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 
 | Item | Value |
 |------|--------|
-| Product | `sshd-cli` 1.4.0 |
+| Product | `sshd-cli` 1.4.1 |
 | Bootstrap origin | `selfmanaged` 1.2.3 (architecture + Type 0 only; A untouched) |
 | Domain prefix | `sshd_*` |
 | Channel | `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli` |
@@ -206,6 +206,21 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 - **Anti-fragile**: Works when systemd is absent (Termux).  
 - **Over-protect**: Never overwrite host private keys; never `$()` a `read` helper for `menu`.
 
+## Under command line for normal user only
+
+When the ship unit detects a **command line for normal user only** (Termux, Git Bash, Windows cmd, or the same class):
+
+| MUST | MUST NOT |
+|------|----------|
+| Keep **normal user privilege** (Type 0) only | Implement or enable **admin privilege** (Type 1) or **dedicated system user privilege** (Type 2) |
+| Document Type 1 **unused** and Type 2 **unused** | In-tool `sudo`; wrap `apt` / `dnf` / `yum`; create a dedicated system user |
+| Termux: named `pkg` as this login remains Type 0 | Recommend `sudo curl \| sh` as the install path |
+| Git Bash / Windows cmd: same privilege ceiling | Invoke Termux `pkg` because Git Bash or Windows cmd was detected |
+
+Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface` · `requirement-shell-termux-ish`.
+
+**This requirement:** `start` / `stop` / `restart` run as this login; Linux **root login** for system sshd is **not** this class (Termux / Git Bash / Windows cmd have no in-tool sudo). **MUST NOT** invent a dedicated `sshd-adm` account.
+
 ## 4. Protection Rule (Sacred)
 
 **Future AI assistants or maintainers MUST NOT**:
@@ -218,17 +233,20 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 6. Lead help/about with Type 0/Type 1 jargon as the only words.  
 7. Echo secret key **private** material (public key lines on `auth-keys list` are intended).  
 8. Skip Termux `pkg install -y openssh termux-auth` on `install` / empty-argv ensure, or wrap `apt` on Linux in its place.  
+8b. List wrapping Termux `pkg` as a domain **non-goal**, or empty a stated Termux sshd purpose with a portable “do not wrap package managers” habit.  
 9. Auto-run `passwd` or print a password.  
 10. Number `port` / `config` / `host-keys` / `auth-keys` as menu rows 5–8.  
 11. Freeze a session Unix login or a literal LAN IP into product law as the connect example.  
 12. Print `<this-host>` or any other placeholder as the ssh host on `status` / `start`.  
-13. Finish Termux `install` without starting sshd, or fail POSIX CLI install only because system sshd needs root.
+13. Finish Termux `install` without starting sshd, or fail POSIX CLI install only because system sshd needs root.  
+14. Strip the **Under command line for normal user only** section, or wrap `sudo` / create `sshd-adm` on that class.
 
 ## 5. Related artifacts (versioned surface only)
 
 | Artifact | Role |
 |----------|------|
 | `docs/requirements/index.md` | Registry SSOT |
+| `docs/requirements/requirement-shell-termux-ish.md` | Detect / `pkg` invoke contract; not Type 1 |
 | `docs/requirements/requirement-shell-cli-interface.md` | Dual mention of domain verbs and `install` companion |
 | `docs/requirements/requirement-shell-self-management.md` | `inst_ensure_companion` orchestrator; login rc |
 | `docs/requirements/requirement-shell-cli-zero-arguments.md` | Interactive empty argv = this menu; non-interactive = install-ensure |

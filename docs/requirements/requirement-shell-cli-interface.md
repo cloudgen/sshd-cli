@@ -1,19 +1,19 @@
 **file**: docs/requirements/requirement-shell-cli-interface.md  
-**Status**: Active (Version 1.3.0)  
+**Status**: Active (Version 1.4.1)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
 
 This requirement is the **project Single Source of Truth** for the **POSIX shell CLI interface** of the sshd-cli tool: command surface, privilege typing, global flags, dispatcher behavior, output modes, and interactive vs non-interactive rules.
 
-It defines a **Type 0–centric self-managed shell CLI** (install / update / uninstall of the tool itself). It does **not** invent Type 1 host-bootstrap or Type 2 system-user app-ops commands unless a future requirement adds them.
+It defines a **normal user privilege** (workshop **Type 0**) **self-managed shell CLI** (install / update / uninstall of the tool itself). It does **not** invent **admin privilege** (Type 1) host-bootstrap or **dedicated system user privilege** (Type 2) app-ops commands unless a future requirement adds them.
 
 **Scope:** User-facing command names, flags, dispatch, privilege labels, and mode contracts.  
 **Out of scope (own requirements when specialized):** Online-install checksum mechanics detail, self-management safety beyond the command surface, shell coding style, full output-function catalog (cited, not re-owned).
 
 ### 1.1 Human-facing
 
-**In one sentence:** This file is the **menu**: which words you type (`version`, `help`, `install`, `self-update`, `self-uninstall`, …), which flags (`--quiet`, `--json`, `--force`), and that **you run those as yourself** — this product does not change the host OS or switch to a dedicated account.
+**In one sentence:** This file lists the **words you type** (`version`, `help`, `install`, `status`, `start`, …), the flags (`--quiet`, `--json`, `--force`), and that **you run them as this login** — no in-tool `sudo`, no dedicated `sshd-adm` account.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
@@ -46,16 +46,16 @@ Every CIAO-Lite shell CLI **MUST** expose a documented command set. Commands **M
 
 | Category | Privilege | Meaning | Portable examples |
 |----------|-----------|---------|-------------------|
-| **Type 0 – Self-management / CLI lifecycle** | Invoking user (no elevation required for user-owned install) | Manage the CLI binary and diagnostics | `version`, `about`, `help`, `version-check`, `self-update`, `self-uninstall` |
-| **Type 0 – Install CLI binary** | Invoking user (root → global path; non-root → user path) | First-time or explicit placement of the CLI | `install`; **non-interactive** empty argv **Type O install-ensure** — `requirement-shell-cli-zero-arguments.md` |
-| **Type 1 – Host preparation** | Elevated (internal escalation when designed) | Host packages, system user create, Docker engine | *Not in scope for current product surface* |
-| **Type 2 – App ops under system user** | Dedicated least-privilege system user | App install/configure/runtime under app identity | *Not in scope for current product surface* |
+| **Type 0 – Normal user privilege – Self-management / CLI lifecycle** | Invoking user (no elevation required for user-owned install) | Manage the CLI binary and diagnostics | `version`, `about`, `help`, `version-check`, `self-update`, `self-uninstall` |
+| **Type 0 – Normal user privilege – Install CLI binary** | Invoking user (root → global path; non-root → user path) | First-time or explicit placement of the CLI | `install`; **non-interactive** empty argv **Type O install-ensure** — `requirement-shell-cli-zero-arguments.md` |
+| **Type 1 – Admin privilege – Host preparation** | Elevated (internal escalation when designed) | Host packages, system user create, Docker engine | *Unused on this product. On a command line for normal user only (Termux, Git Bash, Windows cmd) MUST stay unused — do not implement/enable.* |
+| **Type 2 – Dedicated system user privilege – App ops under system user** | Dedicated least-privilege system user | App install/configure/runtime under app identity | *Unused on this product. On a command line for normal user only (Termux, Git Bash, Windows cmd) MUST stay unused — do not implement/enable.* |
 
 **Execution rules (core):**
 
 1. Type 0 commands **MUST** run as the invoker without requiring a dedicated system user.
-2. Type 1 (when added later) **MUST** use controlled internal escalation; normal users **MUST NOT** be forced to manually prefix every privileged sub-step as a permanent UX rule.
-3. Type 2 (when added later) **MUST** run as the dedicated system user (context switch if needed). Mixing Type 1 host bootstrap with Type 2 app toolchain in one command is forbidden (see incident policy under system-user / three-layer privilege terms).
+2. Type 1 and Type 2 are **unused** on this product. **MUST NOT** add Type 1 or Type 2 verbs without a new requirement.
+3. When the ship unit detects a **command line for normal user only** (Termux, Git Bash, Windows cmd): Type 1 and Type 2 **MUST** stay unused. **MUST NOT** implement or enable in-tool `sudo`, wrap `apt`/`dnf`/`yum`, create a dedicated system user, or recommend `sudo curl | sh` as the install path. Helpers: `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-termux-ish` (Termux detect / `pkg`).
 4. Privilege type for each command **MUST** be documented in help and in this requirement’s Implementation Notes.
 
 ### 2.2 Global flags (portable)
@@ -133,11 +133,12 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | **Primary executable** | Repo root `./sshd-cli` (POSIX `/bin/sh`, single-file for `curl \| sh`) |
 | **Dispatcher** | `app_main` (always invoked at end of script: `app_main "$@"` — no `${0##*/}` / APP_NAME basename gate; required for `curl \| sh`) |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION` default `1.4.0` (script header / config block: `VERSION="1.4.0"`) |
+| **Version SSOT** | `VERSION` default `1.4.1` (script header / config block: `VERSION="1.4.1"`) |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`, or `${PREFIX}/bin` when Termux `PREFIX/bin` exists; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`) |
-| **Type 1 / Type 2 commands** | **None**. Domain sshd start/stop on Linux may **need a root login**; the CLI does **not** wrap `sudo`. Termux sshd runs as this login. |
-| **Dedicated system user** | **Not required** for Type 0 CLI self-management |
+| **Type 1 / Type 2 commands** | **None**. Domain sshd start/stop on Linux may **need a root login**; the CLI does **not** wrap `sudo`. Termux, Git Bash, and Windows cmd are a **command line for normal user only**: Type 1/2 stay unused; sshd on Termux runs as this login. |
+| **Dedicated system user** | **Not required**. **MUST NOT** enable on Termux, Git Bash, or Windows cmd. |
+| **Normal-user-only CLI detect** | `sshd_is_normal_user_only_cli` = Termux **or** Git Bash **or** Windows cmd |
 
 #### Supported commands (normative for this project)
 
@@ -159,7 +160,22 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | `config` | Type 0 domain | `sshd_cmd_config` | Show resolved sshd paths and key settings. Dual mention: `requirement-domain-sshd` |
 | `host-keys` | Type 0 domain | `sshd_cmd_host_keys` | List or generate host keys. Dual mention: `requirement-domain-sshd` |
 | `auth-keys` | Type 0 domain | `sshd_cmd_auth_keys` | List or add this login `authorized_keys`. Dual mention: `requirement-domain-sshd` |
-| `menu` / `main` | Type 0 domain | `sshd_cmd_menu` | Numbered domain list on a terminal. Same handler as interactive empty argv. Dual mention: `requirement-domain-sshd` |
+| `menu` / `main` | Type 0 domain | `sshd_cmd_menu` | Numbered domain list on a terminal (`main` is an unlisted alias of `menu`). Same handler as interactive empty argv. Dual mention: `requirement-domain-sshd` |
+
+#### Dual mention (CI-M1 — this project)
+
+Every routed verb is named **here** and on a topic-owner. Help/`app_help` is **not** the second mention.
+
+| Verb | Topic-owner | Sample on owner |
+|------|-------------|-----------------|
+| empty argv | `requirement-shell-cli-zero-arguments` | `sshd-cli` (TTY menu / pipe install-ensure) |
+| `install` | `requirement-shell-self-management` · `requirement-domain-sshd` · `requirement-shell-termux-ish` | `sshd-cli install` |
+| `version` | `requirement-shell-output-requirements` | `sshd-cli version` |
+| `about` | `requirement-shell-self-management` · `requirement-shell-cli-storage` | `sshd-cli about` |
+| `help` | `requirement-shell-cli-zero-arguments` · `requirement-shell-automatic-checksum` | `sshd-cli help` |
+| `version-check` / `self-update` / `self-uninstall` | `requirement-shell-self-management` | `sshd-cli version-check` |
+| `status` / `start` / `stop` / `restart` / `port` / `config` / `host-keys` / `auth-keys` / `menu` | `requirement-domain-sshd` | `sshd-cli status` |
+| `main` | `requirement-domain-sshd` | alias of `menu` (help names the alias; type `menu`) |
 
 #### Global flags (normative wiring for this project)
 
@@ -180,8 +196,8 @@ When specializing product **B** from this bootstrap (**A → B only**):
 
 #### Explicitly out of scope until a new requirement
 
-- Type 1: `prerequisites`, `create-user`, Docker host install, wrapping `sudo` inside this CLI, wrapping Linux `apt`/`dnf` (Termux `pkg` on `install` is domain companion, not a Type 1 verb)  
-- Type 2: app ops under a dedicated system user  
+- Type 1: `prerequisites`, `create-user`, Docker host install, wrapping `sudo` inside this CLI, wrapping Linux `apt`/`dnf` (Termux `pkg` on `install` is the Termux-ish companion — `requirement-shell-termux-ish` — not a Type 1 verb). On Termux, Git Bash, or Windows cmd these **MUST NOT** be enabled.  
+- Type 2: app ops under a dedicated system user. On Termux, Git Bash, or Windows cmd **MUST NOT** be enabled.  
 - Domain catalog ownership lives on `requirement-domain-sshd` (this file dual-mentions the verbs)  
 
 ### 2.7 Why This Requirement Exists (Direct CIAO Alignment)
@@ -209,6 +225,23 @@ When specializing product **B** from this bootstrap (**A → B only**):
 
 ---
 
+## Under command line for normal user only
+
+When the ship unit detects a **command line for normal user only** (Termux, Git Bash, Windows cmd, or the same class):
+
+| MUST | MUST NOT |
+|------|----------|
+| Keep **normal user privilege** (Type 0) only | Implement or enable **admin privilege** (Type 1) or **dedicated system user privilege** (Type 2) |
+| Document Type 1 **unused** and Type 2 **unused** | In-tool `sudo`; wrap `apt` / `dnf` / `yum`; create a dedicated system user |
+| Termux: named `pkg` as this login remains Type 0 | Recommend `sudo curl \| sh` as the install path |
+| Git Bash / Windows cmd: same privilege ceiling | Invoke Termux `pkg` because Git Bash or Windows cmd was detected |
+
+Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-termux-ish`.
+
+**This requirement:** the command table Type 1 / Type 2 rows stay unused; detect lives in the dispatcher helpers; **MUST NOT** add Type 1 or Type 2 verbs on this class.
+
+---
+
 ## 4. Protection Rule (Sacred)
 
 **Future AI assistants, Grok, or maintainers MUST NOT**:
@@ -220,7 +253,10 @@ When specializing product **B** from this bootstrap (**A → B only**):
 5. Break the contract that `--json` implies quiet and machine-oriented output.  
 6. Drop **non-interactive** zero-arg install-ensure for the classic `curl | sh` path (including already-installed success no-op) without an explicit requirement change (`requirement-shell-cli-zero-arguments.md`). **MUST NOT** send a pipe empty argv to the TTY menu.  
 7. Document flags in help that the dispatcher does not parse (or leave `--force` documented-only).  
-8. Invent a dedicated system user as mandatory for Type 0 CLI self-management without a specialized architecture requirement.
+8. Invent a dedicated system user as mandatory for Type 0 CLI self-management without a specialized architecture requirement.  
+9. Implement or enable Type 1 (**admin privilege**) or Type 2 (**dedicated system user privilege**) when Termux, Git Bash, or Windows cmd is detected (command line for normal user only).  
+10. Recommend `sudo curl | sh` or wrap `sudo` on that class.  
+11. Strip the **Under command line for normal user only** section.
 
 **Violating this rule is a critical CLI interface regression.**
 
@@ -250,6 +286,7 @@ This requirement is satisfied for the sshd-cli shell CLI when all of the followi
 | `docs/requirements/requirement-shell-cli-zero-arguments.md` | Empty argv: TTY menu / non-TTY install-ensure |
 | `docs/requirements/requirement-shell-idempotency.md` | Re-run safety for ensure ops |
 | `docs/requirements/requirement-shell-modular-function-design.md` | Prefix ownership (`app_`, `inst_`, `out_*`) |
+| `docs/requirements/requirement-shell-termux-ish.md` | Termux detect / `pkg`; Git Bash is same privilege class |
 | `docs/requirements/index.md` | Registry SSOT |
 | `./sshd-cli` | Implementation under test |
 

@@ -2,8 +2,9 @@
 # tests/test_local_lifecycle.sh — local install / uninstall / where-is-me
 # =============================================================================
 # Primary REQs: requirement-shell-self-management, requirement-shell-idempotency,
-# requirement-shell-interactive-vs-noninteractive
-# TP family: TP-LC-*
+# requirement-shell-interactive-vs-noninteractive, requirement-shell-termux-ish,
+# requirement-shell-automatic-checksum (TP-CSUM-01)
+# TP family: TP-LC-* / TP-CSUM-01
 # =============================================================================
 
 # shellcheck source=helpers.sh
@@ -22,6 +23,17 @@ run_test_local_lifecycle() {
     assert_eq "TP-LC-01 install exit 0" 0 "$_ec"
     assert_file_exists "TP-LC-01 binary at USER_BIN" "${CI_USER_BIN}/${APP_NAME}"
     assert_contains "TP-LC-01 install success text" "$_out" "successfully installed"
+
+    # TP-CSUM-01 automatic companion path on first install (file://; no public network)
+    assert_contains "TP-CSUM-01 companion link" "$_out" "Companion link:"
+    if printf '%s' "$_out" | grep -q "Automatic checksum result: PASS"; then
+        t_pass "TP-CSUM-01 automatic checksum PASS or missing-sidecar warn"
+    elif printf '%s' "$_out" | grep -q "continuing without automatic verification"; then
+        t_pass "TP-CSUM-01 automatic checksum PASS or missing-sidecar warn"
+    else
+        t_fail "TP-CSUM-01 expected PASS or missing-sidecar warn (got '$(_trunc "${_out}")')"
+    fi
+    assert_not_contains "TP-CSUM-01 no mismatch abort" "$_out" "Checksum verification failed"
 
     # TP-LC-11 install creates ~/.bashrc with USER_BIN PATH
     assert_file_exists "TP-LC-11 created ~/.bashrc" "${CI_HOME}/.bashrc"
@@ -168,6 +180,30 @@ EOF
     else
         t_fail "TP-LC-17 stub sshd pid is live"
     fi
+    HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" sh "${CI_USER_BIN}/${APP_NAME}" self-uninstall --force >/dev/null 2>&1 || true
+    ci_cleanup_env
+
+    # TP-LC-18 Git Bash mock: command line for normal user only — pkg not invoked
+    ci_isolated_env
+    mkdir -p "${CI_HOME}/stubbin"
+    printf '%s\n' '#!/bin/sh' "echo CALLED >> \"${CI_HOME}/pkg-called.log\"" 'exit 1' > "${CI_HOME}/stubbin/pkg"
+    chmod +x "${CI_HOME}/stubbin/pkg"
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" PATH="${CI_HOME}/stubbin:${PATH}" env -u TERMUX_VERSION MSYSTEM=MINGW64 sh "${SCRIPT}" install 2>&1)
+    _ec=$?
+    assert_eq "TP-LC-18 Git Bash mock install exit 0" 0 "$_ec"
+    assert_file_missing "TP-LC-18 pkg not called on Git Bash" "${CI_HOME}/pkg-called.log"
+    HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" sh "${CI_USER_BIN}/${APP_NAME}" self-uninstall --force >/dev/null 2>&1 || true
+    ci_cleanup_env
+
+    # TP-LC-19 Windows cmd mock: command line for normal user only — pkg not invoked
+    ci_isolated_env
+    mkdir -p "${CI_HOME}/stubbin"
+    printf '%s\n' '#!/bin/sh' "echo CALLED >> \"${CI_HOME}/pkg-called.log\"" 'exit 1' > "${CI_HOME}/stubbin/pkg"
+    chmod +x "${CI_HOME}/stubbin/pkg"
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" PATH="${CI_HOME}/stubbin:${PATH}" env -u TERMUX_VERSION -u MSYSTEM -u WSL_DISTRO_NAME OS=Windows_NT COMSPEC='C:\\Windows\\system32\\cmd.exe' sh "${SCRIPT}" install 2>&1)
+    _ec=$?
+    assert_eq "TP-LC-19 Windows cmd mock install exit 0" 0 "$_ec"
+    assert_file_missing "TP-LC-19 pkg not called on Windows cmd" "${CI_HOME}/pkg-called.log"
     HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" sh "${CI_USER_BIN}/${APP_NAME}" self-uninstall --force >/dev/null 2>&1 || true
     ci_cleanup_env
 }

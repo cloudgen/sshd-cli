@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-modular-function-design.md  
-**Status**: Active (Version 1.1.0)  
+**Status**: Active (Version 1.1.1)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -67,12 +67,12 @@ Optional multi-file layout under `src/` for future authoring **MAY** exist only 
 | `ver_` | Version comparison | Semantic version handling | `ver_gt`, `ver_check` |
 | `path_` | Shell PATH & environment | PATH manipulation and shell config (bashrc/profile) | `path_add_shell`, `path_add_bashrc`, `path_ensure_profile` |
 | `prompt_` | Interactive prompts | TTY-safe confirmations and questions | `prompt_yes_no`, `prompt_ask` |
-| `{{APP_NAME}}_` | Domain / product business logic | Product-specific ops (start, configure, deploy) | *None required until domain ops exist* |
+| `sshd_` | Domain / product business logic | OpenSSH sshd verbs and Termux detect | `sshd_cmd_start`, `sshd_pkg_ensure`, `sshd_is_termux` |
 
 **`app_*` vs domain prefix:**
 
 - **`app_*`** — cross-cutting CLI surface every shell CLI needs (main, help, about, version routing).  
-- **`{{APP_NAME}}_*`** (or a short domain stem, e.g. `gln_`, `gs_`, `timer_`) — domain business logic only.  
+- **`sshd_*`** — domain business logic only (OpenSSH sshd + Termux detect).  
 - Do **not** put domain ops under `app_*`.  
 - Do **not** put generic about/help/main under the domain prefix unless a specialized requirement explicitly requires product-prefixed aliases.
 
@@ -154,7 +154,7 @@ function_name() {
 | CLI entry / dispatch | `app_*` | Single dispatcher; no second parallel main |
 | Interactive confirm | `prompt_*` | Single source for yes/no; non-interactive safe behavior |
 | Backup / storage resolve | `util_*` | Reusable; no domain-specific hardcodes as universal law |
-| Domain product ops | `{{APP_NAME}}_*` | Only when product ops exist |
+| Domain product ops | `sshd_*` | OpenSSH sshd verbs and Termux-ish detect |
 
 ### 2.5 Surgical change and reuse rules (portable)
 
@@ -185,7 +185,7 @@ function_name() {
 | `util_` | `util_json_escape`, `util_sha256_file`, `util_fetch_remote_version`, `util_get_install_bin_path`, `util_backup`, `util_resolve_storage` (**wired** from `app_main` / `app_about`; SSOT: `requirement-shell-cli-storage.md`), `util_get_current_shell` |
 | `prompt_` | `prompt_ask`, `prompt_yes_no` |
 | `app_` | `app_about`, `app_version` (dispatcher routes `version` here), `app_help`, `app_main` |
-| `sshd_` | `sshd_is_termux`, `sshd_resolve`, `sshd_pkg_ensure`, `sshd_start_after_install`, `sshd_ifconfig_ipv4`, `sshd_lan_ipv4`, `sshd_connect_cmd`, `sshd_cmd_status` / `start` / `stop` / `restart` / `port` / `config` / `host_keys` / `auth_keys` / `menu` |
+| `sshd_` | `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`, `sshd_resolve`, `sshd_pkg_ensure`, `sshd_start_after_install`, `sshd_ifconfig_ipv4`, `sshd_lan_ipv4`, `sshd_connect_cmd`, `sshd_cmd_status` / `start` / `stop` / `restart` / `port` / `config` / `host_keys` / `auth_keys` / `menu` |
 
 #### Structural notes (implementation status)
 
@@ -232,6 +232,23 @@ When adding a function to `./sshd-cli`:
 
 ---
 
+## Under command line for normal user only
+
+When the ship unit detects a **command line for normal user only** (Termux, Git Bash, Windows cmd, or the same class):
+
+| MUST | MUST NOT |
+|------|----------|
+| Keep **normal user privilege** (Type 0) only | Implement or enable **admin privilege** (Type 1) or **dedicated system user privilege** (Type 2) |
+| Document Type 1 **unused** and Type 2 **unused** | In-tool `sudo`; wrap `apt` / `dnf` / `yum`; create a dedicated system user |
+| Termux: named `pkg` as this login remains Type 0 | Recommend `sudo curl \| sh` as the install path |
+| Git Bash / Windows cmd: same privilege ceiling | Invoke Termux `pkg` because Git Bash or Windows cmd was detected |
+
+Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface` · `requirement-shell-termux-ish`.
+
+**This requirement:** class-detect helpers live under `sshd_*`; **MUST NOT** add a `util_sudo` family on that class.
+
+---
+
 ## 4. Protection Rule (Sacred)
 
 **Future AI assistants, Grok, or maintainers MUST NOT**:
@@ -245,7 +262,8 @@ When adding a function to `./sshd-cli`:
 7. Remove or weaken safe variable defaults at the top of functions.  
 8. Introduce a second parallel dispatcher or a second install/update orchestrator “for clarity.”  
 9. Leave duplicate function definitions with the same name as intentional design.  
-10. Cite `template-*.md` or `skill-*.md` in product source as behavioral authority, or invent missing `requirement-*.md` paths in headers (§2.3.1).
+10. Cite `template-*.md` or `skill-*.md` in product source as behavioral authority, or invent missing `requirement-*.md` paths in headers (§2.3.1).  
+11. Strip the **Under command line for normal user only** section, or add a sudo-wrap prefix family on that class.
 
 **Modularity is prefixes + documentation + boundaries — not multi-file sprawl for the installable artifact.**
 

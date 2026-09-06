@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-script-coding.md  
-**Status**: Active (Version 1.0.0)  
+**Status**: Active (Version 1.1.0)  
 **Area**: shell  
 **Key**: `requirement-shell-script-coding`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -71,6 +71,21 @@ This is the **coding-style related requirement** for sshd-cli (POSIX `/bin/sh`).
 - **Anti-fragile**: No global `set -e`.  
 - **Over-protect**: Do not capture `read` in `$()`.
 
+## Under command line for normal user only
+
+When the ship unit detects a **command line for normal user only** (Termux, Git Bash, Windows cmd, or the same class):
+
+| MUST | MUST NOT |
+|------|----------|
+| Keep **normal user privilege** (Type 0) only | Implement or enable **admin privilege** (Type 1) or **dedicated system user privilege** (Type 2) |
+| Document Type 1 **unused** and Type 2 **unused** | In-tool `sudo`; wrap `apt` / `dnf` / `yum`; create a dedicated system user |
+| Termux: named `pkg` as this login remains Type 0 | Recommend `sudo curl \| sh` as the install path |
+| Git Bash / Windows cmd: same privilege ceiling | Invoke Termux `pkg` because Git Bash or Windows cmd was detected |
+
+Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface` · `requirement-shell-termux-ish`.
+
+**This requirement:** no sudo-wrapping function; detect helpers stay `sshd_*`; **MUST NOT** add `util_sudo` because a Type 1 ladder exists on other products.
+
 ## 4. Protection Rule (Sacred)
 
 **Future AI assistants or maintainers MUST NOT**:
@@ -78,7 +93,8 @@ This is the **coding-style related requirement** for sshd-cli (POSIX `/bin/sh`).
 1. Delete this file while the workspace is software-development.  
 2. Treat coding skills as product law because this file is missing.  
 3. `$()` a `prompt_*` helper for new TTY choice code.  
-4. Duplicate the full output or install tables here.
+4. Duplicate the full output or install tables here.  
+5. Strip the **Under command line for normal user only** section, or add in-tool `sudo` on that class.
 
 ## 5. Related artifacts (versioned surface only)
 
@@ -90,6 +106,6 @@ This is the **coding-style related requirement** for sshd-cli (POSIX `/bin/sh`).
 | `docs/requirements/requirement-class-software-dev.md` | Residual points here |
 | `./sshd-cli` | Implementation |
 
-**Last Updated**: 2026-09-04  
+**Last Updated**: 2026-09-05  
 **Owner**: Cloudgen Wong  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

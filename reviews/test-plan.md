@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.4.0  
-**Last plan update:** 2026-09-05  
-**Last suite run:** PASS=114 FAIL=0 SKIP=0 (2026-09-05)
+**Product VERSION:** 1.4.1  
+**Last plan update:** 2026-09-06  
+**Last suite run:** PASS=128 FAIL=0 SKIP=0 (2026-09-06)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -20,11 +20,14 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | Empty argv: non-TTY install-ensure / TTY menu | have | TP-CLI-07, TP-CLI-14 |
 | Unknown + quiet + set -u HOME | have | TP-CLI-08..11 |
 | Storage isolation | have | TP-CLI-12 |
-| No online verbs / no SCRIPT_URL UX | have | TP-CLI-04, TP-CLI-10 |
+| Channel verbs routed (`self-update`, `version-check`); no public network in CI | have | TP-CLI-04, TP-CLI-10 |
 | Trimmed parent verbs fail closed | have | TP-CLI-13 |
-| Local install / idempotent / uninstall / mode 0755 / login rc / Termux pkg | have | TP-LC-01..16 |
-| Backup / restore / sudoers emit | n/a | Absent by design (Type 0 template; not a backup product) |
-| Online curl / companion checksum | n/a | Local-only product |
+| Local install / idempotent / uninstall / mode 0755 / login rc / Termux pkg | have | TP-LC-01..19 |
+| Automatic companion link on install (file://) | have | TP-CSUM-01 |
+| Backup / restore / sudoers emit | n/a | Absent by design (not a backup product) |
+| Online curl against public GitHub | n/a | Core suite stays offline; channel is `file://` in CI |
+
+This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-check`, companion `.sha256`). Core CI does **not** hit the public network.
 
 ---
 
@@ -37,17 +40,17 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | TP-CLI-01 | `sh -n` ship unit | `tests/test_cli.sh` | requirement-shell-cli-interface | **have** |
 | TP-CLI-02 | version human | test_cli | requirement-shell-cli-interface | **have** |
 | TP-CLI-03 | version JSON | test_cli | requirement-shell-output-requirements | **have** |
-| TP-CLI-04 | help local verbs; no online; no backup/restore/sudoers | test_cli | requirement-shell-cli-interface · bootstrap-chain | **have** |
+| TP-CLI-04 | help lists this-login + domain verbs; no backup/restore/sudoers; no CHECKSUM | test_cli | requirement-shell-cli-interface · requirement-domain-sshd · requirement-shell-automatic-checksum | **have** |
 | TP-CLI-05 | help JSON short | test_cli | requirement-shell-output-requirements | **have** |
-| TP-CLI-06 | about JSON storage; no domain fields | test_cli | requirement-shell-cli-storage | **have** |
-| TP-CLI-07 | empty argv non-interactive install-ensure | test_cli | requirement-shell-cli-zero-arguments | **have** |
+| TP-CLI-06 | about JSON storage + `sshd_platform`; no CHECKSUM | test_cli | requirement-shell-cli-storage · requirement-domain-sshd | **have** |
+| TP-CLI-07 | empty argv non-interactive install-ensure | test_cli | requirement-shell-cli-zero-arguments · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-CLI-08 | unknown fail-closed | test_cli | requirement-shell-cli-interface | **have** |
 | TP-CLI-09 | quiet suppresses version | test_cli | requirement-shell-output-requirements | **have** |
-| TP-CLI-10 | online verbs rejected | test_cli | requirement-bootstrap-chain | **have** |
-| TP-CLI-11 | env -u HOME version | test_cli | class / defensive | **have** |
+| TP-CLI-10 | `self-update` / `version-check` are **known** commands (no network) | test_cli | requirement-shell-cli-interface · requirement-shell-self-management | **have** |
+| TP-CLI-11 | env -u HOME version | test_cli | class / requirement-shell-script-coding | **have** |
 | TP-CLI-12 | storage isolation | test_cli | requirement-shell-cli-storage | **have** |
-| TP-CLI-13 | backup/restore/sudoers verbs unknown | test_cli | requirement-bootstrap-chain · interface | **have** |
-| TP-CLI-14 | empty argv interactive → domain menu (no install); rows 1–4 + Exit 9 | test_cli | requirement-shell-cli-zero-arguments · requirement-domain-sshd | **have** |
+| TP-CLI-13 | backup/restore/sudoers verbs unknown | test_cli | requirement-shell-cli-interface | **have** |
+| TP-CLI-14 | empty argv interactive → domain menu (no install); rows 1–4 + Exit 9 | test_cli | requirement-shell-cli-zero-arguments · requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-CLI-15 | status Connect: live ssh -p user@ipv4; no `<this-host>` | test_cli | requirement-domain-sshd | **have** |
 
 ### TP-LC (local lifecycle)
@@ -68,9 +71,17 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | TP-LC-12 | install creates `~/.profile` sourcing bashrc | test_local_lifecycle | requirement-shell-self-management | **have** |
 | TP-LC-13 | reinstall does not duplicate PATH | test_local_lifecycle | requirement-shell-idempotency | **have** |
 | TP-LC-14 | existing `~/.profile` body kept | test_local_lifecycle | requirement-shell-self-management | **have** |
-| TP-LC-15 | not Termux: `pkg` not invoked | test_local_lifecycle | requirement-domain-sshd | **have** |
-| TP-LC-16 | Termux mock: `pkg install -y openssh termux-auth` | test_local_lifecycle | requirement-domain-sshd | **have** |
+| TP-LC-15 | not Termux: `pkg` not invoked | test_local_lifecycle | requirement-shell-termux-ish | **have** |
+| TP-LC-16 | Termux mock: `pkg install -y openssh termux-auth` | test_local_lifecycle | requirement-shell-termux-ish · requirement-domain-sshd | **have** |
 | TP-LC-17 | install ends by starting sshd (Termux stub) | test_local_lifecycle | requirement-domain-sshd | **have** |
+| TP-LC-18 | Git Bash mock: `pkg` not invoked (normal-user-only CLI) | test_local_lifecycle | requirement-shell-cli-interface · requirement-shell-termux-ish | **have** |
+| TP-LC-19 | Windows cmd mock: `pkg` not invoked (normal-user-only CLI) | test_local_lifecycle | requirement-shell-cli-interface · requirement-shell-termux-ish | **have** |
+
+### TP-CSUM (companion digest)
+
+| TP-ID | Intent | Suite | Primary requirement(s) | Status |
+|-------|--------|-------|------------------------|--------|
+| TP-CSUM-01 | First install prints companion **link**; PASS or missing-sidecar warn; no mismatch abort | test_local_lifecycle | requirement-shell-automatic-checksum | **have** |
 
 ---
 
@@ -78,5 +89,6 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 
 1. Closing a **bug** finding updates the matching TP to **have**.  
 2. Do not mark TP **have** without a suite assertion (or honest skip/n/a).  
-3. Do not reintroduce online TP-CURL/TP-CSUM or TP-FOLDER-BACKUP as Core without product-mode change.  
-4. Do not add domain TP families or a `setup` verb — this product is Type 0 only.
+3. Do not reintroduce folder-backup / sudoers-emit as Core without a product-mode change.  
+4. Domain TPs **are** Core for this product (`status` Connect, menu rows, Termux pkg, start-after-install). Broader `start`/`stop`/`port` behavioral TPs remain **todo** until added.  
+5. There is **no** `requirement-bootstrap-chain` on this product. Trimmed parent verbs are owned by `requirement-shell-cli-interface`.

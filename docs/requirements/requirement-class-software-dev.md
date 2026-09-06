@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-class-software-dev.md  
-**Status**: Active (Version 1.0.2 – sshd-cli class law + residual stack)  
+**Status**: Active (Version 1.0.3 – sshd-cli class law + residual stack)  
 **Area**: class  
 **Key**: `requirement-class-software-dev`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -105,11 +105,11 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | **Lockfile policy** | not used |
 | **Test runner** | `tests/run.sh` + `tests/test_cli.sh` + `tests/test_local_lifecycle.sh` (POSIX shell) |
 | **Linter/formatter** | none as project law (shellcheck optional for maintainers, not required gate) |
-| **Primary runtime / OS family** | POSIX Linux **and Termux** (Android userspace; `PREFIX` bin/etc). Also compatible UNIX where `/bin/sh` + coreutils/`sha256sum`/`mktemp` exist |
+| **Primary runtime / OS family** | POSIX Linux **and Termux** (Android userspace; `PREFIX` bin/etc). Git Bash and Windows cmd are the same **command line for normal user only** class as Termux (Type 1/2 unused). Also compatible UNIX where `/bin/sh` + coreutils/`sha256sum`/`mktemp` exist |
 | **Architectures supported** | any arch with a POSIX sh and the external tools the script invokes (no arch-specific binary) |
 | **Git surface** | used for product publish (`github.com/cloudgen/sshd-cli`) |
 | **Ship unit / install** | yes — repo root `./sshd-cli` + companion `sshd-cli.sha256`; Type 0 online install (peer shell REQs) |
-| **Product version SSOT** | `VERSION="…"` hard-assign in `./sshd-cli` (currently `1.4.0`) |
+| **Product version SSOT** | `VERSION="…"` hard-assign in `./sshd-cli` (currently `1.4.1`) |
 
 **Residual ownership table:**
 
@@ -128,6 +128,8 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Interactive vs non-interactive | `requirement-shell-interactive-vs-noninteractive` | Do not duplicate |
 | Modular prefixes / single-file layout | `requirement-shell-modular-function-design` | Do not duplicate |
 | Domain features / help / about extras | `requirement-domain-sshd` | OpenSSH sshd helper (Termux-first) |
+| Termux-ish `pkg` invoke | `requirement-shell-termux-ish` | This-login `pkg`; not Linux `apt` |
+| Command line for normal user only | `requirement-shell-cli-interface` · `requirement-shell-termux-ish` | Termux / Git Bash / Windows cmd: Type 1/2 unused; named section on related shell REQs |
 | Coding-style related REQ | `requirement-shell-script-coding` | Specialize-in home; class residual **points** |
 | Actor / role / subject / approver | *none* (considered — **no dest approver**) | No dest review machine |
 | Dest fence conditions | *none* (considered — **no dest fence conditions**) | No dest inbound queue |
@@ -153,6 +155,23 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 
 ---
 
+## Under command line for normal user only
+
+When the ship unit detects a **command line for normal user only** (Termux, Git Bash, Windows cmd, or the same class):
+
+| MUST | MUST NOT |
+|------|----------|
+| Keep **normal user privilege** (Type 0) only | Implement or enable **admin privilege** (Type 1) or **dedicated system user privilege** (Type 2) |
+| Document Type 1 **unused** and Type 2 **unused** | In-tool `sudo`; wrap `apt` / `dnf` / `yum`; create a dedicated system user |
+| Termux: named `pkg` as this login remains Type 0 | Recommend `sudo curl \| sh` as the install path |
+| Git Bash / Windows cmd: same privilege ceiling | Invoke Termux `pkg` because Git Bash or Windows cmd was detected |
+
+Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface` · `requirement-shell-termux-ish`.
+
+**This requirement:** residual stack points at those owners; OS family includes Termux / Git Bash / Windows cmd as this class. Related shell REQs **MUST** keep a section with this exact title.
+
+---
+
 ## 5. Protection Rule (Sacred)
 
 **Future AI assistants, Grok, or maintainers MUST NOT**:
@@ -164,7 +183,8 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 5. Leave Implementation Notes as hollow stubs when Status claims Active.  
 6. Claim multi-language / multi-compiler support without tests or explicit policy.  
 7. Treat this file as server-maintenance allowlist law, or register an Active server-maintenance class file in parallel.  
-8. Invent a second primary language SSOT that contradicts peer modular/CLI requirements.
+8. Invent a second primary language SSOT that contradicts peer modular/CLI requirements.  
+9. Strip the **Under command line for normal user only** section, or treat Termux / Git Bash / Windows cmd as Type 1 hosts.
 
 **Violating any of these is considered a critical regression.**
 

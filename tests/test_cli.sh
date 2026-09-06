@@ -34,7 +34,7 @@ run_test_cli() {
     assert_contains "TP-CLI-03 app field" "$_out" "\"app\":\"${APP_NAME}\""
     assert_contains "TP-CLI-03 version field" "$_out" "\"version\":\"${PRODUCT_VERSION}\""
 
-    # TP-CLI-04 help lists Type 0 + sshd domain; not checksum pin; not trimmed parent domain
+    # TP-CLI-04 help lists this-login lifecycle + sshd domain; not checksum pin; not trimmed parent domain
     _out=$(sh "${SCRIPT}" help 2>/dev/null)
     _ec=$?
     assert_eq "TP-CLI-04 help exit 0" 0 "$_ec"
@@ -44,6 +44,13 @@ run_test_cli() {
     assert_contains "TP-CLI-04 help version-check" "$_out" "version-check"
     assert_contains "TP-CLI-04 help status" "$_out" "status"
     assert_contains "TP-CLI-04 help start" "$_out" "start"
+    assert_contains "TP-CLI-04 help stop" "$_out" "stop"
+    assert_contains "TP-CLI-04 help restart" "$_out" "restart"
+    assert_contains "TP-CLI-04 help port" "$_out" "port"
+    assert_contains "TP-CLI-04 help config" "$_out" "config"
+    assert_contains "TP-CLI-04 help host-keys" "$_out" "host-keys"
+    assert_contains "TP-CLI-04 help auth-keys" "$_out" "auth-keys"
+    assert_contains "TP-CLI-04 help menu" "$_out" "menu"
     assert_contains "TP-CLI-04 help --json" "$_out" "--json"
     assert_not_contains "TP-CLI-04 no backup verb" "$_out" "backup <"
     assert_not_contains "TP-CLI-04 no restore verb" "$_out" "restore <"
@@ -130,7 +137,7 @@ run_test_cli() {
         t_fail "TP-CLI-09 quiet expected empty stdout, got '$(_trunc "$_out")'"
     fi
 
-    # TP-CLI-10 online verbs are routed (not unknown); skip network
+    # TP-CLI-10 self-update / version-check are routed (known commands); skip network
     _err=$(sh "${SCRIPT}" self-update 2>&1 >/dev/null)
     _ec=$?
     if printf '%s' "$_err" | grep -q "Unknown command"; then

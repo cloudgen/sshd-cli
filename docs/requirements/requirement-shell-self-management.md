@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-self-management.md  
-**Status**: Active (Version 1.1.0)  
+**Status**: Active (Version 1.1.1)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -139,13 +139,13 @@ Root may write global install path; non-root uses user path. Do not assume root 
 | **PATH ensure** | `path_add_shell` / `path_add_bashrc` / zsh / fish — **create `~/.bashrc` if missing**, then append PATH if absent |
 | **Login rc** | `path_ensure_profile` — if `~/.profile` is **absent**, create a file that sources `~/.bashrc`; if **present**, **MUST NOT** overwrite the body |
 | **Companion orchestrator** | `inst_ensure_companion` then `sshd_start_after_install` on `install` / non-interactive empty-argv (including already-installed binary no-op) |
-| **Termux packages** | Owned by `requirement-domain-sshd` (`sshd_pkg_ensure`); this file owns the call site |
+| **Termux packages** | Invoke contract: `requirement-shell-termux-ish` (`sshd_pkg_ensure`); package names: `requirement-domain-sshd`; this file owns the call site |
 | **Privilege** | Type 0 only for self-management surface; no dedicated system user |
-| **Version SSOT** | `VERSION` default `1.4.0` in script config block (`VERSION="1.4.0"`) |
+| **Version SSOT** | `VERSION` default `1.4.1` in script config block (`VERSION="1.4.1"`) |
 
 #### Normative acceptance behaviors (this project)
 
-0. **`install` companion (always):** `inst_ensure_companion` runs **before** the already-installed binary no-op. Create/modify this login’s `~/.bashrc` (PATH). If `~/.profile` is missing, create it so a login shell sources `~/.bashrc`. Never replace an existing `.profile` body. Termux package ensure is domain-owned (`requirement-domain-sshd`).  
+0. **`install` companion (always):** `inst_ensure_companion` runs **before** the already-installed binary no-op. Create/modify this login’s `~/.bashrc` (PATH). If `~/.profile` is missing, create it so a login shell sources `~/.bashrc`. Never replace an existing `.profile` body. Termux `pkg` invoke is `requirement-shell-termux-ish`; package names are `requirement-domain-sshd`.  
 1. **`version-check`:** Fetch remote `VERSION` from `SCRIPT_URL`; report local vs remote; JSON fields include local/remote and latest-status semantics; fail if channel missing/unreachable.  
 2. **`self-update`:**  
    - Fail if remote version cannot be fetched.  
@@ -188,6 +188,23 @@ Root may write global install path; non-root uses user path. Do not assume root 
 
 ---
 
+## Under command line for normal user only
+
+When the ship unit detects a **command line for normal user only** (Termux, Git Bash, Windows cmd, or the same class):
+
+| MUST | MUST NOT |
+|------|----------|
+| Keep **normal user privilege** (Type 0) only | Implement or enable **admin privilege** (Type 1) or **dedicated system user privilege** (Type 2) |
+| Document Type 1 **unused** and Type 2 **unused** | In-tool `sudo`; wrap `apt` / `dnf` / `yum`; create a dedicated system user |
+| Termux: named `pkg` as this login remains Type 0 | Recommend `sudo curl \| sh` as the install path |
+| Git Bash / Windows cmd: same privilege ceiling | Invoke Termux `pkg` because Git Bash or Windows cmd was detected |
+
+Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface` · `requirement-shell-termux-ish`.
+
+**This requirement:** `install` / `self-update` / `self-uninstall` / `about` stay Type 0; place into this-login `USER_BIN` (or Termux `$PREFIX` when that is the user bin); **MUST NOT** recommend `sudo curl | sh`.
+
+---
+
 ## 4. Protection Rule (Sacred)
 
 **Future AI assistants, Grok, or maintainers MUST NOT**:
@@ -204,7 +221,8 @@ Root may write global install path; non-root uses user path. Do not assume root 
 10. Invent a second update implementation path that bypasses `inst_perform_install*`.  
 11. Skip `inst_ensure_companion` on `install` / empty-argv because the CLI binary is already placed.  
 12. Overwrite an existing `~/.profile` body.  
-13. Leave `~/.bashrc` missing when `install` can create it.
+13. Leave `~/.bashrc` missing when `install` can create it.  
+14. Strip the **Under command line for normal user only** section, or recommend `sudo curl | sh` when that class is detected.
 
 **Self-management is critical for long-term maintainability of one-command shell CLIs. Violating this rule is a critical regression.**
 
@@ -235,7 +253,8 @@ Work claiming self-management support for sshd-cli is **not done** if any of the
 | `docs/requirements/requirement-shell-output-requirements.md` | Lifecycle messaging / quiet / JSON |
 | `docs/requirements/requirement-shell-modular-function-design.md` | `inst_*` / `out_*` ownership |
 | `docs/requirements/index.md` | Registry SSOT |
-| `docs/requirements/requirement-domain-sshd.md` | Termux `pkg install` companion |
+| `docs/requirements/requirement-shell-termux-ish.md` | Termux `pkg` invoke contract |
+| `docs/requirements/requirement-domain-sshd.md` | Termux package names; start sshd after |
 | `./sshd-cli` | Implementation under test |
 
 ## Design-time verification

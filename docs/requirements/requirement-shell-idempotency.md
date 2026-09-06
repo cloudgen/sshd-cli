@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-idempotency.md  
-**Status**: Active (Version 1.1.0)  
+**Status**: Active (Version 1.1.1)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -19,7 +19,7 @@ It defines re-run safety for ensure-style shell lifecycle commands (install, PAT
 
 | Box | Meaning | Example |
 |-----|---------|---------|
-| You / this login | Re-running the one-liner or `install` after success | Second `sshd-cli` with no args |
+| You / this login | Re-running the one-liner or `install` after success | Second `curl … \| sh` or `sshd-cli install` |
 | The other role | Deliberate replace (`--force`) or a real failure that must stay loud | `sshd-cli install --force` |
 | Not this file | Empty-argv Case A/B/C wording (peer); checksum algorithm | `requirement-shell-cli-zero-arguments.md` |
 
@@ -35,7 +35,7 @@ It defines re-run safety for ensure-style shell lifecycle commands (install, PAT
 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
-| Re-run the one-liner | If the program is already in user or system bin, you get **already installed**, not help and not a second download. | `sshd-cli` |
+| Re-run the one-liner | If the program is already in user or system bin, a **pipe** or `install` says **already installed**, not help and not a second download. On a **terminal**, bare `sshd-cli` is the menu — that is not this re-run story. | `curl -fsSL …/sshd-cli \| /bin/sh` · `sshd-cli install` |
 | Force a replace | Only `--force` means “download again on purpose.” | `sshd-cli install --force` |
 
 ---
@@ -131,7 +131,7 @@ Force **MUST NOT** be used as a silent way to skip integrity verification.
 
 #### Explicitly out of scope until specialized elsewhere
 
-- Type 1 Linux host `apt`/`dnf` ensure loops (Termux `pkg` companion of `install` **is** in scope — `requirement-domain-sshd`)  
+- Type 1 Linux host `apt`/`dnf` ensure loops (Termux `pkg` companion of `install` **is** in scope — `requirement-shell-termux-ish` · `requirement-domain-sshd`)  
 - Type 2 system-user / app service ensure  
 - Continuous FSM `update*` tick thrash (no product FSM in current shell surface)
 
@@ -158,6 +158,23 @@ Force **MUST NOT** be used as a silent way to skip integrity verification.
 
 ---
 
+## Under command line for normal user only
+
+When the ship unit detects a **command line for normal user only** (Termux, Git Bash, Windows cmd, or the same class):
+
+| MUST | MUST NOT |
+|------|----------|
+| Keep **normal user privilege** (Type 0) only | Implement or enable **admin privilege** (Type 1) or **dedicated system user privilege** (Type 2) |
+| Document Type 1 **unused** and Type 2 **unused** | In-tool `sudo`; wrap `apt` / `dnf` / `yum`; create a dedicated system user |
+| Termux: named `pkg` as this login remains Type 0 | Recommend `sudo curl \| sh` as the install path |
+| Git Bash / Windows cmd: same privilege ceiling | Invoke Termux `pkg` because Git Bash or Windows cmd was detected |
+
+Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface` · `requirement-shell-termux-ish`.
+
+**This requirement:** re-run `pkg` on Termux **MUST NOT** hang; a second Linux/Git Bash run **MUST NOT** start wrapping `apt` to “make it idempotent.”
+
+---
+
 ## 4. Protection Rule (Sacred)
 
 **Future AI assistants, Grok, or maintainers MUST NOT**:
@@ -169,7 +186,8 @@ Force **MUST NOT** be used as a silent way to skip integrity verification.
 5. Treat force as a way to skip checksum/digest verification.  
 6. Fail uninstall solely because the tool is already absent (must be success no-op).  
 7. Paper over missing remote version as “already latest.”  
-8. Weaken this requirement’s re-run safety rules without explicit project approval.
+8. Weaken this requirement’s re-run safety rules without explicit project approval.  
+9. Strip the **Under command line for normal user only** section, or wrap `apt` on a re-run of that class.
 
 **Violating this rule is a critical re-run-safety regression.**
 

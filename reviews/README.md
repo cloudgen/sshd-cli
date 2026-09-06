@@ -11,8 +11,8 @@ Public product review surface (peer of `tests/`).
 | `index.md` | Report index |
 | `reports/` | Dated review run reports |
 
-**Ship unit:** `src/sshd-cli` / `./sshd-cli` (**VERSION 1.4.0**)  
+**Ship unit:** `src/sshd-cli` / `./sshd-cli` (**VERSION 1.4.1**)  
 **Suite:** `./tests/run.sh`  
 **Last suite baseline:** see `test-plan.md`
 
-**Review focus:** simplify Termux to install sshd; Type 0 self-install plus OpenSSH sshd domain.
+**Review focus:** simplify Termux to install sshd; this-login self-install plus OpenSSH sshd domain.

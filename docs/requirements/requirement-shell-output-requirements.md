@@ -179,8 +179,8 @@ Align with SSOT-of-stdout and SSOT-of-stderr terms:
 **Specializee note:** domain arrays/objects **MUST** use `@key` raw insertion (caller builds valid JSON). Stringifying a JSON array into a normal string field is an anti-pattern for machine consumers.
 
 ```sh
-# Example — domain list as JSON array (specializee), not a quoted string:
-# out_json "success" "" "count" "2" "@domains" '["a.example","b.example"]'
+# Example — nested JSON via @key (this product: status fields), not a quoted string:
+# out_json "success" "" "sshd_running" "yes" "@connect" '"ssh -p 8022 user@10.0.0.2"'
 ```
 
 `out_json` emits a single-line object:

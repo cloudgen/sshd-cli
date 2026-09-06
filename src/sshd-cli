@@ -22,6 +22,7 @@
 # - requirement-shell-automatic-checksum.md
 # - requirement-domain-sshd.md
 # - requirement-shell-script-coding.md
+# - requirement-shell-termux-ish.md
 # Plus CIAO Protection Zones and "DO NOT MODIFY" rules.
 #
 # Philosophy: CIAO (Caution • Intentional • Anti-fragile • Over-engineered)
@@ -48,8 +49,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys) plus self-install.}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.4.0"
-: "${VERSION:=1.4.0}"
+VERSION="1.4.1"
+: "${VERSION:=1.4.1}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -1069,7 +1070,9 @@ inst_maybe_install() {
     out_plain "Recommended installation command:"
     out_empty_line
 
-    if [ "$IS_ROOT" -eq 1 ]; then
+    if sshd_is_normal_user_only_cli; then
+        out_plain "     curl -fsSL ${SCRIPT_URL} | ${SH}"
+    elif [ "$IS_ROOT" -eq 1 ]; then
         out_plain "     sudo curl -fsSL ${SCRIPT_URL} | sudo ${SH}"
     else
         out_plain "     curl -fsSL ${SCRIPT_URL} | ${SH}"
@@ -2479,6 +2482,67 @@ sshd_is_termux() {
 }
 
 # =============================================================================
+# sshd_is_git_bash() / sshd_is_windows_cmd() / sshd_is_normal_user_only_cli()
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Termux, Git Bash (Git for Windows MSYS/MINGW), and Windows cmd (Command
+# Prompt / Windows command-line) are a command line for normal user only:
+# Type 1 (admin privilege) and Type 2 (dedicated system user privilege)
+# stay unused. Union helper covers all three instances.
+#
+# ALIGNMENT (live requirements only):
+# - requirement-shell-cli-interface.md
+# - requirement-shell-termux-ish.md
+#
+# Last updated: 2026-09-05
+# =============================================================================
+
+sshd_is_git_bash() {
+    case "${MSYSTEM-}" in
+        MINGW*|MSYS*|UCRT*|CLANG*) return 0 ;;
+    esac
+    _uname=$(uname -s 2>/dev/null || true)
+    case "${_uname}" in
+        MINGW*|MSYS*) return 0 ;;
+    esac
+    return 1
+}
+
+sshd_is_windows_cmd() {
+    if sshd_is_git_bash; then
+        return 1
+    fi
+    if [ -n "${WSL_DISTRO_NAME-}" ]; then
+        return 1
+    fi
+    _uname=$(uname -s 2>/dev/null || true)
+    case "${_uname}" in
+        CYGWIN*|Linux) return 1 ;;
+    esac
+    case "${OS-}" in
+        Windows_NT) return 0 ;;
+    esac
+    case "${ComSpec-}${COMSPEC-}" in
+        *[Cc][Mm][Dd].[Ee][Xx][Ee]*) return 0 ;;
+    esac
+    return 1
+}
+
+sshd_is_normal_user_only_cli() {
+    if sshd_is_termux; then
+        return 0
+    fi
+    if sshd_is_git_bash; then
+        return 0
+    fi
+    if sshd_is_windows_cmd; then
+        return 0
+    fi
+    return 1
+}
+
+# =============================================================================
 # sshd_pkg_ensure() - Termux: pkg install openssh and termux-auth
 # =============================================================================
 #
@@ -2488,7 +2552,7 @@ sshd_is_termux() {
 # (operator uses the distro package manager; this CLI does not wrap apt).
 # Idempotent: already-installed packages succeed. Non-interactive: `-y`.
 #
-# Product law: requirement-domain-sshd.md
+# Product law: requirement-shell-termux-ish.md (invoke) · requirement-domain-sshd.md (package names)
 #
 # Last reviewed: 2026-09-05
 # =============================================================================
@@ -3166,7 +3230,7 @@ app_about() {
     : "${QUIET:=0}"
     : "${APP_NAME:=sshd-cli}"
     # Version comes from global SSOT (VERSION="…" hard-assign near top); default only if unset
-    : "${VERSION:=1.4.0}"
+    : "${VERSION:=1.4.1}"
     if [ -n "${PREFIX-}" ] && [ -d "${PREFIX}/bin" ]; then
     : "${GLOBAL_BIN:=${PREFIX}/bin}"
 else
@@ -3276,7 +3340,7 @@ fi
     if [ "$(id -u)" -eq 0 ]; then
         out_success "Execution context: root (global install path available)"
     else
-        out_info "Execution context: normal user (Type 0 CLI self-management)"
+        out_info "Execution context: this login (no root required for this CLI)"
     fi
 
     out_empty_line
@@ -3321,7 +3385,7 @@ fi
 
 app_version() {
     : "${APP_NAME:=sshd-cli}"
-    : "${VERSION:=1.4.0}"
+    : "${VERSION:=1.4.1}"
     : "${JSON:=0}"
     if [ "${JSON}" -eq 1 ]; then
         # Same machine contract as historical app_main inline path
@@ -3367,7 +3431,7 @@ app_help() {
     out_plain "  ${APP_NAME} [command] [options]"
     out_empty_line
 
-    out_info "Self-Management (Type 0 - any user):"
+    out_info "Self-management (this login):"
     out_plain "  install              Place ${APP_NAME}; ensure rc + Termux openssh/termux-auth; start sshd"
     out_plain "  version              Show current version"
     out_plain "  about                Show detailed diagnostics"
@@ -3387,7 +3451,7 @@ app_help() {
     out_plain "  config               Show resolved sshd paths and key settings"
     out_plain "  host-keys [list|generate]  List or create host keys"
     out_plain "  auth-keys [list|add <file>]  This login authorized_keys"
-    out_plain "  menu                 Numbered list of domain commands (terminal only)"
+    out_plain "  menu                 Numbered list of domain commands (terminal only; alias: main)"
     out_empty_line
     # --- end DOMAIN_HELP_ROWS ---
 
