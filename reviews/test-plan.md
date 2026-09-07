@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.5.0  
+**Product VERSION:** 1.5.1  
 **Last plan update:** 2026-09-07  
-**Last suite run:** PASS=218 FAIL=0 SKIP=0 (2026-09-07)
+**Last suite run:** PASS=224 FAIL=0 SKIP=0 (2026-09-07)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -24,7 +24,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | Trimmed parent verbs fail closed | have | TP-CLI-13 |
 | Local install / idempotent / uninstall / mode 0755 / login rc / Termux pkg | have | TP-LC-01..19 |
 | sshd start is a background daemon (not a service manager) | have | TP-SSHD-01, TP-SSHD-02 |
-| this-login `~/.ssh/config` dns-ip list / show / set / add | have | TP-DNS-01..19 |
+| this-login `~/.ssh/config` dns-ip list / show / set / add | have | TP-DNS-01..20 |
 | Automatic companion link on install (file://) | have | TP-CSUM-01 |
 | Backup / restore / sudoers emit | n/a | Absent by design (not a backup product) |
 | Online curl against public GitHub | n/a | Core suite stays offline; channel is `file://` in CI |
@@ -52,7 +52,7 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-CLI-11 | env -u HOME version | test_cli | class / requirement-shell-script-coding | **have** |
 | TP-CLI-12 | storage isolation | test_cli | requirement-shell-cli-storage | **have** |
 | TP-CLI-13 | backup/restore/sudoers verbs unknown | test_cli | requirement-shell-cli-interface | **have** |
-| TP-CLI-14 | empty argv interactive → domain menu (no install); rows 1–4 + Exit 9 | test_cli | requirement-shell-cli-zero-arguments · requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-CLI-14 | empty argv interactive → domain menu (no install); rows 1–5 (dns) + Exit 9 | test_cli | requirement-shell-cli-zero-arguments · requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-CLI-15 | status Connect: live ssh -p user@ipv4; no `<this-host>` | test_cli | requirement-domain-sshd | **have** |
 
 ### TP-SSHD (domain start: daemon, not a service)
@@ -85,6 +85,7 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-DNS-17 | Match / Include skipped on list | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-18 | after `COMMAND=dns`, token `dns` is a field name | test_dns | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
 | TP-DNS-19 | add without dns name Next mentions add | test_dns | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
+| TP-DNS-20 | TTY menu row 5 opens Host list | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 
 ### TP-LC (local lifecycle)
 

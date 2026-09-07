@@ -1,6 +1,6 @@
 # sshd-cli - Simplify Termux to install sshd
 
-![Version](https://img.shields.io/badge/Version-1.5.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.5.1-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/sshd-cli?style=flat-square)](https://github.com/cloudgen/sshd-cli)
@@ -24,7 +24,7 @@
 | Start sshd | OpenSSH **forks itself** so a laptop can connect. Default Termux port is often **8022**. This is not a boot service. | `sshd-cli start` then `ssh -p 8022 user@host` |
 | After a reboot | The daemon is gone. Start again. Termux:Boot is **your** hook if you want listen-after-reboot. | `sshd-cli start` |
 
-Runtime version SSOT: `VERSION="1.5.0"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
+Runtime version SSOT: `VERSION="1.5.1"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
 
 ## Features
 
@@ -34,7 +34,7 @@ Runtime version SSOT: `VERSION="1.5.0"` in `./sshd-cli`. Install channel SSOT: `
 - Purpose: **simplify Termux to install sshd** (`status`, `start`, `stop`, `restart`, `port`, `config`, `host-keys`, `auth-keys`)
 - `start` launches OpenSSH sshd as a **background daemon** (`sshd -f`; OpenSSH forks itself). This CLI is **not** a systemd, termux-services, or cron service manager
 - After a reboot, run `sshd-cli start` again. On Termux, listen-after-reboot is **Termux:Boot** (you own `~/.termux/boot/`) — not a `sshd-cli` verb
-- This login’s `~/.ssh/config` **Host** list (`dns`): numbered dns-ip rows, details, field-by-field edit; `""` means empty; `--json` / pipes list or `set` without hanging
+- This login’s `~/.ssh/config` **Host** list (`dns`, TTY menu row **5**): numbered dns-ip rows, details, field-by-field edit; `""` means empty; `--json` / pipes list or `set` without hanging
 - Termux-first paths (`PREFIX`); Linux system sshd is a second home and asks for a **root login** instead of wrapping `sudo`
 - Online install / self-update fetches a SHA-256 sidecar (`${SCRIPT_URL}.sha256`) and tells you link, value, and result
 - Built under **[CIAO](https://github.com/cloudgen/ciao) v2.10.*** (fail closed; one printer family for messages)
@@ -93,16 +93,17 @@ After install, on a terminal (no arguments opens the menu):
 
 ```text
 $ sshd-cli
-[INFO] **sshd-cli**(*1.5.0*)
+[INFO] **sshd-cli**(*1.5.1*)
 1. Show sshd status: running, port, and paths
 2. Start sshd: launch the OpenSSH daemon (background, not a boot service)
 3. Stop sshd: end the running daemon
 4. Restart sshd: stop then start
+5. SSH names (dns): this login ~/.ssh/config Host list
 9. Exit
 Choose a number, or type the command name:
 ```
 
-Choose a number, or type the command name. `9` exits.
+Choose a number, or type the command name. `5` opens this login’s `~/.ssh/config` Host list. `9` exits.
 
 ## Usage
 
@@ -187,4 +188,4 @@ MIT. See [`LICENSE.md`](./LICENSE.md). Copyright (c) 2026 Cloudgen Wong.
 
 ## Last Update
 
-2026-09-07 — 1.5.0: `dns` lists this login’s `~/.ssh/config` Host entries as numbered dns-ip rows; show/edit field-by-field; `""` is empty; non-interactive `set`/`add`/`list`. Pick `9` is a Host when the list is long; add inserts before `Host *`.
+2026-09-07 — 1.5.1: TTY menu numbers `dns` as row 5 (`SSH names (dns)`). The Host list was already a typed command in 1.5.0 (`sshd-cli dns`); pick 5 on the numbered list to open it.

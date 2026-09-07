@@ -249,5 +249,19 @@ EOF
     assert_eq "TP-DNS-19 add missing name exit 1" 1 "$_ec"
     assert_contains "TP-DNS-19 Next dns add" "$_err" "dns add dns"
 
+    # TP-DNS-20 TTY menu row 5 opens the Host list (discoverable dns)
+    _dns_fixture
+    _out=$(HOME="${CI_HOME}" TTY=1 INTERACTIVE=1 sh "${SCRIPT}" menu <<'EOF'
+5
+0
+EOF
+)
+    _ec=$?
+    assert_eq "TP-DNS-20 menu 5 exit 0" 0 "$_ec"
+    assert_contains "TP-DNS-20 menu lists dns row" "$_out" "5. SSH names (dns)"
+    assert_contains "TP-DNS-20 choice 5 lists phone" "$_out" "1. phone"
+    assert_contains "TP-DNS-20 Host pick leave with 0" "$_out" "0. Exit"
+    assert_contains "TP-DNS-20 Host pick prompt" "$_out" "0 to leave"
+
     ci_cleanup_env
 }

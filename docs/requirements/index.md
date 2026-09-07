@@ -2,7 +2,7 @@
 
 **Product:** sshd-cli — a POSIX `/bin/sh` program you run as yourself to install and run OpenSSH sshd on Termux (and ordinary Linux). Catalog: Type 0 self-install + domain SSOT.  
 **Workspace state:** Specialized product law (not blank genesis); **software-development** class; bootstrap origin **selfmanaged** (A → B).  
-**Updated:** 2026-09-07 (dns-ip Host list on this login `~/.ssh/config`; product 1.5.0)
+**Updated:** 2026-09-07 (dns on TTY menu row 5; product 1.5.1)
 
 | ID / key | Title | Area | Status | Path | Updated |
 |----------|-------|------|--------|------|---------|
@@ -18,7 +18,7 @@
 | requirement-shell-self-management | Self-management lifecycle (version-check, update, uninstall, about; login rc) | shell | Active | `requirement-shell-self-management.md` | 2026-09-05 |
 | requirement-shell-script-coding | POSIX shell coding-style home (set -u, prefixes, do-not-capture-read) | shell | Active | `requirement-shell-script-coding.md` | 2026-09-05 |
 | requirement-shell-termux-ish | Termux-like this-login `pkg` companion (detect/invoke/fail-closed; not Linux `apt`) | shell | Active | `requirement-shell-termux-ish.md` | 2026-09-05 |
-| requirement-domain-sshd | OpenSSH sshd domain (status/start/stop/port/keys/menu/dns; background daemon; this-login ssh_config dns-ip) | domain | Active | `requirement-domain-sshd.md` | 2026-09-07 |
+| requirement-domain-sshd | OpenSSH sshd domain (status/start/stop/port/keys/menu/dns; background daemon; this-login ssh_config dns-ip; menu row 5) | domain | Active | `requirement-domain-sshd.md` | 2026-09-07 |
 
 **Rules for agents:**
 

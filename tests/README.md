@@ -18,7 +18,7 @@ Exit **0** when all assertions pass; **1** on failure; **2** if ship unit missin
 | `helpers.sh` | Asserts + isolated HOME | — |
 | `test_cli.sh` | CLI surface, empty argv (TTY menu / pipe install-ensure), domain help, trimmed-verb reject, daemon vs service | **TP-CLI-*** · **TP-SSHD-01** |
 | `test_local_lifecycle.sh` | install / self-uninstall / about / login rc / Termux pkg mock / companion link / daemon hint | **TP-LC-*** · **TP-CSUM-01** · **TP-SSHD-02** |
-| `test_dns.sh` | this-login `~/.ssh/config` Host list (dns-ip) | **TP-DNS-01..19** |
+| `test_dns.sh` | this-login `~/.ssh/config` Host list (dns-ip) | **TP-DNS-01..20** |
 
 ## Isolation
 

@@ -49,8 +49,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys) plus self-install.}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.5.0"
-: "${VERSION:=1.5.0}"
+VERSION="1.5.1"
+: "${VERSION:=1.5.1}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -3912,6 +3912,7 @@ sshd_cmd_menu() {
     out_plain "2. Start sshd: launch the OpenSSH daemon (background, not a boot service)"
     out_plain "3. Stop sshd: end the running daemon"
     out_plain "4. Restart sshd: stop then start"
+    out_plain "5. SSH names (dns): this login ~/.ssh/config Host list"
     out_plain "9. Exit"
     out_msg_n "Choose a number, or type the command name: "
     _choice=""
@@ -3921,11 +3922,11 @@ sshd_cmd_menu() {
         2|start) sshd_cmd_start ;;
         3|stop) sshd_cmd_stop ;;
         4|restart) sshd_cmd_restart ;;
+        5|dns) sshd_cmd_dns ;;
         port) sshd_cmd_port ;;
         config) sshd_cmd_config ;;
         host-keys) sshd_cmd_host_keys list ;;
         auth-keys) sshd_cmd_auth_keys list ;;
-        dns) sshd_cmd_dns ;;
         9|99|999|exit|"") return 0 ;;
         *) out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help." ;;
     esac
@@ -3939,7 +3940,7 @@ app_about() {
     : "${QUIET:=0}"
     : "${APP_NAME:=sshd-cli}"
     # Version comes from global SSOT (VERSION="…" hard-assign near top); default only if unset
-    : "${VERSION:=1.5.0}"
+    : "${VERSION:=1.5.1}"
     if [ -n "${PREFIX-}" ] && [ -d "${PREFIX}/bin" ]; then
     : "${GLOBAL_BIN:=${PREFIX}/bin}"
 else
@@ -4094,7 +4095,7 @@ fi
 
 app_version() {
     : "${APP_NAME:=sshd-cli}"
-    : "${VERSION:=1.5.0}"
+    : "${VERSION:=1.5.1}"
     : "${JSON:=0}"
     if [ "${JSON}" -eq 1 ]; then
         # Same machine contract as historical app_main inline path
@@ -4161,7 +4162,7 @@ app_help() {
     out_plain "  host-keys [list|generate]  List or create host keys"
     out_plain "  auth-keys [list|add <file>]  This login authorized_keys"
     out_plain "  dns [list|show N|edit N|set N …|add …]  This login ~/.ssh/config Host list (dns-ip)"
-    out_plain "  menu                 Numbered list of domain commands (terminal only; alias: main)"
+    out_plain "  menu                 Numbered list: status, start, stop, restart, dns, Exit 9 (terminal only; alias: main)"
     out_empty_line
     # --- end DOMAIN_HELP_ROWS ---
 

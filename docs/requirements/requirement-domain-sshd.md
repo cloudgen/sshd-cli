@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.5.0)  
+**Status**: Active (Version 1.5.1)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -41,7 +41,7 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 | Listen on Termux | Default port is often 8022. OpenSSH **forks itself** into the background. This is not a boot service. | `sshd-cli start` then the Connect line from `status` |
 | After a reboot | The daemon is gone with the old session. Start again. Termux:Boot (if you use it) is **your** hook, not a `sshd-cli` verb. | `sshd-cli start` — or put that command in `~/.termux/boot/` yourself |
 | Allow a laptop key | Append one public-key file | `sshd-cli auth-keys add ./laptop.pub` |
-| Name a phone for `ssh` | This login’s `~/.ssh/config` Host list: number, details, then edit fields | `sshd-cli dns` · `sshd-cli dns list` · `sshd-cli dns set 1 ip 192.168.1.10` |
+| Name a phone for `ssh` | This login’s `~/.ssh/config` Host list: number, details, then edit fields | Pick **5** on the menu · `sshd-cli dns` · `sshd-cli dns list` · `sshd-cli dns set 1 ip 192.168.1.10` |
 
 ---
 
@@ -62,7 +62,7 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 | `dns` | `list` (default non-TTY) · `show <n\|name>` · `edit <n\|name>` · `set <n\|name> …` · `add …` · empty (TTY walk) | `sshd_cmd_dns` | This login’s `~/.ssh/config` | Missing n / empty dns name / bad port → `out_die` |
 | `menu` / `main` | none | `sshd_cmd_menu` | TTY only | `--json` / quiet / non-TTY → `out_die` with named-command hint |
 
-**Routing:** `app_main` parses these verbs in the same pass as Type 0. Operands after `port` / `host-keys` / `auth-keys` / **`dns`** are domain operands, not unknown flags. **MUST NOT** number `dns` as a main-menu row 5–8 (typed command; its **own** numbered Host list is separate).
+**Routing:** `app_main` parses these verbs in the same pass as Type 0. Operands after `port` / `host-keys` / `auth-keys` / **`dns`** are domain operands, not unknown flags. **MUST** number `dns` as main-menu row **5**. The dns **Host** pick is a **separate** list (leave with `0` / empty — not `9`). **MUST NOT** number `port` / `config` / `host-keys` / `auth-keys` as rows 6–8 (typed at the menu prompt).
 
 **MUST:** Each verb above is also named on `requirement-shell-cli-interface` (dual mention).  
 **MUST:** Interactive empty argv (`TTY=1`, not quiet/json) **MUST** call `sshd_cmd_menu` (same handler as `menu`). Dual mention: `requirement-shell-cli-zero-arguments`.  
@@ -137,7 +137,7 @@ Termux detect: `PREFIX` contains `com.termux`, or `TERMUX_VERSION` set, or `/dat
 **Semantics:**
 
 1. **status** is read-only. Missing sshd is a warning, not a crash. Human mode **MUST** end with a recommended connect line `ssh -p <port> <user>@<lan-ipv4>` when a live IPv4 exists. **User** is `id -un`. **IPv4 SSOT:** `ifconfig wlan0` inet (Termux Wi-Fi). Then `wlan1`, then any `ifconfig` inet, then `ip` fallbacks. **MUST NOT** print a placeholder host (`<this-host>`, `<LAN-IPv4>`, `example.com`). If no usable IPv4: warn and say Next (turn on Wi-Fi, then `status`) — do not invent an address. JSON `connect` is that live string, or empty. **MUST NOT** freeze a session login or a sample home IP into product law.  
-1b. **menu** numbered rows are **only** `status`, `start`, `stop`, `restart`, then **Exit 9**. `port` / `config` / `host-keys` / `auth-keys` stay typed commands (and may be typed at the menu prompt) but **MUST NOT** appear as numbered rows 5–8.  
+1b. **menu** numbered rows are `status`, `start`, `stop`, `restart`, **`dns` (row 5)**, then **Exit 9**. Choosing **5** (or typing `dns`) runs the same handler as `sshd-cli dns` (TTY Host pick). `port` / `config` / `host-keys` / `auth-keys` stay typed commands (and may be typed at the menu prompt) but **MUST NOT** appear as numbered rows 6–8. The Host pick **MUST NOT** reuse main-menu Exit `9`.  
 2. **start** is idempotent: already running → success no-op. Missing host keys → generate when the host-key dir is writable. `sshd -t` must pass before launch. Launch **MUST** be `"${SSHD_BIN}" -f "${SSHD_CONFIG}"` so OpenSSH **daemonizes itself** (pidfile). **MUST NOT** pass `-D` (foreground). **MUST NOT** wrap the launch in `&` / `nohup` / a service manager. Human mode (not quiet/json) **MUST** say this is a **background daemon for this session**, not a boot service, and name `${APP_NAME} start` after a reboot. On Termux, human mode **MUST** name Termux:Boot as an **operator-owned** hook (`~/.termux/boot/`), not a CLI verb. On POSIX Linux, human mode **MUST** say listen-after-reboot is the distro sshd unit, not this CLI.  
 3. **stop** is idempotent: already stopped → success no-op.  
 4. **port set** rewrites the `Port` line (or appends one). Does not auto-restart; human mode tells the operator to `restart` when sshd is up.  
@@ -205,7 +205,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExamplePublicKeyMaterialOnly laptop-user
 - `host-keys [list|generate]`  
 - `auth-keys [list|add <file>]`  
 - `dns [list|show N|edit N|set N …|add …]` — This login `~/.ssh/config` Host list (numbered dns-ip)  
-- `menu` — Numbered list: status, start, stop, restart, Exit 9 (terminal only)
+- `menu` — Numbered list: status, start, stop, restart, dns, Exit 9 (terminal only)
 
 `help` Type 0 `install` row **MUST** mention Termux `pkg install openssh termux-auth` and `~/.bashrc` / `~/.profile` ensure (dual mention with the CLI-interface file).
 
@@ -224,7 +224,7 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 
 | Item | Value |
 |------|--------|
-| Product | `sshd-cli` 1.5.0 |
+| Product | `sshd-cli` 1.5.1 |
 | Bootstrap origin | `selfmanaged` 1.2.3 (architecture + Type 0 only; A untouched) |
 | Domain prefix | `sshd_*` |
 | Channel | `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli` |
@@ -232,7 +232,7 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 | Login rc companion | Owned by `path_*` / `inst_ensure_companion` (`requirement-shell-self-management`) |
 | In-tool sudo | **none** — no `requirement-shell-sudo-command` |
 | Dest / fence | **none** (class residual: considered — no dest fence conditions) |
-| Menu | Verb `menu`/`main`; also interactive empty argv. Rows: 1 status, 2 start, 3 stop, 4 restart, 9 Exit |
+| Menu | Verb `menu`/`main`; also interactive empty argv. Rows: 1 status, 2 start, 3 stop, 4 restart, 5 dns, 9 Exit |
 | Status connect hint | `ifconfig wlan0` via `sshd_ifconfig_ipv4` / `sshd_lan_ipv4`; live `Connect:` line; **no** placeholder host |
 | Start launch | `"${SSHD_BIN}" -f "${SSHD_CONFIG}"` (OpenSSH daemonizes). **No** `-D`. **No** systemd / termux-services / cron verbs. Termux:Boot is operator-owned. |
 | dns file | `${HOME}/.ssh/config` (OpenSSH client config; this login) |
@@ -284,7 +284,7 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 8. Skip Termux `pkg install -y openssh termux-auth` on `install` / empty-argv ensure, or wrap `apt` on Linux in its place.  
 8b. List wrapping Termux `pkg` as a domain **non-goal**, or empty a stated Termux sshd purpose with a portable “do not wrap package managers” habit.  
 9. Auto-run `passwd` or print a password.  
-10. Number `port` / `config` / `host-keys` / `auth-keys` as menu rows 5–8.  
+10. Number `port` / `config` / `host-keys` / `auth-keys` as menu rows 6–8.  
 11. Freeze a session Unix login or a literal LAN IP into product law as the connect example.  
 12. Print `<this-host>` or any other placeholder as the ssh host on `status` / `start`.  
 13. Finish Termux `install` without starting sshd, or fail POSIX CLI install only because system sshd needs root.  
@@ -293,7 +293,7 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 16. Treat Termux:Boot or a Linux distro sshd unit as a verb this CLI owns.  
 17. Hang `dns` / `dns edit` under `--json` / quiet / no TTY, or `$()` a `read` helper for the numbered pick or field walk.  
 18. Follow `Include`, list `Host *`, or rewrite `/etc/hosts` as dns.  
-19. Number `dns` as main-menu rows 5–8.  
+19. Omit `dns` from the numbered main menu (row **5** is the discoverable TTY path; typed `dns` remains valid).  
 20. Treat `9` as Exit on the dns Host pick when row 9 is a Host.  
 21. Append a new Host after a trailing `Host *` / `Match`.  
 22. Drop extra Host aliases, or fail to parse `Key=value` / `Key = value`, on set/edit.
@@ -318,7 +318,7 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 | **TP-CLI-04**, **TP-CLI-06**, **TP-CLI-14**, **TP-CLI-15** | `tests/test_cli.sh` | have |
 | **TP-SSHD-01** | `tests/test_cli.sh` | have |
 | **TP-LC-16**, **TP-LC-17**, **TP-SSHD-02** | `tests/test_local_lifecycle.sh` | have |
-| **TP-DNS-01** .. **TP-DNS-19** | `tests/test_dns.sh` | have |
+| **TP-DNS-01** .. **TP-DNS-20** | `tests/test_dns.sh` | have |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`

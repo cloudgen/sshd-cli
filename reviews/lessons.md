@@ -16,6 +16,7 @@ Durable failure modes. **Always re-check on product review.**
 | L-DNS-01 | TTY Host pick reused main-menu Exit `9` on an unbounded list | Leave with `0` / empty; TP-DNS-13 | open watch |
 | L-DNS-02 | `dns add` appended after trailing `Host *` so OpenSSH first-match ignored new User/Port | Insert before first wildcard Host / Match; atomic replace; TP-DNS-14 | open watch |
 | L-DNS-03 | `Key=value` / extra Host aliases lost on set | Parse optional `=`; keep aliases after first pattern; TP-DNS-15/16 | open watch |
+| L-DNS-04 | TTY main menu omitted `dns` so an update-and-open looked like the Host list was never added | Number `dns` as row 5; TP-CLI-14 · TP-DNS-20 | open watch |
 
 **Related-product only (do not re-apply as this origin’s law):** L-DEPOSIT-01, L-SUDOERS-01..05, L-OVERWRITE-01 stay on folder-backup. Type O empty-argv / online-channel lessons stay on products that own those surfaces. This product is hop 0.
 

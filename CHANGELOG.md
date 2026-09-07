@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.5.1] - 2026-09-07
+
+### Fixed
+
+- TTY main menu numbers `dns` as row **5** (`SSH names (dns): this login ~/.ssh/config Host list`). The Host list was already in 1.5.0 as `sshd-cli dns` / typing `dns` at the prompt, but the numbered list hid it so an update-and-open of `sshd-cli` looked unchanged.
+- Choosing **5** runs the same TTY Host pick as `sshd-cli dns`. Leave that pick with `0` / empty (row 9 is a Host when the list is long). `port` / `config` / `host-keys` / `auth-keys` stay typed.
+
+### Changed
+
+- Domain menu rows are status, start, stop, restart, **dns**, then Exit 9. Test **TP-DNS-20**.
+
 ## [1.5.0] - 2026-09-07
 
 ### Added
