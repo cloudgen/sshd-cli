@@ -116,6 +116,8 @@ Force **MUST NOT** be used as a silent way to skip integrity verification.
 | PATH add (`path_add_bashrc` / zsh / fish) | PATH line already present | No second identical append | Create `~/.bashrc` when missing, then PATH |
 | Login rc (`path_ensure_profile`) | `~/.profile` exists | Leave body; no second create | Create only when absent |
 | Termux packages (`sshd_pkg_ensure`) | `openssh` + `termux-auth` installed **or** not Termux | Success no-op / skip | `pkg install -y` may re-run; must not hang |
+| `wake-lock` | Android wake lock held **or** not Termux | Success no-op (helper may re-run) | Off-detect skip; must not hang |
+| `start` (Termux wake lock companion) | sshd running **and** wake lock requested | Already-running still calls `sshd_wake_lock_acquire` | Must not fail start solely if helper missing |
 | PATH cleanup on uninstall | `~/.local/bin` empty **or** PATH lines already removed | No thrash; if bin dir still has files, **keep** PATH (do not strip shared dir) | Do not delete `~/.profile` |
 
 #### Concrete detect → act expectations (this project)

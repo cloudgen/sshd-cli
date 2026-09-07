@@ -39,6 +39,7 @@ run_test_dns() {
     # TP-DNS-01 help lists dns
     _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" help 2>&1)
     assert_contains "TP-DNS-01 help lists dns" "$_out" "dns ["
+    assert_contains "TP-DNS-01 help lists delete" "$_out" "delete"
 
     # TP-DNS-02 numbered list; Host * omitted
     _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns list 2>&1)
@@ -146,14 +147,17 @@ EOF
         printf 'Host *\n    StrictHostKeyChecking accept-new\n'
     } > "${CI_HOME}/.ssh/config"
     _out=$(HOME="${CI_HOME}" INTERACTIVE=1 sh "${SCRIPT}" dns <<'EOF'
+1
 9
 EOF
 )
     _ec=$?
     assert_eq "TP-DNS-13 pick 9 exit 0" 0 "$_ec"
+    assert_contains "TP-DNS-13 action menu Edit" "$_out" "1. Edit"
+    assert_contains "TP-DNS-13 action menu Exit 9" "$_out" "9. Exit"
     assert_contains "TP-DNS-13 pick 9 shows h9" "$_out" "dns:  h9"
     assert_contains "TP-DNS-13 pick 9 ip" "$_out" "ip:   10.0.0.9"
-    assert_not_contains "TP-DNS-13 no Exit 9 row" "$_out" "9. Exit"
+    assert_contains "TP-DNS-13 Host pick leave 0" "$_out" "0. Exit"
 
     # TP-DNS-14 add inserts before trailing Host *
     cat > "${CI_HOME}/.ssh/config" <<'EOF'
@@ -253,15 +257,102 @@ EOF
     _dns_fixture
     _out=$(HOME="${CI_HOME}" TTY=1 INTERACTIVE=1 sh "${SCRIPT}" menu <<'EOF'
 5
-0
+9
 EOF
 )
     _ec=$?
     assert_eq "TP-DNS-20 menu 5 exit 0" 0 "$_ec"
     assert_contains "TP-DNS-20 menu lists dns row" "$_out" "5. SSH names (dns)"
-    assert_contains "TP-DNS-20 choice 5 lists phone" "$_out" "1. phone"
-    assert_contains "TP-DNS-20 Host pick leave with 0" "$_out" "0. Exit"
-    assert_contains "TP-DNS-20 Host pick prompt" "$_out" "0 to leave"
+    assert_contains "TP-DNS-20 choice 5 lists phone" "$_out" "phone"
+    assert_contains "TP-DNS-20 action Edit" "$_out" "1. Edit"
+    assert_contains "TP-DNS-20 action Add" "$_out" "2. Add"
+    assert_contains "TP-DNS-20 action Delete" "$_out" "3. Delete"
+    assert_contains "TP-DNS-20 action Exit 9" "$_out" "9. Exit"
+    assert_not_contains "TP-DNS-20 context is not Host pick 1." "$_out" "1. phone"
+
+    # TP-DNS-21 TTY Edit then Host 1 (action menu, not pick-to-update)
+    _dns_fixture
+    _out=$(HOME="${CI_HOME}" INTERACTIVE=1 sh "${SCRIPT}" dns <<'EOF'
+1
+1
+EOF
+)
+    _ec=$?
+    assert_eq "TP-DNS-21 edit via action menu exit 0" 0 "$_ec"
+    assert_contains "TP-DNS-21 action Edit" "$_out" "1. Edit"
+    assert_contains "TP-DNS-21 Host pick phone" "$_out" "1. phone"
+    assert_contains "TP-DNS-21 shows phone details" "$_out" "dns:  phone"
+
+    # TP-DNS-22 non-interactive delete; Host * kept
+    _dns_fixture
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns delete 1 2>&1)
+    _ec=$?
+    assert_eq "TP-DNS-22 delete exit 0" 0 "$_ec"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns list 2>&1)
+    assert_not_contains "TP-DNS-22 phone gone" "$_out" "phone"
+    assert_contains "TP-DNS-22 laptop remains" "$_out" "1. laptop"
+    _cfg=$(cat "${CI_HOME}/.ssh/config")
+    assert_contains "TP-DNS-22 Host * kept" "$_cfg" "Host *"
+    assert_contains "TP-DNS-22 wildcard body kept" "$_cfg" "StrictHostKeyChecking accept-new"
+    assert_not_contains "TP-DNS-22 Host phone gone from file" "$_cfg" "Host phone"
+
+    # TP-DNS-23 TTY delete cancel (n)
+    _dns_fixture
+    _out=$(HOME="${CI_HOME}" TTY=1 INTERACTIVE=1 sh "${SCRIPT}" dns <<'EOF'
+3
+1
+n
+EOF
+)
+    _ec=$?
+    assert_eq "TP-DNS-23 delete cancel exit 0" 0 "$_ec"
+    assert_contains "TP-DNS-23 cancelled" "$_out" "Delete cancelled"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns list 2>&1)
+    assert_contains "TP-DNS-23 phone still listed" "$_out" "1. phone"
+
+    # TP-DNS-24 TTY delete yes
+    _dns_fixture
+    _out=$(HOME="${CI_HOME}" TTY=1 INTERACTIVE=1 sh "${SCRIPT}" dns <<'EOF'
+3
+1
+y
+EOF
+)
+    _ec=$?
+    assert_eq "TP-DNS-24 delete yes exit 0" 0 "$_ec"
+    assert_contains "TP-DNS-24 deleted" "$_out" "Deleted Host phone"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns list 2>&1)
+    assert_not_contains "TP-DNS-24 phone gone after yes" "$_out" "phone"
+    assert_contains "TP-DNS-24 laptop remains after yes" "$_out" "1. laptop"
+
+    # TP-DNS-25 delete missing n fail-closed
+    _err=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns delete 2>&1 >/dev/null)
+    _ec=$?
+    assert_eq "TP-DNS-25 delete missing n exit 1" 1 "$_ec"
+    assert_contains "TP-DNS-25 Next dns list" "$_err" "dns list"
+
+    # TP-DNS-26 JSON delete one object; extra aliases on other Host kept
+    cat > "${CI_HOME}/.ssh/config" <<'EOF'
+Host phone phone-alias
+    HostName 192.168.1.10
+    IdentityFile ~/.ssh/id_ed25519
+Host laptop
+    HostName 10.0.0.5
+    User alice
+Host *
+    StrictHostKeyChecking accept-new
+EOF
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" --json dns delete 1 2>/dev/null)
+    _ec=$?
+    assert_eq "TP-DNS-26 json delete exit 0" 0 "$_ec"
+    assert_contains "TP-DNS-26 json success type" "$_out" '"type":"out_success"'
+    assert_contains "TP-DNS-26 json dns phone" "$_out" '"dns":"phone"'
+    assert_not_contains "TP-DNS-26 json not a second dns_show" "$_out" '"type":"dns_show"'
+    _cfg=$(cat "${CI_HOME}/.ssh/config")
+    assert_not_contains "TP-DNS-26 phone stanza gone" "$_cfg" "Host phone"
+    assert_contains "TP-DNS-26 laptop kept" "$_cfg" "Host laptop"
+    assert_contains "TP-DNS-26 laptop User kept" "$_cfg" "User alice"
+    assert_contains "TP-DNS-26 Host * kept" "$_cfg" "Host *"
 
     ci_cleanup_env
 }

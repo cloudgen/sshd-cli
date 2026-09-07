@@ -5,6 +5,34 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.7.0] - 2026-09-07
+
+### Added
+
+- On Termux, `start` (including already-running) acquires an **Android wake lock** (`termux-wake-lock`) so sshd can keep listening with the screen off. Missing helper warns and still starts sshd.
+- `wake-lock` re-acquires the lock (idempotent). `wake-unlock` releases it (does **not** run on `stop` — the lock is Termux-wide). Off Termux both are a success no-op.
+- Tests **TP-TX-08** .. **TP-TX-16**.
+
+### Changed
+
+- Termux-ish law records the wake-lock decision: auto-acquire **and** Type 0 verbs. Help lists `wake-lock` / `wake-unlock`.
+
+## [1.6.0] - 2026-09-07
+
+### Added
+
+- TTY `dns` (main menu row 5) shows this login’s Host names, then an **action menu**: **1 Edit**, **2 Add**, **3 Delete**, **9 Exit**. Host pick is the next screen (`0` to leave).
+- `dns delete N` / `dns rm N` removes that concrete Host stanza (backup + atomic replace). TTY confirms (y/N); `--force` or a non-interactive named command does not prompt. JSON is one success object.
+- Tests **TP-DNS-21** .. **TP-DNS-26**.
+
+### Changed
+
+- TTY no longer treats the first number after the Host list as “update this row”. Action first, then pick.
+
+### Fixed
+
+- Missing Edit / Add / Delete step so operators could only update.
+
 ## [1.5.1] - 2026-09-07
 
 ### Fixed

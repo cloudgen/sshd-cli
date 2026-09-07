@@ -1,12 +1,12 @@
 **file**: docs/requirements/requirement-shell-termux-ish.md  
-**Status**: Active (Version 1.1.1)  
+**Status**: Active (Version 1.2.0)  
 **Area**: shell  
 **Key**: `requirement-shell-termux-ish`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This is the **shell Termux-ish** law for **sshd-cli**: Termux-like userspace is the first home. Wrapping **named** `pkg` ensure as this login **is in scope**. This file owns detect, invoke contract, fail-closed, and the fence that `pkg` is **not** Linux `apt`. Domain law names **which** packages (`openssh`, `termux-auth`) and when to start sshd.
+This is the **shell Termux-ish** law for **sshd-cli**: Termux-like userspace is the first home. Wrapping **named** `pkg` ensure as this login **is in scope**. This file owns detect, invoke contract, fail-closed, the fence that `pkg` is **not** Linux `apt`, and **Android wake lock** (auto-acquire on start plus Type 0 `wake-lock` / `wake-unlock`). Domain law names **which** packages (`openssh`, `termux-auth`) and when to start sshd.
 
 A stated Termux sshd job **MUST NOT** be emptied by a portable habit of “do not wrap package managers.”
 
@@ -24,6 +24,7 @@ A stated Termux sshd job **MUST NOT** be emptied by a portable habit of “do no
 |----------|----------|
 | Detect Termux-ish; named `pkg install -y`; fail closed | Linux `apt` / `dnf` / `yum`; in-tool `sudo` |
 | Keep `pkg` in scope when the purpose needs those packages | Unbounded `pkg` of unnamed packages; skip `pkg` because the CLI is already placed |
+| Android wake lock: auto-acquire on `start`; `wake-lock` / `wake-unlock` | Termux:Boot as a substitute; auto-unlock on `stop`; systemd-inhibit |
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
@@ -33,7 +34,8 @@ A stated Termux sshd job **MUST NOT** be emptied by a portable habit of “do no
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
 | Prepare Termux so sshd can exist | Place this program **and** ensure OpenSSH packages via `pkg` | `sshd-cli install` |
-| Run the same command on Linux | CLI install only; no `apt` wrap | `sshd-cli install` |
+| Keep sshd listening with the screen off | Android may sleep Termux; this program acquires a wake lock on `start`. Acquire again if it was dropped. | `sshd-cli start` · `sshd-cli wake-lock` |
+| Run the same command on Linux | CLI install only; no `apt` wrap; wake lock is a no-op | `sshd-cli install` |
 
 ---
 
@@ -71,19 +73,42 @@ Interactive empty argv is the menu and **MUST NOT** run package ensure as a side
 
 **MUST NOT** treat this companion as Type 1 host bootstrap or host-mutating domain. It is this login into `$PREFIX`.
 
+### 2.3.1 Android wake lock
+
+sshd is a **background daemon**. On Termux, Android may sleep the CPU when the screen is off. This product **chooses both**: auto-acquire on `start` **and** Type 0 verbs to acquire again / release.
+
+| Path | MUST | MUST NOT |
+|------|------|----------|
+| **Auto-acquire** | `sshd_cmd_start` (including already-running no-op and `restart`) calls `sshd_wake_lock_acquire` on Termux. Missing `termux-wake-lock`: **warn** + Next; **MUST NOT** fail sshd start solely for that. JSON/quiet: no second JSON object | Treat OpenSSH daemonize as a substitute; wrap systemd-inhibit |
+| **`wake-lock`** | Type 0; idempotent; handler `sshd_cmd_wake_lock`. On Termux, missing helper → `out_die` with Next: `pkg install termux-tools` then `sshd-cli wake-lock`. Off-detect: success no-op | Hang; invoke because Git Bash or Windows cmd was detected |
+| **`wake-unlock`** | Type 0; handler `sshd_cmd_wake_unlock`; operator-owned. Off-detect: success no-op | Auto-call from `stop` (lock is Termux-app-wide) |
+| **Git Bash / Windows cmd / POSIX Linux** | Skip | Call `termux-wake-lock` / `termux-wake-unlock` |
+
+Dual mention: `requirement-shell-cli-interface` (verb rows) · `requirement-domain-sshd` (`start` companion).
+
+**Invocation samples:**
+
+```sh
+sshd-cli start
+sshd-cli wake-lock
+sshd-cli wake-unlock
+sshd-cli --json wake-lock
+```
+
 ### 2.4 Implementation Notes (this project)
 
 | Item | Value |
 |------|--------|
-| Product | `sshd-cli` 1.5.1 |
+| Product | `sshd-cli` 1.7.0 |
 | Detect | `sshd_is_termux` |
 | Class union | `sshd_is_normal_user_only_cli` (Termux **or** Git Bash **or** Windows cmd) |
-| Git Bash | `sshd_is_git_bash` — no `pkg` |
-| Windows cmd | `sshd_is_windows_cmd` — no `pkg` |
+| Git Bash | `sshd_is_git_bash` — no `pkg`; no `termux-wake-lock` |
+| Windows cmd | `sshd_is_windows_cmd` — no `pkg`; no `termux-wake-lock` |
 | Helper | `sshd_pkg_ensure` |
 | Call site | `inst_ensure_companion` on `install` / non-interactive empty-argv |
 | Named list | `openssh` · `termux-auth` |
-| Linux | no-op (no `apt`) |
+| Android wake lock | **both** auto-acquire on `start` (`sshd_wake_lock_acquire`) **and** verbs `wake-lock` / `wake-unlock`. Helper: `termux-wake-lock` / `termux-wake-unlock` (typical `termux-tools`). **MUST NOT** auto-unlock on `stop` |
+| Linux | no-op (no `apt`; wake lock no-op) |
 | In-tool sudo | none |
 
 ### 2.5 Why This Requirement Exists (Direct CIAO Alignment)
@@ -114,7 +139,7 @@ When the ship unit detects a **command line for normal user only** (Termux, Git 
 
 Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface`.
 
-**This requirement:** `pkg` runs only on Termux detect; Git Bash and Windows cmd are the same privilege class and **MUST NOT** invoke `pkg`; this companion is not Type 1 host bootstrap.
+**This requirement:** `pkg` and `termux-wake-lock` run only on Termux detect; Git Bash and Windows cmd are the same privilege class and **MUST NOT** invoke `pkg` or `termux-wake-lock`; this companion is not Type 1 host bootstrap.
 
 ## 4. Protection Rule (Sacred)
 
@@ -127,7 +152,8 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 4. Wrap Linux `apt` / `dnf` / `yum` because Termux `pkg` is in scope.  
 5. Run unnamed `pkg` subcommands as this companion.  
 6. Empty a stated Termux install/manage purpose with a portable “do not wrap package managers” habit.  
-7. Strip the **Under command line for normal user only** section.
+7. Strip the **Under command line for normal user only** section.  
+8. Skip Android wake lock on Termux `start`, auto-unlock on `stop`, invoke `termux-wake-lock` on Git Bash / Windows cmd, or treat Termux:Boot / `termux-services` as the wake lock.
 
 ## 5. Related artifacts (versioned surface only)
 
@@ -150,10 +176,12 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 | **TP-LC-16** | `tests/test_local_lifecycle.sh` | have |
 | **TP-LC-18** | `tests/test_local_lifecycle.sh` | have |
 | **TP-LC-19** | `tests/test_local_lifecycle.sh` | have |
+| **TP-TX-08** .. **TP-TX-16** | `tests/test_local_lifecycle.sh` | have |
+| **TP-CLI-04** (`wake-lock` in help) | `tests/test_cli.sh` | have |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-09-05  
+**Last Updated**: 2026-09-07  
 **Owner**: Cloudgen Wong  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

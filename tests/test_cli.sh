@@ -53,6 +53,8 @@ run_test_cli() {
     assert_contains "TP-CLI-04 help auth-keys" "$_out" "auth-keys"
     assert_contains "TP-CLI-04 help dns" "$_out" "dns"
     assert_contains "TP-CLI-04 help menu" "$_out" "menu"
+    assert_contains "TP-CLI-04 help wake-lock" "$_out" "wake-lock"
+    assert_contains "TP-CLI-04 help wake-unlock" "$_out" "wake-unlock"
     assert_contains "TP-CLI-04 help --json" "$_out" "--json"
     assert_not_contains "TP-CLI-04 no backup verb" "$_out" "backup <"
     assert_not_contains "TP-CLI-04 no restore verb" "$_out" "restore <"

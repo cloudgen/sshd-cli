@@ -49,8 +49,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys) plus self-install.}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.5.1"
-: "${VERSION:=1.5.1}"
+VERSION="1.7.0"
+: "${VERSION:=1.7.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -2592,6 +2592,126 @@ sshd_pkg_ensure() {
     return 0
 }
 
+# =============================================================================
+# sshd_wake_lock_*() - Termux Android wake lock
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# On Termux, ask Android to keep the CPU awake so sshd can listen with the
+# screen off (termux-wake-lock). Off Termux: no-op. The lock is Termux-app-wide:
+# MUST NOT auto-unlock on sshd stop.
+#
+# Product law: requirement-shell-termux-ish.md · requirement-domain-sshd.md
+#
+# Last reviewed: 2026-09-07
+# =============================================================================
+
+# Returns: 0 acquired · 1 not Termux · 2 helper missing · 3 helper failed
+sshd_termux_wake_lock_invoke() {
+    if ! sshd_is_termux; then
+        return 1
+    fi
+    if ! command -v termux-wake-lock >/dev/null 2>&1; then
+        return 2
+    fi
+    if ! termux-wake-lock >/dev/null 2>&1; then
+        return 3
+    fi
+    return 0
+}
+
+sshd_termux_wake_unlock_invoke() {
+    if ! sshd_is_termux; then
+        return 1
+    fi
+    if ! command -v termux-wake-unlock >/dev/null 2>&1; then
+        return 2
+    fi
+    if ! termux-wake-unlock >/dev/null 2>&1; then
+        return 3
+    fi
+    return 0
+}
+
+sshd_wake_lock_acquire() {
+    : "${JSON:=0}"
+    : "${QUIET:=0}"
+    : "${APP_NAME:=sshd-cli}"
+    _wl_rc=0
+    sshd_termux_wake_lock_invoke || _wl_rc=$?
+    if [ "${_wl_rc}" -eq 1 ]; then
+        unset _wl_rc
+        return 0
+    fi
+    if [ "${_wl_rc}" -eq 0 ]; then
+        if [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
+            out_info "Android wake lock acquired (Termux keeps the CPU awake so sshd can listen with the screen off). Re-acquire: ${APP_NAME} wake-lock"
+        fi
+        unset _wl_rc
+        return 0
+    fi
+    if [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
+        out_warn "Could not acquire the Android wake lock (termux-wake-lock missing or failed). sshd may stop when the screen is off. Next: run: pkg install termux-tools then ${APP_NAME} wake-lock"
+    fi
+    unset _wl_rc
+    return 0
+}
+
+sshd_cmd_wake_lock() {
+    : "${JSON:=0}"
+    : "${APP_NAME:=sshd-cli}"
+    if ! sshd_is_termux; then
+        if [ "${JSON}" -eq 1 ]; then
+            out_json "out_success" "Not Termux; Android wake lock is a no-op." "held" "n/a"
+        else
+            out_success "Not Termux; Android wake lock is a Termux helper — nothing to acquire on this host."
+        fi
+        return 0
+    fi
+    _wl_rc=0
+    sshd_termux_wake_lock_invoke || _wl_rc=$?
+    if [ "${_wl_rc}" -eq 2 ]; then
+        out_die "Termux wake-lock helper was not found, so the Android wake lock could not be acquired. Next: run: pkg install termux-tools then ${APP_NAME} wake-lock"
+    fi
+    if [ "${_wl_rc}" -eq 3 ]; then
+        out_die "termux-wake-lock failed. Next: run: termux-wake-lock then ${APP_NAME} wake-lock"
+    fi
+    unset _wl_rc
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "out_success" "Android wake lock acquired." "held" "yes"
+    else
+        out_success "Android wake lock acquired. Termux will keep the CPU awake so sshd can listen with the screen off."
+        out_info "If Android drops it, run: ${APP_NAME} wake-lock"
+    fi
+}
+
+sshd_cmd_wake_unlock() {
+    : "${JSON:=0}"
+    : "${APP_NAME:=sshd-cli}"
+    if ! sshd_is_termux; then
+        if [ "${JSON}" -eq 1 ]; then
+            out_json "out_success" "Not Termux; Android wake lock is a no-op." "held" "n/a"
+        else
+            out_success "Not Termux; Android wake unlock is a Termux helper — nothing to release on this host."
+        fi
+        return 0
+    fi
+    _wl_rc=0
+    sshd_termux_wake_unlock_invoke || _wl_rc=$?
+    if [ "${_wl_rc}" -eq 2 ]; then
+        out_die "Termux wake-unlock helper was not found, so the Android wake lock could not be released. Next: run: pkg install termux-tools then ${APP_NAME} wake-unlock"
+    fi
+    if [ "${_wl_rc}" -eq 3 ]; then
+        out_die "termux-wake-unlock failed. Next: run: termux-wake-unlock"
+    fi
+    unset _wl_rc
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "out_success" "Android wake lock released." "held" "no"
+    else
+        out_success "Android wake lock released. Android may sleep Termux when the screen is off."
+    fi
+}
+
 sshd_resolve() {
     : "${HOME:=/tmp}"
     SSHD_PLATFORM="posix"
@@ -2937,6 +3057,7 @@ sshd_hint_daemon() {
     out_info "After a reboot, run: ${APP_NAME} start"
     if [ "${SSHD_PLATFORM}" = "termux" ]; then
         out_info "Listen-after-reboot on Termux is Termux:Boot (you own that hook): put ${APP_NAME} start in ~/.termux/boot/"
+        out_info "Android may sleep Termux when the screen is off; this CLI acquires a wake lock on start. Re-acquire: ${APP_NAME} wake-lock"
     else
         out_info "On POSIX Linux, listen-after-reboot is the distro sshd unit, not this CLI."
     fi
@@ -2947,6 +3068,7 @@ sshd_cmd_start() {
     sshd_need_bin
     sshd_resolve
     if _pid=$(sshd_running_pid); then
+        sshd_wake_lock_acquire
         if [ "${JSON}" -eq 1 ] && [ "${SSHD_NESTED_START}" -eq 0 ]; then
             out_json "out_success" "sshd is already running." "pid" "${_pid}" "port" "${SSHD_PORT}"
         elif [ "${JSON}" -eq 0 ]; then
@@ -2984,6 +3106,7 @@ sshd_cmd_start() {
     fi
     _pid=""
     _pid=$(sshd_running_pid || true)
+    sshd_wake_lock_acquire
     if [ "${JSON}" -eq 1 ] && [ "${SSHD_NESTED_START}" -eq 0 ]; then
         out_json "out_success" "sshd started." "pid" "${_pid}" "port" "${SSHD_PORT}"
     elif [ "${JSON}" -eq 0 ]; then
@@ -3217,8 +3340,8 @@ sshd_cmd_auth_keys() {
 
 # =============================================================================
 # sshd_dns_* — this login ~/.ssh/config as an SSH dns-ip list
-# requirement-domain-sshd: numbered Host list; show; field walk; set/add.
-# Do-not-capture-read: pick and field prompts read in the current shell.
+# requirement-domain-sshd: list; TTY action menu (edit/add/delete); show; set.
+# Do-not-capture-read: action pick, Host pick, and field prompts read in-shell.
 # =============================================================================
 
 sshd_dns_config_path() {
@@ -3434,6 +3557,26 @@ EOF
         out_info "Next: ${APP_NAME} dns add"
     fi
     unset _cfg _any _line _n _dns _ip
+}
+
+# Context block for the TTY action menu: names only, no choice numbers
+# (Host row 1 must not look like action 1. Edit).
+sshd_dns_list_context() {
+    _cfg=$(sshd_dns_config_path)
+    _any=0
+    while IFS= read -r _line || [ -n "${_line}" ]; do
+        _any=1
+        _dns=$(printf '%s' "${_line}" | awk -F '\t' '{print $2}')
+        _ip=$(printf '%s' "${_line}" | awk -F '\t' '{print $3}')
+        out_plain "  ${_dns}  $(sshd_dns_disp_ip "${_ip}")"
+    done <<EOF
+$(sshd_dns_records)
+EOF
+    if [ "${_any}" -eq 0 ]; then
+        out_info "No concrete Host entries in ${_cfg}."
+        out_info "Next: ${APP_NAME} dns add"
+    fi
+    unset _cfg _any _line _dns _ip
 }
 
 sshd_dns_list_json() {
@@ -3665,6 +3808,67 @@ sshd_dns_append() {
     unset _new_dns _new_ip _new_user _new_port _cfg _tmp
 }
 
+# Drop concrete Host stanza number n (whole stanza, including extra aliases).
+sshd_dns_remove() {
+    _rm_n="$1"
+    _cfg=$(sshd_dns_config_path)
+    sshd_dns_ensure_file
+    sshd_dns_backup "${_cfg}" "dns-delete"
+    _tmp=$(mktemp -t "${APP_NAME}.ssh_config.XXXXXX") || out_die "Could not create a temp file for ssh config."
+    awk -v target="${_rm_n}" '
+        function parse_line(line,    s) {
+            key=""; val=""; lk=""
+            s=line
+            sub(/^[[:space:]]+/, "", s)
+            if (s=="" || substr(s,1,1)=="#") return 0
+            if (!match(s, /^[A-Za-z][A-Za-z0-9]*/)) return 0
+            key=substr(s, RSTART, RLENGTH)
+            s=substr(s, RSTART+RLENGTH)
+            sub(/^[[:space:]]*=[[:space:]]*/, "", s)
+            sub(/^[[:space:]]+/, "", s)
+            if (match(s, /^[^[:space:]]+/)) val=substr(s, RSTART, RLENGTH)
+            lk=tolower(key)
+            return 1
+        }
+        function is_concrete(p) {
+            return (p != "" && p !~ /[?*]/)
+        }
+        BEGIN { n=0; skip=0 }
+        {
+            raw=$0
+            if (!parse_line($0)) {
+                if (skip) next
+                print raw
+                next
+            }
+            if (lk=="match") {
+                skip=0
+                print raw
+                next
+            }
+            if (lk=="host") {
+                skip=0
+                if (is_concrete(val)) {
+                    n++
+                    if (n==target+0) {
+                        skip=1
+                        next
+                    }
+                }
+                print raw
+                next
+            }
+            if (skip) next
+            print raw
+        }
+    ' "${_cfg}" > "${_tmp}" || {
+        rm -f "${_tmp}"
+        out_die "Could not rewrite ${_cfg}."
+    }
+    sshd_dns_commit_tmp "${_tmp}" "${_cfg}"
+    unset _rm_n _cfg _tmp
+}
+
 sshd_dns_name_taken() {
     _name="$1"
     _except_n="${2-}"
@@ -3836,20 +4040,94 @@ sshd_dns_walk_add() {
     unset _dns _ip _user _port _n
 }
 
-sshd_dns_interactive_pick() {
-    sshd_dns_list_human
-    if [ "$(sshd_dns_count)" -eq 0 ]; then
-        return 0
+sshd_dns_apply_delete() {
+    : "${FORCE:=0}"
+    _sel="$1"
+    _row=$(sshd_dns_lookup "${_sel}") || out_die "No Host entry '${_sel}' in $(sshd_dns_config_path). Next: ${APP_NAME} dns list"
+    _n=$(printf '%s' "${_row}" | awk -F '\t' '{print $1}')
+    _dns=$(printf '%s' "${_row}" | awk -F '\t' '{print $2}')
+    _ip=$(printf '%s' "${_row}" | awk -F '\t' '{print $3}')
+    _user=$(printf '%s' "${_row}" | awk -F '\t' '{print $4}')
+    _port=$(printf '%s' "${_row}" | awk -F '\t' '{print $5}')
+    if sshd_dns_can_prompt; then
+        sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
+        if [ "${FORCE}" -eq 0 ]; then
+            if ! prompt_yes_no "Delete Host ${_dns} from $(sshd_dns_config_path)"; then
+                out_info "Delete cancelled."
+                unset _sel _row _n _dns _ip _user _port
+                return 0
+            fi
+        fi
     fi
+    sshd_dns_remove "${_n}"
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "out_success" "Host entry deleted." "n" "${_n}" "dns" "${_dns}"
+    else
+        out_success "Deleted Host ${_dns} from $(sshd_dns_config_path)."
+    fi
+    unset _sel _row _n _dns _ip _user _port
+}
+
+# Sets DNS_PICK_SEL. MUST run in current shell (do-not-capture-read).
+# Return 1 = leave / empty list. Host pick uses 0 to leave (row 9 is a Host).
+sshd_dns_pick_host() {
+    _ph_verb="$1"
+    DNS_PICK_SEL=""
+    if [ "$(sshd_dns_count)" -eq 0 ]; then
+        out_info "No concrete Host entries in $(sshd_dns_config_path)."
+        out_info "Next: ${APP_NAME} dns add"
+        unset _ph_verb
+        return 1
+    fi
+    sshd_dns_list_human
     out_plain "0. Exit"
-    out_msg_n "Choose a number to show and edit (0 to leave): "
+    out_msg_n "Choose a number to ${_ph_verb} (0 to leave): "
     _choice=""
     read -r _choice || true
     case "${_choice}" in
-        0|q|exit|"") return 0 ;;
+        0|q|exit|"")
+            unset _ph_verb _choice
+            return 1
+            ;;
     esac
-    sshd_dns_walk_edit "${_choice}"
-    unset _choice
+    DNS_PICK_SEL="${_choice}"
+    unset _ph_verb _choice
+    return 0
+}
+
+sshd_dns_interactive_pick() {
+    out_info "SSH names (dns) in $(sshd_dns_config_path)"
+    sshd_dns_list_context
+    out_plain "1. Edit: change dns, ip, user, or port"
+    out_plain "2. Add: new Host in this login ~/.ssh/config"
+    out_plain "3. Delete: remove a Host"
+    out_plain "9. Exit"
+    out_msg_n "Choose a number, or type the command name: "
+    _act=""
+    read -r _act || true
+    case "${_act}" in
+        1|edit)
+            if sshd_dns_pick_host "edit"; then
+                sshd_dns_walk_edit "${DNS_PICK_SEL}"
+            fi
+            ;;
+        2|add)
+            sshd_dns_walk_add
+            ;;
+        3|delete|rm)
+            if sshd_dns_pick_host "delete"; then
+                sshd_dns_apply_delete "${DNS_PICK_SEL}"
+            fi
+            ;;
+        9|0|q|exit|"")
+            unset _act
+            return 0
+            ;;
+        *)
+            out_die "Unknown dns action '${_act}'. Use edit, add, or delete."
+            ;;
+    esac
+    unset _act
 }
 
 sshd_cmd_dns() {
@@ -3896,8 +4174,14 @@ sshd_cmd_dns() {
         add)
             sshd_dns_walk_add "$@"
             ;;
+        delete|rm)
+            _sel="${1-}"
+            [ -z "${_sel}" ] && out_die "dns delete needs a number or Host name. Next: ${APP_NAME} dns list"
+            sshd_dns_apply_delete "${_sel}"
+            unset _sel
+            ;;
         *)
-            out_die "Unknown dns action '${_sub}'. Use list, show, edit, set, or add."
+            out_die "Unknown dns action '${_sub}'. Use list, show, edit, set, add, or delete."
             ;;
     esac
     unset _sub
@@ -3927,6 +4211,8 @@ sshd_cmd_menu() {
         config) sshd_cmd_config ;;
         host-keys) sshd_cmd_host_keys list ;;
         auth-keys) sshd_cmd_auth_keys list ;;
+        wake-lock) sshd_cmd_wake_lock ;;
+        wake-unlock) sshd_cmd_wake_unlock ;;
         9|99|999|exit|"") return 0 ;;
         *) out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help." ;;
     esac
@@ -3940,7 +4226,7 @@ app_about() {
     : "${QUIET:=0}"
     : "${APP_NAME:=sshd-cli}"
     # Version comes from global SSOT (VERSION="…" hard-assign near top); default only if unset
-    : "${VERSION:=1.5.1}"
+    : "${VERSION:=1.7.0}"
     if [ -n "${PREFIX-}" ] && [ -d "${PREFIX}/bin" ]; then
     : "${GLOBAL_BIN:=${PREFIX}/bin}"
 else
@@ -4095,7 +4381,7 @@ fi
 
 app_version() {
     : "${APP_NAME:=sshd-cli}"
-    : "${VERSION:=1.5.1}"
+    : "${VERSION:=1.7.0}"
     : "${JSON:=0}"
     if [ "${JSON}" -eq 1 ]; then
         # Same machine contract as historical app_main inline path
@@ -4161,8 +4447,12 @@ app_help() {
     out_plain "  config               Show resolved sshd paths and key settings"
     out_plain "  host-keys [list|generate]  List or create host keys"
     out_plain "  auth-keys [list|add <file>]  This login authorized_keys"
-    out_plain "  dns [list|show N|edit N|set N …|add …]  This login ~/.ssh/config Host list (dns-ip)"
+    out_plain "  dns [list|show N|edit N|set N …|add …|delete N]  This login ~/.ssh/config Host list (dns-ip)"
     out_plain "  menu                 Numbered list: status, start, stop, restart, dns, Exit 9 (terminal only; alias: main)"
+    out_empty_line
+    out_info "Termux (Android wake lock):"
+    out_plain "  wake-lock            Acquire the Android wake lock so sshd can keep listening with the screen off (idempotent; acquire again if Android dropped it)"
+    out_plain "  wake-unlock          Release the Android wake lock (does not stop sshd; lock is Termux-wide)"
     out_empty_line
     # --- end DOMAIN_HELP_ROWS ---
 
@@ -4302,7 +4592,7 @@ app_main() {
                 COMMAND="$1"
                 ;;
             # --- DOMAIN_DISPATCH_COMMANDS (specializee injection) ---
-            status|start|stop|restart|port|config|host-keys|auth-keys|dns|menu|main)
+            status|start|stop|restart|port|config|host-keys|auth-keys|dns|menu|main|wake-lock|wake-unlock)
                 case "${COMMAND}" in
                     port|host-keys|auth-keys|dns)
                         if [ "${COMMAND}" = "dns" ] && [ -z "$1" ]; then
@@ -4393,6 +4683,8 @@ app_main() {
             sshd_cmd_dns "$@"
             ;;
         menu|main) sshd_cmd_menu ;;
+        wake-lock) sshd_cmd_wake_lock ;;
+        wake-unlock) sshd_cmd_wake_unlock ;;
         # --- end DOMAIN_DISPATCH_ROUTES ---
         help|*)
             app_help

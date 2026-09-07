@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.5.1  
+**Product VERSION:** 1.7.0  
 **Last plan update:** 2026-09-07  
-**Last suite run:** PASS=224 FAIL=0 SKIP=0 (2026-09-07)
+**Last suite run:** PASS=283 FAIL=0 SKIP=0 (2026-09-07)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -23,8 +23,9 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | Channel verbs routed (`self-update`, `version-check`); no public network in CI | have | TP-CLI-04, TP-CLI-10 |
 | Trimmed parent verbs fail closed | have | TP-CLI-13 |
 | Local install / idempotent / uninstall / mode 0755 / login rc / Termux pkg | have | TP-LC-01..19 |
+| Android wake lock (auto on start + `wake-lock` verb) | have | TP-TX-08..16 |
 | sshd start is a background daemon (not a service manager) | have | TP-SSHD-01, TP-SSHD-02 |
-| this-login `~/.ssh/config` dns-ip list / show / set / add | have | TP-DNS-01..20 |
+| this-login `~/.ssh/config` dns-ip list / show / set / add / delete | have | TP-DNS-01..26 |
 | Automatic companion link on install (file://) | have | TP-CSUM-01 |
 | Backup / restore / sudoers emit | n/a | Absent by design (not a backup product) |
 | Online curl against public GitHub | n/a | Core suite stays offline; channel is `file://` in CI |
@@ -78,14 +79,20 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-DNS-10 | non-interactive `add` | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-11 | bare `dns` non-TTY lists (no hang) | test_dns | requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-DNS-12 | INTERACTIVE field walk; `""` clears ip | test_dns | requirement-domain-sshd | **have** |
-| TP-DNS-13 | pick `9` is Host row 9 (not Exit) | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DNS-13 | action Edit then pick `9` is Host row 9 (not action Exit) | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-DNS-14 | add inserts before trailing `Host *` | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-15 | extra Host aliases kept on set | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-16 | `Key=value` / `Key = value` parse; set does not corrupt User | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-17 | Match / Include skipped on list | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-18 | after `COMMAND=dns`, token `dns` is a field name | test_dns | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
 | TP-DNS-19 | add without dns name Next mentions add | test_dns | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
-| TP-DNS-20 | TTY menu row 5 opens Host list | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DNS-20 | TTY menu row 5 opens Edit/Add/Delete action menu | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DNS-21 | TTY Edit then Host 1 | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-22 | non-interactive `delete`; `Host *` kept | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-23 | TTY delete cancel | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DNS-24 | TTY delete yes | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-25 | delete without n fail-closed | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-26 | JSON delete one object; other stanzas kept | test_dns | requirement-domain-sshd · requirement-shell-output-requirements | **have** |
 
 ### TP-LC (local lifecycle)
 
@@ -110,6 +117,20 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-LC-17 | install ends by starting sshd (Termux stub) | test_local_lifecycle | requirement-domain-sshd | **have** |
 | TP-LC-18 | Git Bash mock: `pkg` not invoked (normal-user-only CLI) | test_local_lifecycle | requirement-shell-cli-interface · requirement-shell-termux-ish | **have** |
 | TP-LC-19 | Windows cmd mock: `pkg` not invoked (normal-user-only CLI) | test_local_lifecycle | requirement-shell-cli-interface · requirement-shell-termux-ish | **have** |
+
+### TP-TX (Termux android-wake-lock)
+
+| TP-ID | Intent | Suite | Primary requirement(s) | Status |
+|-------|--------|-------|------------------------|--------|
+| TP-TX-08 | not Termux: `termux-wake-lock` not invoked | test_local_lifecycle | requirement-shell-termux-ish | **have** |
+| TP-TX-09 | Termux mock start (and already-running) invokes `termux-wake-lock` | test_local_lifecycle | requirement-shell-termux-ish · requirement-domain-sshd | **have** |
+| TP-TX-10 | Termux mock `wake-lock` verb; idempotent | test_local_lifecycle | requirement-shell-termux-ish · requirement-shell-cli-interface | **have** |
+| TP-TX-11 | Git Bash mock: helper not invoked | test_local_lifecycle | requirement-shell-termux-ish · requirement-shell-cli-interface | **have** |
+| TP-TX-12 | Windows cmd mock: helper not invoked | test_local_lifecycle | requirement-shell-termux-ish · requirement-shell-cli-interface | **have** |
+| TP-TX-13 | Termux start, helper missing: start succeeds; Next names `wake-lock` | test_local_lifecycle | requirement-shell-termux-ish · requirement-domain-sshd | **have** |
+| TP-TX-14 | Termux `wake-lock` verb, helper missing: fail closed + Next `pkg install termux-tools` | test_local_lifecycle | requirement-shell-termux-ish | **have** |
+| TP-TX-15 | help lists `wake-lock` / `wake-unlock` | test_cli (TP-CLI-04) | requirement-shell-cli-interface · requirement-shell-termux-ish | **have** |
+| TP-TX-16 | `stop` does not invoke `termux-wake-unlock` | test_local_lifecycle | requirement-shell-termux-ish · requirement-domain-sshd | **have** |
 
 ### TP-CSUM (companion digest)
 
