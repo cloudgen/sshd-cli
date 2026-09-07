@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.4.1  
-**Last plan update:** 2026-09-06  
-**Last suite run:** PASS=128 FAIL=0 SKIP=0 (2026-09-06)
+**Product VERSION:** 1.5.0  
+**Last plan update:** 2026-09-07  
+**Last suite run:** PASS=218 FAIL=0 SKIP=0 (2026-09-07)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -23,6 +23,8 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | Channel verbs routed (`self-update`, `version-check`); no public network in CI | have | TP-CLI-04, TP-CLI-10 |
 | Trimmed parent verbs fail closed | have | TP-CLI-13 |
 | Local install / idempotent / uninstall / mode 0755 / login rc / Termux pkg | have | TP-LC-01..19 |
+| sshd start is a background daemon (not a service manager) | have | TP-SSHD-01, TP-SSHD-02 |
+| this-login `~/.ssh/config` dns-ip list / show / set / add | have | TP-DNS-01..19 |
 | Automatic companion link on install (file://) | have | TP-CSUM-01 |
 | Backup / restore / sudoers emit | n/a | Absent by design (not a backup product) |
 | Online curl against public GitHub | n/a | Core suite stays offline; channel is `file://` in CI |
@@ -52,6 +54,37 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-CLI-13 | backup/restore/sudoers verbs unknown | test_cli | requirement-shell-cli-interface | **have** |
 | TP-CLI-14 | empty argv interactive → domain menu (no install); rows 1–4 + Exit 9 | test_cli | requirement-shell-cli-zero-arguments · requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-CLI-15 | status Connect: live ssh -p user@ipv4; no `<this-host>` | test_cli | requirement-domain-sshd | **have** |
+
+### TP-SSHD (domain start: daemon, not a service)
+
+| TP-ID | Intent | Suite | Primary requirement(s) | Status |
+|-------|--------|-------|------------------------|--------|
+| TP-SSHD-01 | Start launch is `sshd -f`; help/dispatcher have no systemd / termux-services / sv-enable / add-crontab / enable-service | `tests/test_cli.sh` | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
+| TP-SSHD-02 | Termux stub install/start names background daemon, reboot re-start, Termux:Boot operator hook | `tests/test_local_lifecycle.sh` | requirement-domain-sshd | **have** |
+
+### TP-DNS (this login ~/.ssh/config Host list)
+
+| TP-ID | Intent | Suite | Primary requirement(s) | Status |
+|-------|--------|-------|------------------------|--------|
+| TP-DNS-01 | help lists `dns` | `tests/test_dns.sh` | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
+| TP-DNS-02 | numbered list; `Host *` omitted | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-03 | show: user empty → `empty`; port set | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-04 | show by name; empty port displays 22 | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-05 | non-interactive `set` ip | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DNS-06 | `""` clears user; omit User line | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-07 | JSON list `@items` | test_dns | requirement-domain-sshd · requirement-shell-output-requirements | **have** |
+| TP-DNS-08 | `edit` without TTY fail-closed Next `dns set` | test_dns | requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DNS-09 | missing n fail-closed | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-10 | non-interactive `add` | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-11 | bare `dns` non-TTY lists (no hang) | test_dns | requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DNS-12 | INTERACTIVE field walk; `""` clears ip | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-13 | pick `9` is Host row 9 (not Exit) | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DNS-14 | add inserts before trailing `Host *` | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-15 | extra Host aliases kept on set | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-16 | `Key=value` / `Key = value` parse; set does not corrupt User | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-17 | Match / Include skipped on list | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-18 | after `COMMAND=dns`, token `dns` is a field name | test_dns | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
+| TP-DNS-19 | add without dns name Next mentions add | test_dns | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
 
 ### TP-LC (local lifecycle)
 
@@ -90,5 +123,5 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 1. Closing a **bug** finding updates the matching TP to **have**.  
 2. Do not mark TP **have** without a suite assertion (or honest skip/n/a).  
 3. Do not reintroduce folder-backup / sudoers-emit as Core without a product-mode change.  
-4. Domain TPs **are** Core for this product (`status` Connect, menu rows, Termux pkg, start-after-install). Broader `start`/`stop`/`port` behavioral TPs remain **todo** until added.  
+4. Domain TPs **are** Core for this product (`status` Connect, menu rows, Termux pkg, start-after-install, daemon vs service). Broader `stop`/`port`/`config`/`host-keys`/`auth-keys` behavioral TPs remain **todo** until added.  
 5. There is **no** `requirement-bootstrap-chain` on this product. Trimmed parent verbs are owned by `requirement-shell-cli-interface`.

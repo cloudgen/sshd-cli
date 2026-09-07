@@ -49,12 +49,13 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys) plus self-install.}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.4.1"
-: "${VERSION:=1.4.1}"
+VERSION="1.5.0"
+: "${VERSION:=1.5.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
 : "${JSON:=0}"
+: "${INTERACTIVE:=0}"
 : "${FORCE:=0}"
 : "${FORCE_REINSTALL:=0}"
 : "${DEBUG:=0}"
@@ -2926,6 +2927,21 @@ sshd_cmd_config() {
     fi
 }
 
+# sshd_hint_daemon() - Human-only: session daemon vs boot service
+# requirement-domain-sshd: OpenSSH daemonizes; this CLI is not a service manager.
+sshd_hint_daemon() {
+    if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ]; then
+        return 0
+    fi
+    out_info "sshd is a background daemon for this session (OpenSSH forks itself). It is not a systemd, termux-services, or cron service this CLI manages."
+    out_info "After a reboot, run: ${APP_NAME} start"
+    if [ "${SSHD_PLATFORM}" = "termux" ]; then
+        out_info "Listen-after-reboot on Termux is Termux:Boot (you own that hook): put ${APP_NAME} start in ~/.termux/boot/"
+    else
+        out_info "On POSIX Linux, listen-after-reboot is the distro sshd unit, not this CLI."
+    fi
+}
+
 sshd_cmd_start() {
     : "${SSHD_NESTED_START:=0}"
     sshd_need_bin
@@ -2935,6 +2951,7 @@ sshd_cmd_start() {
             out_json "out_success" "sshd is already running." "pid" "${_pid}" "port" "${SSHD_PORT}"
         elif [ "${JSON}" -eq 0 ]; then
             out_success "sshd is already running (pid ${_pid}) on port ${SSHD_PORT}."
+            sshd_hint_daemon
         fi
         unset _pid
         return 0
@@ -2960,6 +2977,8 @@ sshd_cmd_start() {
         _err=$("${SSHD_BIN}" -t -f "${SSHD_CONFIG}" 2>&1 || true)
         out_die "sshd refused the config (${SSHD_CONFIG}). ${_err}"
     fi
+    # OpenSSH daemonizes unless -D. Do not pass -D; do not wrap in & / nohup.
+    # requirement-domain-sshd: no systemd / termux-services / cron-as-service.
     if ! "${SSHD_BIN}" -f "${SSHD_CONFIG}"; then
         out_die "sshd did not start. Check ${SSHD_CONFIG} and host keys under ${SSHD_HOSTKEY_DIR}."
     fi
@@ -2974,6 +2993,7 @@ sshd_cmd_start() {
             out_info "Connect:      ${_c}"
         fi
         unset _c
+        sshd_hint_daemon
     fi
     unset _pid
 }
@@ -3195,13 +3215,701 @@ sshd_cmd_auth_keys() {
     unset _sub _arg
 }
 
+# =============================================================================
+# sshd_dns_* — this login ~/.ssh/config as an SSH dns-ip list
+# requirement-domain-sshd: numbered Host list; show; field walk; set/add.
+# Do-not-capture-read: pick and field prompts read in the current shell.
+# =============================================================================
+
+sshd_dns_config_path() {
+    printf '%s' "${HOME}/.ssh/config"
+}
+
+sshd_dns_can_prompt() {
+    : "${JSON:=0}"
+    : "${QUIET:=0}"
+    : "${TTY:=0}"
+    : "${INTERACTIVE:=0}"
+    if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ]; then
+        return 1
+    fi
+    if [ "${TTY}" -eq 1 ] || [ "${INTERACTIVE}" -eq 1 ]; then
+        return 0
+    fi
+    return 1
+}
+
+sshd_dns_norm() {
+    case "${1-}" in
+        ''|'""'|"''") printf '' ;;
+        *) printf '%s' "$1" ;;
+    esac
+}
+
+sshd_dns_disp_user() {
+    if [ -n "${1-}" ]; then
+        printf '%s' "$1"
+    else
+        printf 'empty'
+    fi
+}
+
+sshd_dns_disp_port() {
+    if [ -n "${1-}" ]; then
+        printf '%s' "$1"
+    else
+        printf '22'
+    fi
+}
+
+sshd_dns_disp_ip() {
+    if [ -n "${1-}" ]; then
+        printf '%s' "$1"
+    else
+        printf '(empty)'
+    fi
+}
+
+# Class-B: print TSV n<TAB>dns<TAB>ip<TAB>user<TAB>port for concrete Host rows.
+# OpenSSH accepts "Key value", "Key=value", and "Key = value".
+sshd_dns_records() {
+    _rec_cfg=$(sshd_dns_config_path)
+    if [ ! -r "${_rec_cfg}" ]; then
+        unset _rec_cfg
+        return 0
+    fi
+    awk '
+        function parse_line(line,    s) {
+            key=""; val=""; lk=""
+            s=line
+            sub(/^[[:space:]]+/, "", s)
+            if (s=="" || substr(s,1,1)=="#") return 0
+            if (!match(s, /^[A-Za-z][A-Za-z0-9]*/)) return 0
+            key=substr(s, RSTART, RLENGTH)
+            s=substr(s, RSTART+RLENGTH)
+            sub(/^[[:space:]]*=[[:space:]]*/, "", s)
+            sub(/^[[:space:]]+/, "", s)
+            if (match(s, /^[^[:space:]]+/)) val=substr(s, RSTART, RLENGTH)
+            lk=tolower(key)
+            return 1
+        }
+        function is_concrete(p) {
+            return (p != "" && p !~ /[?*]/)
+        }
+        function flush() {
+            if (concrete && dns != "") {
+                n++
+                printf "%d\t%s\t%s\t%s\t%s\n", n, dns, ip, user, port
+            }
+            concrete=0; dns=""; ip=""; user=""; port=""
+        }
+        BEGIN { n=0; in_match=0; concrete=0; dns=""; ip=""; user=""; port="" }
+        {
+            if (!parse_line($0)) next
+            if (lk=="match") { flush(); in_match=1; next }
+            if (lk=="host") {
+                flush()
+                in_match=0
+                if (!is_concrete(val)) { concrete=0; dns=""; next }
+                concrete=1
+                dns=val
+                ip=""; user=""; port=""
+                next
+            }
+            if (in_match) next
+            if (concrete) {
+                if (lk=="hostname") ip=val
+                if (lk=="user") user=val
+                if (lk=="port") port=val
+            }
+        }
+        END { flush() }
+    ' "${_rec_cfg}"
+    unset _rec_cfg
+}
+
+sshd_dns_count() {
+    sshd_dns_records | awk 'END { print NR+0 }'
+}
+
+sshd_dns_row() {
+    _want="$1"
+    sshd_dns_records | awk -F '\t' -v w="${_want}" '
+        $1==w { print; found=1; exit }
+        END { if (!found) exit 1 }
+    '
+}
+
+sshd_dns_row_by_name() {
+    _want="$1"
+    sshd_dns_records | awk -F '\t' -v w="${_want}" '
+        $2==w { print; found=1; exit }
+        END { if (!found) exit 1 }
+    '
+}
+
+sshd_dns_lookup() {
+    _sel="${1-}"
+    if [ -z "${_sel}" ]; then
+        unset _sel
+        return 1
+    fi
+    case "${_sel}" in
+        *[!0-9]*)
+            sshd_dns_row_by_name "${_sel}"
+            ;;
+        *)
+            sshd_dns_row "${_sel}"
+            ;;
+    esac
+}
+
+sshd_dns_validate_name() {
+    _vname="$1"
+    _vnext="${2:-${APP_NAME} dns add dns <name>  or  ${APP_NAME} dns set <n> dns <name>}"
+    if [ -z "${_vname}" ]; then
+        out_die "dns name cannot be empty. Next: ${_vnext}"
+    fi
+    case "${_vname}" in
+        *[!A-Za-z0-9._-]*)
+            out_die "dns name '${_vname}' is not a Host alias (use letters, digits, dot, underscore, hyphen). Next: ${_vnext}"
+            ;;
+    esac
+    unset _vname _vnext
+}
+
+sshd_dns_validate_port() {
+    _vp="$1"
+    if [ -z "${_vp}" ]; then
+        unset _vp
+        return 0
+    fi
+    case "${_vp}" in
+        *[!0-9]*) out_die "Port must be a number from 1 to 65535, not '${_vp}'." ;;
+    esac
+    if [ "${_vp}" -lt 1 ] || [ "${_vp}" -gt 65535 ]; then
+        out_die "Port must be a number from 1 to 65535, not '${_vp}'."
+    fi
+    unset _vp
+}
+
+sshd_dns_print_details() {
+    _pd_n="$1"; _pd_dns="$2"; _pd_ip="$3"; _pd_user="$4"; _pd_port="$5"
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "dns_show" "" \
+            "n" "${_pd_n}" \
+            "dns" "${_pd_dns}" \
+            "ip" "${_pd_ip}" \
+            "user" "${_pd_user}" \
+            "port" "${_pd_port}" \
+            "user_display" "$(sshd_dns_disp_user "${_pd_user}")" \
+            "port_display" "$(sshd_dns_disp_port "${_pd_port}")"
+    else
+        out_plain "dns:  ${_pd_dns}"
+        if [ -n "${_pd_ip}" ]; then
+            out_plain "ip:   ${_pd_ip}"
+        else
+            out_plain "ip:   empty"
+        fi
+        out_plain "user: $(sshd_dns_disp_user "${_pd_user}")"
+        out_plain "port: $(sshd_dns_disp_port "${_pd_port}")"
+    fi
+    unset _pd_n _pd_dns _pd_ip _pd_user _pd_port
+}
+
+sshd_dns_list_human() {
+    _cfg=$(sshd_dns_config_path)
+    _any=0
+    while IFS= read -r _line || [ -n "${_line}" ]; do
+        _any=1
+        _n=$(printf '%s' "${_line}" | awk -F '\t' '{print $1}')
+        _dns=$(printf '%s' "${_line}" | awk -F '\t' '{print $2}')
+        _ip=$(printf '%s' "${_line}" | awk -F '\t' '{print $3}')
+        out_plain "${_n}. ${_dns}  $(sshd_dns_disp_ip "${_ip}")"
+    done <<EOF
+$(sshd_dns_records)
+EOF
+    if [ "${_any}" -eq 0 ]; then
+        out_info "No concrete Host entries in ${_cfg}."
+        out_info "Next: ${APP_NAME} dns add"
+    fi
+    unset _cfg _any _line _n _dns _ip
+}
+
+sshd_dns_list_json() {
+    _items="["
+    _first=1
+    _count=0
+    while IFS= read -r _line || [ -n "${_line}" ]; do
+        [ -z "${_line}" ] && continue
+        _count=$((_count + 1))
+        _n=$(printf '%s' "${_line}" | awk -F '\t' '{print $1}')
+        _dns=$(printf '%s' "${_line}" | awk -F '\t' '{print $2}')
+        _ip=$(printf '%s' "${_line}" | awk -F '\t' '{print $3}')
+        _user=$(printf '%s' "${_line}" | awk -F '\t' '{print $4}')
+        _port=$(printf '%s' "${_line}" | awk -F '\t' '{print $5}')
+        _obj=$(printf '{"n":%s,"dns":"%s","ip":"%s","user":"%s","port":"%s","user_display":"%s","port_display":"%s"}' \
+            "${_n}" \
+            "$(util_json_escape "${_dns}")" \
+            "$(util_json_escape "${_ip}")" \
+            "$(util_json_escape "${_user}")" \
+            "$(util_json_escape "${_port}")" \
+            "$(util_json_escape "$(sshd_dns_disp_user "${_user}")")" \
+            "$(util_json_escape "$(sshd_dns_disp_port "${_port}")")")
+        if [ "${_first}" -eq 1 ]; then
+            _items="${_items}${_obj}"
+            _first=0
+        else
+            _items="${_items},${_obj}"
+        fi
+    done <<EOF
+$(sshd_dns_records)
+EOF
+    _items="${_items}]"
+    out_json "dns_list" "" "count" "${_count}" "@items" "${_items}"
+    unset _items _first _count _line _n _dns _ip _user _port _obj
+}
+
+sshd_dns_ensure_file() {
+    _ens_dir="${HOME}/.ssh"
+    _ens_cfg=$(sshd_dns_config_path)
+    mkdir -p "${_ens_dir}" || out_die "Could not create ${_ens_dir}."
+    chmod 700 "${_ens_dir}" 2>/dev/null || true
+    if [ ! -f "${_ens_cfg}" ]; then
+        : > "${_ens_cfg}" || out_die "Could not create ${_ens_cfg}."
+        chmod 600 "${_ens_cfg}" 2>/dev/null || true
+    fi
+    if [ ! -w "${_ens_cfg}" ]; then
+        out_die "ssh config is not writable: ${_ens_cfg}."
+    fi
+    unset _ens_dir _ens_cfg
+}
+
+sshd_dns_backup() {
+    _bk_cfg="$1"
+    _bk_reason="$2"
+    if [ -s "${_bk_cfg}" ]; then
+        util_backup "${_bk_cfg}" "${_bk_reason}" || out_die "Could not backup ${_bk_cfg}."
+    fi
+    unset _bk_cfg _bk_reason
+}
+
+sshd_dns_commit_tmp() {
+    _cm_tmp="$1"
+    _cm_cfg="$2"
+    mv "${_cm_tmp}" "${_cm_cfg}" || {
+        rm -f "${_cm_tmp}"
+        out_die "Could not replace ${_cm_cfg}."
+    }
+    chmod 600 "${_cm_cfg}" 2>/dev/null || true
+    unset _cm_tmp _cm_cfg
+}
+
+# Rewrite concrete Host stanza number n. Empty new_* means omit that keyword.
+# Keep extra Host aliases after the first pattern; canonicalize Key value form.
+sshd_dns_rewrite() {
+    _rw_n="$1"
+    _new_dns="$2"
+    _new_ip="$3"
+    _new_user="$4"
+    _new_port="$5"
+    _cfg=$(sshd_dns_config_path)
+    sshd_dns_ensure_file
+    sshd_dns_backup "${_cfg}" "dns-edit"
+    _tmp=$(mktemp -t "${APP_NAME}.ssh_config.XXXXXX") || out_die "Could not create a temp file for ssh config."
+    awk -v target="${_rw_n}" -v newdns="${_new_dns}" -v newip="${_new_ip}" \
+        -v newuser="${_new_user}" -v newport="${_new_port}" '
+        function parse_line(line,    s) {
+            key=""; val=""; lk=""; host_rest=""
+            s=line
+            sub(/^[[:space:]]+/, "", s)
+            if (s=="" || substr(s,1,1)=="#") return 0
+            if (!match(s, /^[A-Za-z][A-Za-z0-9]*/)) return 0
+            key=substr(s, RSTART, RLENGTH)
+            s=substr(s, RSTART+RLENGTH)
+            sub(/^[[:space:]]*=[[:space:]]*/, "", s)
+            sub(/^[[:space:]]+/, "", s)
+            host_rest=s
+            if (match(s, /^[^[:space:]]+/)) {
+                val=substr(s, RSTART, RLENGTH)
+                host_rest=substr(s, RSTART+RLENGTH)
+            }
+            lk=tolower(key)
+            return 1
+        }
+        function is_concrete(p) {
+            return (p != "" && p !~ /[?*]/)
+        }
+        function emit_missing() {
+            if (!in_target) return
+            if (!saw_hn && newip != "") print "    HostName " newip
+            if (!saw_user && newuser != "") print "    User " newuser
+            if (!saw_port && newport != "" && newport != "22") print "    Port " newport
+        }
+        BEGIN { n=0; in_match=0; in_target=0; saw_hn=0; saw_user=0; saw_port=0 }
+        {
+            raw=$0
+            if (!parse_line($0)) {
+                print raw
+                next
+            }
+            if (lk=="match") {
+                emit_missing()
+                in_target=0
+                in_match=1
+                print raw
+                next
+            }
+            if (lk=="host") {
+                emit_missing()
+                in_match=0
+                in_target=0
+                if (is_concrete(val)) {
+                    n++
+                    if (n==target+0) {
+                        in_target=1
+                        saw_hn=0; saw_user=0; saw_port=0
+                        extra=host_rest
+                        sub(/^[[:space:]]+/, "", extra)
+                        sub(/[[:space:]]+$/, "", extra)
+                        if (extra != "") print "Host " newdns " " extra
+                        else print "Host " newdns
+                        next
+                    }
+                }
+                print raw
+                next
+            }
+            if (in_match) { print raw; next }
+            if (in_target) {
+                if (lk=="hostname") {
+                    saw_hn=1
+                    if (newip != "") print "    HostName " newip
+                    next
+                }
+                if (lk=="user") {
+                    saw_user=1
+                    if (newuser != "") print "    User " newuser
+                    next
+                }
+                if (lk=="port") {
+                    saw_port=1
+                    if (newport != "" && newport != "22") print "    Port " newport
+                    next
+                }
+                print raw
+                next
+            }
+            print raw
+        }
+        END { emit_missing() }
+    ' "${_cfg}" > "${_tmp}" || {
+        rm -f "${_tmp}"
+        out_die "Could not rewrite ${_cfg}."
+    }
+    sshd_dns_commit_tmp "${_tmp}" "${_cfg}"
+    unset _rw_n _new_dns _new_ip _new_user _new_port _cfg _tmp
+}
+
+# Insert a concrete Host before the first wildcard Host / Match (OpenSSH first-match).
+sshd_dns_append() {
+    _new_dns="$1"
+    _new_ip="$2"
+    _new_user="$3"
+    _new_port="$4"
+    _cfg=$(sshd_dns_config_path)
+    sshd_dns_ensure_file
+    sshd_dns_backup "${_cfg}" "dns-add"
+    _tmp=$(mktemp -t "${APP_NAME}.ssh_config.XXXXXX") || out_die "Could not create a temp file for ssh config."
+    awk -v newdns="${_new_dns}" -v newip="${_new_ip}" \
+        -v newuser="${_new_user}" -v newport="${_new_port}" '
+        function parse_line(line,    s) {
+            key=""; val=""; lk=""
+            s=line
+            sub(/^[[:space:]]+/, "", s)
+            if (s=="" || substr(s,1,1)=="#") return 0
+            if (!match(s, /^[A-Za-z][A-Za-z0-9]*/)) return 0
+            key=substr(s, RSTART, RLENGTH)
+            s=substr(s, RSTART+RLENGTH)
+            sub(/^[[:space:]]*=[[:space:]]*/, "", s)
+            sub(/^[[:space:]]+/, "", s)
+            if (match(s, /^[^[:space:]]+/)) val=substr(s, RSTART, RLENGTH)
+            lk=tolower(key)
+            return 1
+        }
+        function emit_stanza() {
+            if (emitted) return
+            if (had_output) print ""
+            print "Host " newdns
+            if (newip != "") print "    HostName " newip
+            if (newuser != "") print "    User " newuser
+            if (newport != "" && newport != "22") print "    Port " newport
+            emitted=1
+        }
+        BEGIN { emitted=0; had_output=0 }
+        {
+            raw=$0
+            parsed=parse_line($0)
+            if (parsed && (lk=="match" || (lk=="host" && (val=="" || val ~ /[?*]/)))) {
+                emit_stanza()
+            }
+            print raw
+            had_output=1
+        }
+        END { emit_stanza() }
+    ' "${_cfg}" > "${_tmp}" || {
+        rm -f "${_tmp}"
+        out_die "Could not rewrite ${_cfg}."
+    }
+    sshd_dns_commit_tmp "${_tmp}" "${_cfg}"
+    unset _new_dns _new_ip _new_user _new_port _cfg _tmp
+}
+
+sshd_dns_name_taken() {
+    _name="$1"
+    _except_n="${2-}"
+    sshd_dns_records | awk -F '\t' -v w="${_name}" -v ex="${_except_n}" '
+        $2==w && $1!=ex { found=1; exit }
+        END { exit found?0:1 }
+    '
+}
+
+# Sets DNS_FIELD_VALUE. MUST run in current shell (do-not-capture-read).
+sshd_dns_prompt_field() {
+    _label="$1"
+    _cur="$2"
+    _disp="$3"
+    DNS_FIELD_VALUE="${_cur}"
+    if ! sshd_dns_can_prompt; then
+        unset _label _cur _disp
+        return 0
+    fi
+    out_msg_n "${_label} [${_disp}]: "
+    _ans=""
+    read -r _ans || true
+    if [ -z "${_ans}" ]; then
+        DNS_FIELD_VALUE="${_cur}"
+    else
+        DNS_FIELD_VALUE=$(sshd_dns_norm "${_ans}")
+    fi
+    unset _label _cur _disp _ans
+}
+
+sshd_dns_parse_kv() {
+    DNS_SET_DNS=0
+    DNS_SET_IP=0
+    DNS_SET_USER=0
+    DNS_SET_PORT=0
+    DNS_NEW_DNS=""
+    DNS_NEW_IP=""
+    DNS_NEW_USER=""
+    DNS_NEW_PORT=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --dns|dns)
+                [ $# -lt 2 ] && out_die "dns needs a value. Next: ${APP_NAME} dns set <n> dns <name>"
+                DNS_SET_DNS=1
+                DNS_NEW_DNS=$(sshd_dns_norm "$2")
+                shift 2
+                ;;
+            --ip|ip)
+                [ $# -lt 2 ] && out_die "ip needs a value. Next: ${APP_NAME} dns set <n> ip <addr>"
+                DNS_SET_IP=1
+                DNS_NEW_IP=$(sshd_dns_norm "$2")
+                shift 2
+                ;;
+            --user|user)
+                [ $# -lt 2 ] && out_die "user needs a value (use \"\" for empty). Next: ${APP_NAME} dns set <n> user \"\""
+                DNS_SET_USER=1
+                DNS_NEW_USER=$(sshd_dns_norm "$2")
+                shift 2
+                ;;
+            --port|port)
+                [ $# -lt 2 ] && out_die "port needs a value (use \"\" for default 22). Next: ${APP_NAME} dns set <n> port \"\""
+                DNS_SET_PORT=1
+                DNS_NEW_PORT=$(sshd_dns_norm "$2")
+                shift 2
+                ;;
+            *)
+                out_die "Unknown dns field '${1}'. Use dns, ip, user, or port."
+                ;;
+        esac
+    done
+}
+
+sshd_dns_apply_set() {
+    _sel="$1"
+    shift
+    _row=$(sshd_dns_lookup "${_sel}") || out_die "No Host entry '${_sel}' in $(sshd_dns_config_path). Next: ${APP_NAME} dns list"
+    _n=$(printf '%s' "${_row}" | awk -F '\t' '{print $1}')
+    _dns=$(printf '%s' "${_row}" | awk -F '\t' '{print $2}')
+    _ip=$(printf '%s' "${_row}" | awk -F '\t' '{print $3}')
+    _user=$(printf '%s' "${_row}" | awk -F '\t' '{print $4}')
+    _port=$(printf '%s' "${_row}" | awk -F '\t' '{print $5}')
+    sshd_dns_parse_kv "$@"
+    [ "${DNS_SET_DNS}" -eq 1 ] && _dns="${DNS_NEW_DNS}"
+    [ "${DNS_SET_IP}" -eq 1 ] && _ip="${DNS_NEW_IP}"
+    [ "${DNS_SET_USER}" -eq 1 ] && _user="${DNS_NEW_USER}"
+    [ "${DNS_SET_PORT}" -eq 1 ] && _port="${DNS_NEW_PORT}"
+    sshd_dns_validate_name "${_dns}" "${APP_NAME} dns set ${_n} dns <name>"
+    sshd_dns_validate_port "${_port}"
+    if sshd_dns_name_taken "${_dns}" "${_n}"; then
+        out_die "dns name '${_dns}' is already a Host entry. Next: ${APP_NAME} dns list"
+    fi
+    sshd_dns_rewrite "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "out_success" "Host entry updated." "n" "${_n}" "dns" "${_dns}" "ip" "${_ip}" "user" "${_user}" "port" "${_port}"
+    else
+        out_success "Updated Host ${_dns} in $(sshd_dns_config_path)."
+        sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
+    fi
+    unset _sel _row _n _dns _ip _user _port
+}
+
+sshd_dns_walk_edit() {
+    _sel="$1"
+    _row=$(sshd_dns_lookup "${_sel}") || out_die "No Host entry '${_sel}' in $(sshd_dns_config_path). Next: ${APP_NAME} dns list"
+    _n=$(printf '%s' "${_row}" | awk -F '\t' '{print $1}')
+    _dns=$(printf '%s' "${_row}" | awk -F '\t' '{print $2}')
+    _ip=$(printf '%s' "${_row}" | awk -F '\t' '{print $3}')
+    _user=$(printf '%s' "${_row}" | awk -F '\t' '{print $4}')
+    _port=$(printf '%s' "${_row}" | awk -F '\t' '{print $5}')
+    sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
+    if ! sshd_dns_can_prompt; then
+        out_die "dns edit needs a terminal. Next: ${APP_NAME} dns set ${_n} ip <addr> user \"\" port 22"
+    fi
+    out_info "Enter keeps the current value. Type \"\" for empty."
+    sshd_dns_prompt_field "dns" "${_dns}" "${_dns}"
+    _dns="${DNS_FIELD_VALUE}"
+    sshd_dns_prompt_field "ip" "${_ip}" "$(sshd_dns_disp_ip "${_ip}")"
+    _ip="${DNS_FIELD_VALUE}"
+    sshd_dns_prompt_field "user" "${_user}" "$(sshd_dns_disp_user "${_user}")"
+    _user="${DNS_FIELD_VALUE}"
+    sshd_dns_prompt_field "port" "${_port}" "$(sshd_dns_disp_port "${_port}")"
+    _port="${DNS_FIELD_VALUE}"
+    sshd_dns_validate_name "${_dns}" "${APP_NAME} dns set ${_n} dns <name>"
+    sshd_dns_validate_port "${_port}"
+    if sshd_dns_name_taken "${_dns}" "${_n}"; then
+        out_die "dns name '${_dns}' is already a Host entry. Next: ${APP_NAME} dns list"
+    fi
+    sshd_dns_rewrite "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
+    out_success "Updated Host ${_dns} in $(sshd_dns_config_path)."
+    sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
+    unset _sel _row _n _dns _ip _user _port
+}
+
+sshd_dns_walk_add() {
+    _dns=""
+    _ip=""
+    _user=""
+    _port=""
+    if sshd_dns_can_prompt && [ $# -eq 0 ]; then
+        out_info "New Host in $(sshd_dns_config_path). Enter keeps empty. Type \"\" for empty."
+        sshd_dns_prompt_field "dns" "" "(empty)"
+        _dns="${DNS_FIELD_VALUE}"
+        sshd_dns_prompt_field "ip" "" "(empty)"
+        _ip="${DNS_FIELD_VALUE}"
+        sshd_dns_prompt_field "user" "" "empty"
+        _user="${DNS_FIELD_VALUE}"
+        sshd_dns_prompt_field "port" "" "22"
+        _port="${DNS_FIELD_VALUE}"
+    else
+        sshd_dns_parse_kv "$@"
+        [ "${DNS_SET_DNS}" -eq 1 ] && _dns="${DNS_NEW_DNS}"
+        [ "${DNS_SET_IP}" -eq 1 ] && _ip="${DNS_NEW_IP}"
+        [ "${DNS_SET_USER}" -eq 1 ] && _user="${DNS_NEW_USER}"
+        [ "${DNS_SET_PORT}" -eq 1 ] && _port="${DNS_NEW_PORT}"
+    fi
+    sshd_dns_validate_name "${_dns}" "${APP_NAME} dns add dns <name>"
+    sshd_dns_validate_port "${_port}"
+    if sshd_dns_name_taken "${_dns}" ""; then
+        out_die "dns name '${_dns}' is already a Host entry. Next: ${APP_NAME} dns list"
+    fi
+    sshd_dns_append "${_dns}" "${_ip}" "${_user}" "${_port}"
+    _n=$(sshd_dns_count)
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "out_success" "Host entry added." "n" "${_n}" "dns" "${_dns}" "ip" "${_ip}" "user" "${_user}" "port" "${_port}"
+    else
+        out_success "Added Host ${_dns} in $(sshd_dns_config_path)."
+        sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
+    fi
+    unset _dns _ip _user _port _n
+}
+
+sshd_dns_interactive_pick() {
+    sshd_dns_list_human
+    if [ "$(sshd_dns_count)" -eq 0 ]; then
+        return 0
+    fi
+    out_plain "0. Exit"
+    out_msg_n "Choose a number to show and edit (0 to leave): "
+    _choice=""
+    read -r _choice || true
+    case "${_choice}" in
+        0|q|exit|"") return 0 ;;
+    esac
+    sshd_dns_walk_edit "${_choice}"
+    unset _choice
+}
+
+sshd_cmd_dns() {
+    : "${INTERACTIVE:=0}"
+    _sub="${1-}"
+    if [ $# -gt 0 ]; then
+        shift
+    fi
+    case "${_sub}" in
+        ""|list)
+            if [ -z "${_sub}" ] && sshd_dns_can_prompt; then
+                sshd_dns_interactive_pick
+            elif [ "${JSON}" -eq 1 ]; then
+                sshd_dns_list_json
+            else
+                sshd_dns_list_human
+            fi
+            ;;
+        show)
+            _sel="${1-}"
+            [ -z "${_sel}" ] && out_die "dns show needs a number or Host name. Next: ${APP_NAME} dns list"
+            _row=$(sshd_dns_lookup "${_sel}") || out_die "No Host entry '${_sel}' in $(sshd_dns_config_path). Next: ${APP_NAME} dns list"
+            _n=$(printf '%s' "${_row}" | awk -F '\t' '{print $1}')
+            _dns=$(printf '%s' "${_row}" | awk -F '\t' '{print $2}')
+            _ip=$(printf '%s' "${_row}" | awk -F '\t' '{print $3}')
+            _user=$(printf '%s' "${_row}" | awk -F '\t' '{print $4}')
+            _port=$(printf '%s' "${_row}" | awk -F '\t' '{print $5}')
+            sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
+            unset _sel _row _n _dns _ip _user _port
+            ;;
+        edit)
+            _sel="${1-}"
+            [ -z "${_sel}" ] && out_die "dns edit needs a number or Host name. Next: ${APP_NAME} dns list"
+            sshd_dns_walk_edit "${_sel}"
+            unset _sel
+            ;;
+        set)
+            _sel="${1-}"
+            [ -z "${_sel}" ] && out_die "dns set needs a number or Host name. Next: ${APP_NAME} dns list"
+            shift
+            sshd_dns_apply_set "${_sel}" "$@"
+            unset _sel
+            ;;
+        add)
+            sshd_dns_walk_add "$@"
+            ;;
+        *)
+            out_die "Unknown dns action '${_sub}'. Use list, show, edit, set, or add."
+            ;;
+    esac
+    unset _sub
+}
+
 sshd_cmd_menu() {
     if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ] || [ "${TTY}" -ne 1 ]; then
         out_die "menu needs a terminal. Run a named command instead, for example: ${APP_NAME} status"
     fi
     out_info "**${APP_NAME}**(*${VERSION}*)"
     out_plain "1. Show sshd status: running, port, and paths"
-    out_plain "2. Start sshd: launch the OpenSSH daemon"
+    out_plain "2. Start sshd: launch the OpenSSH daemon (background, not a boot service)"
     out_plain "3. Stop sshd: end the running daemon"
     out_plain "4. Restart sshd: stop then start"
     out_plain "9. Exit"
@@ -3217,6 +3925,7 @@ sshd_cmd_menu() {
         config) sshd_cmd_config ;;
         host-keys) sshd_cmd_host_keys list ;;
         auth-keys) sshd_cmd_auth_keys list ;;
+        dns) sshd_cmd_dns ;;
         9|99|999|exit|"") return 0 ;;
         *) out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help." ;;
     esac
@@ -3230,7 +3939,7 @@ app_about() {
     : "${QUIET:=0}"
     : "${APP_NAME:=sshd-cli}"
     # Version comes from global SSOT (VERSION="…" hard-assign near top); default only if unset
-    : "${VERSION:=1.4.1}"
+    : "${VERSION:=1.5.0}"
     if [ -n "${PREFIX-}" ] && [ -d "${PREFIX}/bin" ]; then
     : "${GLOBAL_BIN:=${PREFIX}/bin}"
 else
@@ -3385,7 +4094,7 @@ fi
 
 app_version() {
     : "${APP_NAME:=sshd-cli}"
-    : "${VERSION:=1.4.1}"
+    : "${VERSION:=1.5.0}"
     : "${JSON:=0}"
     if [ "${JSON}" -eq 1 ]; then
         # Same machine contract as historical app_main inline path
@@ -3444,13 +4153,14 @@ app_help() {
     # --- DOMAIN_HELP_ROWS (specializee injection) ---
     out_info "Domain commands (OpenSSH sshd):"
     out_plain "  status               Show whether sshd is running, and the port/paths"
-    out_plain "  start                Start sshd (Termux as this login; Linux often needs root)"
+    out_plain "  start                Start sshd as a background daemon (not a boot service; Termux as this login; Linux often needs root)"
     out_plain "  stop                 Stop sshd"
     out_plain "  restart              Stop then start sshd"
     out_plain "  port [N]             Show or set the listen Port in sshd_config"
     out_plain "  config               Show resolved sshd paths and key settings"
     out_plain "  host-keys [list|generate]  List or create host keys"
     out_plain "  auth-keys [list|add <file>]  This login authorized_keys"
+    out_plain "  dns [list|show N|edit N|set N …|add …]  This login ~/.ssh/config Host list (dns-ip)"
     out_plain "  menu                 Numbered list of domain commands (terminal only; alias: main)"
     out_empty_line
     # --- end DOMAIN_HELP_ROWS ---
@@ -3591,18 +4301,41 @@ app_main() {
                 COMMAND="$1"
                 ;;
             # --- DOMAIN_DISPATCH_COMMANDS (specializee injection) ---
-            status|start|stop|restart|port|config|host-keys|auth-keys|menu|main)
-                COMMAND="$1"
+            status|start|stop|restart|port|config|host-keys|auth-keys|dns|menu|main)
+                case "${COMMAND}" in
+                    port|host-keys|auth-keys|dns)
+                        if [ "${COMMAND}" = "dns" ] && [ -z "$1" ]; then
+                            _op='""'
+                        else
+                            _op="$1"
+                        fi
+                        if [ -n "${DOMAIN_OPERANDS}" ]; then
+                            DOMAIN_OPERANDS="${DOMAIN_OPERANDS} ${_op}"
+                        else
+                            DOMAIN_OPERANDS="${_op}"
+                        fi
+                        unset _op
+                        ;;
+                    *)
+                        COMMAND="$1"
+                        ;;
+                esac
                 ;;
             # --- end DOMAIN_DISPATCH_COMMANDS ---
             *)
                 case "${COMMAND}" in
-                    port|host-keys|auth-keys)
-                        if [ -n "${DOMAIN_OPERANDS}" ]; then
-                            DOMAIN_OPERANDS="${DOMAIN_OPERANDS} $1"
+                    port|host-keys|auth-keys|dns)
+                        if [ "${COMMAND}" = "dns" ] && [ -z "$1" ]; then
+                            _op='""'
                         else
-                            DOMAIN_OPERANDS="$1"
+                            _op="$1"
                         fi
+                        if [ -n "${DOMAIN_OPERANDS}" ]; then
+                            DOMAIN_OPERANDS="${DOMAIN_OPERANDS} ${_op}"
+                        else
+                            DOMAIN_OPERANDS="${_op}"
+                        fi
+                        unset _op
                         ;;
                     *)
                         out_die "Unknown command or flag: $1. See '${APP_NAME} help'."
@@ -3635,6 +4368,8 @@ app_main() {
             inst_perform_install
             ;;
         # --- DOMAIN_DISPATCH_ROUTES (specializee injection) ---
+        # No systemd / systemctl / termux-services / sv-enable / add-crontab / enable-service.
+        # requirement-domain-sshd: start is OpenSSH daemonize.
         status) sshd_cmd_status ;;
         start) sshd_cmd_start ;;
         stop) sshd_cmd_stop ;;
@@ -3651,6 +4386,10 @@ app_main() {
         auth-keys)
             set -- ${DOMAIN_OPERANDS}
             sshd_cmd_auth_keys "${1:-list}" "${2-}"
+            ;;
+        dns)
+            set -- ${DOMAIN_OPERANDS}
+            sshd_cmd_dns "$@"
             ;;
         menu|main) sshd_cmd_menu ;;
         # --- end DOMAIN_DISPATCH_ROUTES ---

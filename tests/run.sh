@@ -29,6 +29,8 @@ export APP_NAME
 . "${TESTS_ROOT}/test_cli.sh"
 # shellcheck source=test_local_lifecycle.sh
 . "${TESTS_ROOT}/test_local_lifecycle.sh"
+# shellcheck source=test_dns.sh
+. "${TESTS_ROOT}/test_dns.sh"
 
 PASS=0
 FAIL=0
@@ -52,6 +54,7 @@ fi
 
 run_test_cli
 run_test_local_lifecycle
+run_test_dns
 
 printf '\n== summary ==\n'
 printf 'PASS=%s FAIL=%s SKIP=%s\n' "${PASS}" "${FAIL}" "${SKIP}"

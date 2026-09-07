@@ -3,8 +3,9 @@
 # =============================================================================
 # Primary REQs: requirement-shell-self-management, requirement-shell-idempotency,
 # requirement-shell-interactive-vs-noninteractive, requirement-shell-termux-ish,
-# requirement-shell-automatic-checksum (TP-CSUM-01)
-# TP family: TP-LC-* / TP-CSUM-01
+# requirement-shell-automatic-checksum (TP-CSUM-01),
+# requirement-domain-sshd (TP-SSHD-02)
+# TP family: TP-LC-* / TP-CSUM-01 / TP-SSHD-02
 # =============================================================================
 
 # shellcheck source=helpers.sh
@@ -172,6 +173,9 @@ EOF
     _pkg_args=$(cat "${CI_HOME}/pkg-args.log" 2>/dev/null || true)
     assert_contains "TP-LC-16 pkg install -y" "$_pkg_args" "install -y openssh termux-auth"
     assert_contains "TP-LC-17 install started sshd" "$_out" "sshd started"
+    assert_contains "TP-SSHD-02 background daemon" "$_out" "background daemon"
+    assert_contains "TP-SSHD-02 after a reboot" "$_out" "After a reboot"
+    assert_contains "TP-SSHD-02 Termux:Boot operator hook" "$_out" "Termux:Boot"
     assert_file_exists "TP-LC-17 stub pidfile" "${PREFIX}/var/run/sshd.pid"
     _stub_pid=$(tr -d ' \n\r\t' < "${PREFIX}/var/run/sshd.pid" 2>/dev/null || true)
     if [ -n "${_stub_pid}" ] && kill -0 "${_stub_pid}" 2>/dev/null; then

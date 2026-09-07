@@ -2,7 +2,7 @@
 
 Authoritative product and engineering requirements for this project live here.
 
-**Current state (2026-09-06 — sshd-cli 1.4.1):** sshd-cli is a Termux-first helper that installs and runs OpenSSH sshd. Law lives in **one** class file (`requirement-class-software-dev`), **eleven** shell files (including **script-coding** and **termux-ish**), and **one** domain file (`requirement-domain-sshd`). Registry: `index.md`. Specialized from bootstrap origin **selfmanaged** (A → B). You run as yourself (catalog: Type 0). Product version SSOT: `VERSION="1.4.1"`. Do **not** invent additional requirement paths without a real ownership gap — verify on disk and register new files in `index.md` in the same change.
+**Current state (2026-09-07 — sshd-cli 1.5.0):** sshd-cli is a Termux-first helper that installs and runs OpenSSH sshd as a background daemon (not a systemd / termux-services unit). Law lives in **one** class file (`requirement-class-software-dev`), **eleven** shell files (including **script-coding** and **termux-ish**), and **one** domain file (`requirement-domain-sshd`). Registry: `index.md`. Specialized from bootstrap origin **selfmanaged** (A → B). You run as yourself (catalog: Type 0). Product version SSOT: `VERSION="1.5.0"`. Do **not** invent additional requirement paths without a real ownership gap — verify on disk and register new files in `index.md` in the same change.
 
 ## Purpose
 

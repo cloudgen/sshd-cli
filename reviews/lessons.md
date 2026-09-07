@@ -13,6 +13,9 @@ Durable failure modes. **Always re-check on product review.**
 | L-SETU-01 | `set -u` crash with unset HOME | TP-CLI-11 | open watch |
 | L-STOR-01 | Shared world-writable storage | util_resolve_storage; TP-CLI-12 | open watch |
 | L-INTENT-01 | Harness Type 0 / “don’t wrap package managers” overrode a clear Termux sshd purpose; `pkg` listed as a domain non-goal until the operator named packages | Purpose wins: specialize **`LM-SHELL-TERMUX-ISH`** / `requirement-shell-termux-ish`; bootstrap Step 5c; domain Protection Rule 8b; Linux `apt` stays out; **INC-20260905-001**; TP-LC-15/16 | open watch |
+| L-DNS-01 | TTY Host pick reused main-menu Exit `9` on an unbounded list | Leave with `0` / empty; TP-DNS-13 | open watch |
+| L-DNS-02 | `dns add` appended after trailing `Host *` so OpenSSH first-match ignored new User/Port | Insert before first wildcard Host / Match; atomic replace; TP-DNS-14 | open watch |
+| L-DNS-03 | `Key=value` / extra Host aliases lost on set | Parse optional `=`; keep aliases after first pattern; TP-DNS-15/16 | open watch |
 
 **Related-product only (do not re-apply as this origin’s law):** L-DEPOSIT-01, L-SUDOERS-01..05, L-OVERWRITE-01 stay on folder-backup. Type O empty-argv / online-channel lessons stay on products that own those surfaces. This product is hop 0.
 

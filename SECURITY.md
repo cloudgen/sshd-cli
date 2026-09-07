@@ -4,7 +4,9 @@
 
 | Version | Supported |
 |---------|-----------|
-| **1.4.1** (current) | Yes — report security issues against this release |
+| **1.5.0** (current) | Yes — report security issues against this release |
+| 1.4.2 | Superseded — prefer current when reporting |
+| 1.4.1 | Superseded — prefer current when reporting |
 | 1.4.0 | Superseded — prefer current when reporting |
 | 1.3.1 | Superseded — prefer current when reporting |
 | 1.3.0 | Superseded — prefer current when reporting |
@@ -34,7 +36,7 @@ This project follows **[CIAO](https://github.com/cloudgen/ciao)** / **CIAO-Lite*
 |--------|-----------|----------------------|
 | **C** | **Caution** | Assume hostile input and misconfiguration. Validate install paths, checksums, sshd config test (`sshd -t`), and privilege boundaries. |
 | **I** | **Intentional** | Type 0 self-management vs sshd domain verbs are separate. Channel URL (`SCRIPT_URL`) and checksum modes are documented. No in-tool `sudo`. |
-| **A** | **Anti-fragile** | Survive Termux (no systemd) and non-interactive `curl \| sh`. Automatic SHA-256 sidecar when available. |
+| **A** | **Anti-fragile** | Survive Termux (no systemd) and non-interactive `curl \| sh`. Start is OpenSSH daemonize, not a service manager. Automatic SHA-256 sidecar when available. |
 | **O** | **Over-protect** | Integrity verify before install/update; never overwrite existing host private keys; fail closed when Linux system paths are not writable. |
 
 Full principles: [CIAO Defensive Programming](https://github.com/cloudgen/ciao) · agent contract: [CIAO-Lite](https://github.com/cloudgen/ciao-lite).

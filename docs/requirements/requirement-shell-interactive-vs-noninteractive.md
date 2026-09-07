@@ -156,6 +156,10 @@ interactive   non-interactive
 | `self-update` / `version-check` | Human status messages | No prompts; fail loud if `SCRIPT_URL` missing; JSON structured results |
 | `about` / `version` / `help` | Human diagnostics / help | Quiet: suppress human; JSON: structured object only |
 | Colors | When `TTY=1` and not quiet/json | No color under quiet/json |
+| `dns` (no subcommand) | Numbered Host list; pick a number (`read` in-shell; leave with `0` / empty, not `9`); show details; field-by-field edit (current as default; `""` = empty). `INTERACTIVE=1` allowed when TTY probe is flaky. | **List only** — never wait. JSON: one `dns_list` object with `@items` |
+| `dns show` | Human details (`user` empty → `empty`; empty port → `22`) | Same fields; JSON object; no prompt |
+| `dns edit` | Same field walk as after pick | Fail closed: Next `dns set …` (no hang) |
+| `dns set` / `dns add` | **MAY** fill missing fields with the same walk when TTY | Operands only; omitted **set** fields unchanged; `""` clears; never prompt |
 
 #### `prompt_yes_no` contract (this project)
 
@@ -262,7 +266,7 @@ When the ship unit detects a **command line for normal user only** (Termux, Git 
 
 Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface` · `requirement-shell-termux-ish`.
 
-**This requirement:** `inst_maybe_install` **MUST NOT** recommend `sudo curl | sh`; **MUST NOT** open a Type 1 password-sudo ladder on that class.
+**This requirement:** `inst_maybe_install` **MUST NOT** recommend `sudo curl | sh`; **MUST NOT** open a Type 1 password-sudo ladder on that class. **dns** field walk is this login’s `~/.ssh/config` only (Type 0).
 
 ---
 
@@ -270,9 +274,9 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 
 **Future AI assistants, Grok, or maintainers MUST NOT**:
 
-1. Add `read` or confirmation prompts outside `prompt_ask` / `prompt_yes_no` without updating this requirement.  
+1. Add `read` or confirmation prompts outside `prompt_ask` / `prompt_yes_no` / documented in-shell `dns` pick-and-field walk / `sshd_cmd_menu` without updating this requirement.  
 2. Allow prompts to run under `--json` or `--quiet`.  
-3. Hang on prompts when stdin/stdout are not TTYs (except explicit `INTERACTIVE=1` for `prompt_ask` only).  
+3. Hang on prompts when stdin/stdout are not TTYs (except explicit `INTERACTIVE=1` for `prompt_ask` and the `dns` field walk).  
 4. Break the invariant that `--json` forces quiet-style non-interactive human suppression.  
 5. Auto-delete / uninstall without confirm **or** `--force` in interactive design—and must not auto-uninstall in non-interactive without `--force`.  
 6. Remove the zero-arg non-TTY auto-install path for classic `curl | sh` without an explicit requirement change.  
@@ -281,7 +285,8 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 9. Hardcode project-specific secrets or release URLs into prompt strings.  
 10. Let `inst_maybe_install` return success under `--quiet` / `--json` without calling `inst_perform_install` when the program is not installed.  
 11. Re-test `[ -t 0 ]` / `[ -t 1 ]` inside helpers as the sole interactive gate; helpers **MUST** consume process `TTY`.  
-12. Strip the **Under command line for normal user only** section, or recommend `sudo curl | sh` / Type 1 sudo on that class.
+12. Strip the **Under command line for normal user only** section, or recommend `sudo curl | sh` / Type 1 sudo on that class.  
+13. Hang `dns` / `dns edit` in non-interactive mode, or `$()` the dns field `read` (**do-not-capture-read**). Non-interactive `dns` with no subcommand **MUST** list and return.
 
 **Supporting non-interactive environments cleanly is mandatory for CIAO compliance.**
 
@@ -315,6 +320,6 @@ Mode-related work for sshd-cli is **not done** if any of the following fail:
 
 ---
 
-**Last Updated**: 2026-09-05  
+**Last Updated**: 2026-09-07  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

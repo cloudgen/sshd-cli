@@ -4,8 +4,8 @@
 **Class:** software-development · domain SSOT `requirement-domain-sshd` · online-install channel + TTY menu / non-TTY install-ensure.  
 **Always load first:** `reviews/lessons.md`
 
-**Last plan update:** 2026-09-06  
-**Ship unit VERSION:** 1.4.1  
+**Last plan update:** 2026-09-07  
+**Ship unit VERSION:** 1.5.0  
 **Suite baseline:** see `reviews/test-plan.md`
 
 ---
@@ -15,7 +15,7 @@
 | # | Check | Notes |
 |---|--------|-------|
 | P1 | Read `docs/requirements/index.md` | Class + 11 shell + domain sshd (13 Active) |
-| P2 | Confirm ship unit `src/sshd-cli` / `./sshd-cli` | `APP_NAME` / `VERSION` hard-assign (**1.4.1**); same bytes |
+| P2 | Confirm ship unit `src/sshd-cli` / `./sshd-cli` | `APP_NAME` / `VERSION` hard-assign (**1.5.0**); same bytes |
 | P3 | Load `reviews/lessons.md` and re-check open L-* that still apply | Skip L-SUDOERS / restore lessons as parent-only |
 | P4 | Run `./tests/run.sh` | Record PASS/FAIL/SKIP in report |
 | P5 | Confirm install **channel** is `cloudgen/sshd-cli` | `SCRIPT_URL` default raw GitHub |
@@ -30,7 +30,7 @@
 | Surface | Path | Review focus |
 |---------|------|--------------|
 | Class | `requirement-class-software-dev.md` | posix-sh; Termux sshd purpose; **project nature** |
-| Domain | `requirement-domain-sshd.md` | status/start/stop/port/keys/menu; start after install |
+| Domain | `requirement-domain-sshd.md` | status/start/stop/port/keys/menu/dns; start after install; background daemon; this-login ssh_config dns-ip |
 | CLI interface | `requirement-shell-cli-interface.md` | This-login + domain commands, flags, dispatch; dual mention |
 | Empty argv | `requirement-shell-cli-zero-arguments.md` | TTY **menu** / non-TTY **install-ensure** |
 | Self-management | `requirement-shell-self-management.md` | install / self-update / self-uninstall |

@@ -2,8 +2,9 @@
 # tests/test_cli.sh — CLI surface (local-only; no network)
 # =============================================================================
 # Primary REQs: requirement-shell-cli-interface, requirement-shell-cli-zero-arguments,
-# requirement-shell-output-requirements, requirement-shell-cli-storage
-# TP family: TP-CLI-*
+# requirement-shell-output-requirements, requirement-shell-cli-storage,
+# requirement-domain-sshd (TP-SSHD-01)
+# TP family: TP-CLI-* · TP-SSHD-01
 # =============================================================================
 
 # shellcheck source=helpers.sh
@@ -50,6 +51,7 @@ run_test_cli() {
     assert_contains "TP-CLI-04 help config" "$_out" "config"
     assert_contains "TP-CLI-04 help host-keys" "$_out" "host-keys"
     assert_contains "TP-CLI-04 help auth-keys" "$_out" "auth-keys"
+    assert_contains "TP-CLI-04 help dns" "$_out" "dns"
     assert_contains "TP-CLI-04 help menu" "$_out" "menu"
     assert_contains "TP-CLI-04 help --json" "$_out" "--json"
     assert_not_contains "TP-CLI-04 no backup verb" "$_out" "backup <"
@@ -97,6 +99,7 @@ run_test_cli() {
     assert_not_contains "TP-CLI-14 no numbered config row" "$_out" "Show sshd config"
     assert_not_contains "TP-CLI-14 no numbered host-keys row" "$_out" "List host keys"
     assert_not_contains "TP-CLI-14 no numbered auth-keys row" "$_out" "List login keys"
+    assert_not_contains "TP-CLI-14 no numbered dns row" "$_out" "5. "
     assert_file_missing "TP-CLI-14 interactive empty argv does not install" "${CI_USER_BIN}/${APP_NAME}"
     assert_not_contains "TP-CLI-14 interactive empty argv is not help Usage" "$_out" "Usage:"
     ci_cleanup_env
@@ -178,4 +181,26 @@ run_test_cli() {
         assert_eq "TP-CLI-13 ${_verb} exit 1" 1 "$_ec"
         assert_contains "TP-CLI-13 ${_verb} unknown" "$_err" "Unknown command"
     done
+
+    # TP-SSHD-01 start is OpenSSH daemonize; no service-manager verbs
+    _src=$(cat "${SCRIPT}")
+    assert_contains "TP-SSHD-01 launch is sshd -f config" "$_src" '"${SSHD_BIN}" -f "${SSHD_CONFIG}"'
+    assert_not_contains "TP-SSHD-01 no foreground -D launch" "$_src" '"${SSHD_BIN}" -D'
+    assert_not_contains "TP-SSHD-01 no -f -D launch" "$_src" '"${SSHD_BIN}" -f "${SSHD_CONFIG}" -D'
+    _out=$(sh "${SCRIPT}" help 2>&1)
+    assert_eq "TP-SSHD-01 help exit 0" 0 "$?"
+    assert_contains "TP-SSHD-01 help start is background daemon" "$_out" "background daemon"
+    assert_not_contains "TP-SSHD-01 help no systemctl" "$_out" "systemctl"
+    assert_not_contains "TP-SSHD-01 help no termux-services" "$_out" "termux-services"
+    assert_not_contains "TP-SSHD-01 help no sv-enable" "$_out" "sv-enable"
+    assert_not_contains "TP-SSHD-01 help no add-crontab" "$_out" "add-crontab"
+    assert_not_contains "TP-SSHD-01 help no enable-service" "$_out" "enable-service"
+    unset _src _out
+    for _verb in systemctl sv-enable enable-service add-crontab; do
+        _err=$(sh "${SCRIPT}" "${_verb}" 2>&1 >/dev/null)
+        _ec=$?
+        assert_eq "TP-SSHD-01 ${_verb} exit 1" 1 "$_ec"
+        assert_contains "TP-SSHD-01 ${_verb} unknown" "$_err" "Unknown command"
+    done
+    unset _verb _err _ec
 }

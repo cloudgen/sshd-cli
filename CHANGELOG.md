@@ -5,6 +5,38 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] - 2026-09-07
+
+### Added
+
+- `dns` — this login’s `~/.ssh/config` as an SSH name/IP list. Numbered concrete `Host` rows; `show` details (`user` empty → `empty`, empty port → `22`); TTY field-by-field edit with current values as defaults; token `""` means empty.
+- Non-interactive: `dns list`, `dns show N`, `dns set N ip … user "" port …`, `dns add dns NAME ip …`. `--json dns list` emits `@items`. `dns edit` off a terminal fails closed with Next: `dns set`.
+- Tests **TP-DNS-01** .. **TP-DNS-19**.
+
+### Changed
+
+- Domain law includes this-login ssh_config Host management (not `/etc/hosts`, not `Host *`, not session mux).
+- Interactive vs non-interactive matrix covers `dns` pick/walk vs list/set.
+
+### Fixed
+
+- TTY `dns` pick: `9` is Host row 9 when the list has nine or more entries. Leave with `0`, `q`, `exit`, or Enter.
+- `dns add` inserts the new Host **before** a trailing `Host *` / `Match` (OpenSSH first-match), via atomic replace (not `>>`).
+- `dns set` / `edit` keep extra Host aliases, parse `Key=value` and `Key = value`, and rewrite those keywords in `Key value` form.
+
+## [1.4.2] - 2026-09-06
+
+### Added
+
+- Human `start` (and already-running no-op) explains that sshd is a **background daemon for this session**, not a boot service; after a reboot run `sshd-cli start`. Termux names Termux:Boot as an operator-owned `~/.termux/boot/` hook. POSIX Linux names the distro sshd unit.
+- Tests **TP-SSHD-01** (launch is `sshd -f`, no service-manager verbs) and **TP-SSHD-02** (Termux stub start names the daemon / reboot hint).
+
+### Changed
+
+- `start` stays OpenSSH daemonize (`sshd -f`; no `-D`). Product law forbids systemd / `termux-services` / `sv-enable` / `add-crontab` / `enable-service` verbs.
+- Help and menu `start` rows say **background daemon**, not a boot service.
+- README Features / Examples / Platform Compatibility: daemon vs reboot; Termux:Boot is optional and operator-owned.
+
 ## [1.4.1] - 2026-09-06
 
 ### Added

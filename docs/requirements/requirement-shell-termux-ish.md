@@ -75,7 +75,7 @@ Interactive empty argv is the menu and **MUST NOT** run package ensure as a side
 
 | Item | Value |
 |------|--------|
-| Product | `sshd-cli` 1.4.1 |
+| Product | `sshd-cli` 1.5.0 |
 | Detect | `sshd_is_termux` |
 | Class union | `sshd_is_normal_user_only_cli` (Termux **or** Git Bash **or** Windows cmd) |
 | Git Bash | `sshd_is_git_bash` — no `pkg` |

@@ -141,7 +141,7 @@ Root may write global install path; non-root uses user path. Do not assume root 
 | **Companion orchestrator** | `inst_ensure_companion` then `sshd_start_after_install` on `install` / non-interactive empty-argv (including already-installed binary no-op) |
 | **Termux packages** | Invoke contract: `requirement-shell-termux-ish` (`sshd_pkg_ensure`); package names: `requirement-domain-sshd`; this file owns the call site |
 | **Privilege** | Type 0 only for self-management surface; no dedicated system user |
-| **Version SSOT** | `VERSION` default `1.4.1` in script config block (`VERSION="1.4.1"`) |
+| **Version SSOT** | `VERSION` default `1.5.0` in script config block (`VERSION="1.5.0"`) |
 
 #### Normative acceptance behaviors (this project)
 
