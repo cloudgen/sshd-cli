@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.8.0)  
+**Status**: Active (Version 1.10.0)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -22,8 +22,9 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 
 | Includes | Excludes |
 |----------|----------|
-| status / start / stop / restart / port / config / host-keys / auth-keys / menu / **dns** | Wrapping `sudo` inside this CLI; systemd unit files; `termux-services` / `sv-enable`; cron-as-service; SSH *client* session mux / ProxyJump |
-| OpenSSH sshd as a **background daemon** (`sshd -f`); pidfile stop | Foreground `-D`; `&` / `nohup` wrappers; a `enable-service` verb |
+| status / start / stop / restart / port / config / host-keys / auth-keys / menu / **dns** | Wrapping `sudo` inside this CLI; writing systemd unit files; `termux-services` / `sv-enable`; cron-as-service; SSH *client* session mux / ProxyJump |
+| OpenSSH sshd as a **background daemon** (`sshd -f`) on Termux and on Linux with **no** distro unit | Foreground `-D` on the OpenSSH fallback; `&` / `nohup` wrappers; a routed `systemctl` / `enable-service` verb |
+| POSIX Linux **with** a loaded distro ssh/sshd unit: `start` / `stop` / `restart` via `systemctl` (root login) | `systemctl enable` / `disable` / `mask` / `daemon-reload` as CLI verbs; invoking `systemctl` on Termux / Git Bash / Windows cmd |
 | This login’s `~/.ssh/config` **Host** entries as a numbered **dns-ip** list (alias → HostName) | Editing `/etc/hosts`; wrapping `systemd-resolved`; following `Include`; listing `Host *` / `?` wildcards |
 | Termux `pkg install openssh termux-auth` as a companion of `install` (names + start after; invoke contract on `requirement-shell-termux-ish`) | Wrapping `apt` / `dnf` on POSIX Linux; owning Termux:Boot as a CLI verb |
 | Android wake lock auto-acquire on Termux `start` (re-acquire verb on `requirement-shell-termux-ish`) | systemd-inhibit; auto-unlock on `stop`; `termux-services` as the lock |
@@ -43,6 +44,8 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 | After a reboot | The daemon is gone with the old session. Start again. Termux:Boot (if you use it) is **your** hook, not a `sshd-cli` verb. | `sshd-cli start` — or put that command in `~/.termux/boot/` yourself |
 | Allow a laptop key | Append one public-key file | `sshd-cli auth-keys add ./laptop.pub` |
 | Name a phone for `ssh` | This login’s `~/.ssh/config` Host list: action menu (edit / add / delete), then pick a Host | Pick **5** on the menu · `sshd-cli dns` · `sshd-cli dns list` · `sshd-cli dns delete 1` |
+| Open the menu on POSIX Linux as a non-root login | Rows **2** / **3** / **4** (start / stop / restart) are omitted. An INFO line names this OS. `dns` stays row **5**. | `sshd-cli` on a terminal (not root). Re-run as root to see start/stop/restart. |
+| Start sshd on Linux when the distro unit exists | As **root**, this CLI calls `systemctl start` on that unit (Debian/Ubuntu often `ssh.service`; others often `sshd.service`). It does not `sshd -f` beside a systemd listener. | `sshd-cli start` as root |
 
 ---
 
@@ -53,9 +56,9 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 | Verb | Operands | Handler | Privilege | Errors |
 |------|----------|---------|-----------|--------|
 | `status` | none | `sshd_cmd_status` | This login | Missing sshd → warn, still print paths |
-| `start` | none | `sshd_cmd_start` | Termux: this login. Linux system sshd: **root login** (no in-tool sudo) | No binary / bad config / not writable → `out_die` |
-| `stop` | none | `sshd_cmd_stop` | Same as start | Cannot signal pid → `out_die` |
-| `restart` | none | `sshd_cmd_restart` | Same as start | Same as stop then start |
+| `start` | none | `sshd_cmd_start` | Termux: this login. Linux: **root login** (no in-tool sudo). systemd unit path: `systemctl start <unit>` | No binary / bad config / not writable / `systemctl` fail → `out_die` |
+| `stop` | none | `sshd_cmd_stop` | Same as start. systemd unit path: `systemctl stop <unit>` | Cannot stop (signal or `systemctl`) → `out_die` |
+| `restart` | none | `sshd_cmd_restart` | Same as start. systemd unit path: `systemctl restart <unit>` (one call). Else stop then start | Same as stop then start, or `systemctl` fail |
 | `port` | optional `N` | `sshd_cmd_port` | Show: this login if config readable. Set: writable config | Non-numeric / out of 1–65535 → `out_die` |
 | `config` | none | `sshd_cmd_config` | This login | Unreadable config → warn |
 | `host-keys` | `list` (default) or `generate` | `sshd_cmd_host_keys` | generate needs a writable host-key dir | Unknown action → `out_die` |
@@ -136,17 +139,69 @@ sshd-cli menu
 
 Termux detect: `PREFIX` contains `com.termux`, or `TERMUX_VERSION` set, or `/data/data/com.termux/files/usr` exists.
 
+#### 2.2.1 POSIX Linux systemd / `systemctl` (launch-path SSOT)
+
+`start` / `stop` / `restart` pick **exactly one** launch path. Helpers (this product): `sshd_is_systemd_host` · `sshd_systemd_unit` · `sshd_systemd_is_active` · `sshd_systemd_main_pid`. Dual mention: `requirement-shell-cli-interface`. **MUST NOT** add a routed verb named `systemctl`.
+
+**systemd host** (`sshd_is_systemd_host` true) when **all** of:
+
+1. **Not** a command line for normal user only (`sshd_is_normal_user_only_cli` is false).  
+2. Directory `/run/systemd/system` exists (this machine is running systemd).  
+3. `command -v systemctl` succeeds.
+
+If (2) is true and (3) is false: **warn** once per command, then use the OpenSSH fallback. **MUST NOT** call `systemctl`.
+
+**Unit name** (`sshd_systemd_unit`): probe **`ssh.service`** first (Debian/Ubuntu), then **`sshd.service`**. A name **exists** when `systemctl show -p LoadState --value <name>` is not `not-found` (loaded / stub / masked count as exists). If **both** exist: prefer the one `systemctl is-active` reports **active**; else prefer `ssh.service`. Empty string means no unit.
+
+**Socket:** If `systemctl show -p TriggeredBy --value <unit>` names `ssh.socket` or `sshd.socket`, human **status** **MAY** print that socket. `start` still runs `systemctl start <service-unit>`, not `systemctl start <socket>`.
+
+| Host | Unit exists | `start` / `stop` / `restart` MUST | MUST NOT |
+|------|-------------|-----------------------------------|----------|
+| Termux / Git Bash / Windows cmd | ignored | OpenSSH fallback (`sshd -f` / pidfile `kill`) | Invoke `systemctl` even if the binary exists |
+| POSIX Linux, systemd host, unit exists | yes | `systemctl start` / `stop` / `restart <unit>` as **root login**. `restart` is **one** `systemctl restart` (not this CLI’s stop-then-start). | `sshd -f` beside the unit; `kill` the unit MainPID; `--user`; wrap `sudo` |
+| POSIX Linux, systemd host, no unit | no | OpenSSH fallback as root | Pretend a unit exists; invent `sshd.service` when LoadState is `not-found` |
+| POSIX Linux, not a systemd host | n/a | OpenSSH fallback as root | Call `systemctl` |
+
+**OpenSSH fallback** (unchanged): `"${SSHD_BIN}" -f "${SSHD_CONFIG}"` so OpenSSH daemonizes. **MUST NOT** pass `-D`. **MUST NOT** wrap in `&` / `nohup`. Stop is signal the sshd pid (pidfile, then process match).
+
+**`systemctl` argv (when the unit path applies):**
+
+| Verb | Command | Privilege | Fail closed |
+|------|---------|-----------|-------------|
+| start | `systemctl start <unit>` | root (`id -u` 0) | non-zero `systemctl`; permission denied → Next: re-run as root |
+| stop | `systemctl stop <unit>` | root | same |
+| restart | `systemctl restart <unit>` | root | same |
+| is-active / MainPID / LoadState / TriggeredBy | `systemctl is-active` · `systemctl show -p … --value` | **this login** (status/about; no root required) | treat unknown as not-active; **MUST NOT** fail `status` solely because show failed |
+
+**Already running (unit path):** `systemctl is-active <unit>` is `active` → success no-op (do not `systemctl start` again). MainPID from `systemctl show -p MainPID` when non-zero.
+
+**Human copy (unit path, not quiet/json):** **MUST** name the unit (`ssh.service` or `sshd.service`). **MUST** say this CLI used `systemctl` for start/stop/restart. **MUST** say listen-after-reboot is this distro unit. **MUST NOT** say the pid is a “background daemon for this session”, “OpenSSH forks itself”, or “not a systemd” service. **MUST NOT** tell the operator to run `${APP_NAME} start` after a reboot as the Linux boot path.
+
+**Human copy (OpenSSH fallback on POSIX Linux):** same honesty as today: this CLI does not manage systemd; listen-after-reboot is the distro unit **if one exists later**; **MUST NOT** deny systemd for an observed pid.
+
+**Non-root POSIX Linux:** menu rows 2/3/4 stay hidden (semantics 1c). Typed `start` / `stop` / `restart` **MUST NOT** invoke `systemctl start/stop/restart` (would need root). Fail closed: re-run as root. **MUST NOT** wrap `sudo`. `status` **MAY** read `systemctl is-active` / `show` as this login.
+
+**MUST NOT** (systemd scope):
+
+- Routed verbs: `systemctl`, `enable-service`, `sv-enable`, `add-crontab`.  
+- `systemctl enable` / `disable` / `mask` / `unmask` / `daemon-reload` / `edit` / `cat` as this CLI’s start/stop/restart.  
+- Write or install unit files under `/etc/systemd` / `/usr/lib/systemd`.  
+- `--user` instance for system sshd.  
+- `termux-services` / runit as a substitute.  
+- Invoke `systemctl` because Git Bash or Windows cmd was detected.
+
 **Semantics:**
 
-1. **status** is read-only. Missing sshd is a warning, not a crash. Human mode **MUST** end with a recommended connect line `ssh -p <port> <user>@<lan-ipv4>` when a live IPv4 exists. **User** is `id -un`. **IPv4 SSOT:** `ifconfig wlan0` inet (Termux Wi-Fi). Then `wlan1`, then any `ifconfig` inet, then `ip` fallbacks. **MUST NOT** print a placeholder host (`<this-host>`, `<LAN-IPv4>`, `example.com`). If no usable IPv4: warn and say Next (turn on Wi-Fi, then `status`) — do not invent an address. JSON `connect` is that live string, or empty. **MUST NOT** freeze a session login or a sample home IP into product law.  
-1b. **menu** numbered rows are `status`, `start`, `stop`, `restart`, **`dns` (row 5)**, then **Exit 9**. Choosing **5** (or typing `dns`) runs the same handler as `sshd-cli dns` (TTY **Edit / Add / Delete** action menu, then Host pick). `port` / `config` / `host-keys` / `auth-keys` stay typed commands (and may be typed at the menu prompt) but **MUST NOT** appear as numbered rows 6–8. The Host pick **MUST NOT** reuse main-menu Exit `9`.  
-2. **start** is idempotent: already running → success no-op. Missing host keys → generate when the host-key dir is writable. `sshd -t` must pass before launch. Launch **MUST** be `"${SSHD_BIN}" -f "${SSHD_CONFIG}"` so OpenSSH **daemonizes itself** (pidfile). **MUST NOT** pass `-D` (foreground). **MUST NOT** wrap the launch in `&` / `nohup` / a service manager. Human mode (not quiet/json) **MUST** say this is a **background daemon for this session**, not a boot service, and name `${APP_NAME} start` after a reboot. On Termux, human mode **MUST** name Termux:Boot as an **operator-owned** hook (`~/.termux/boot/`), not a CLI verb. On POSIX Linux, human mode **MUST** say listen-after-reboot is the distro sshd unit, not this CLI. On Termux, **start** (including already-running) **MUST** auto-acquire the Android wake lock (`sshd_wake_lock_acquire`). Missing helper: **warn** + Next naming `${APP_NAME} wake-lock`; **MUST NOT** fail start solely for that. Dual mention: `requirement-shell-termux-ish`. **MUST NOT** auto-unlock on `stop`.  
-3. **stop** is idempotent: already stopped → success no-op.  
+1. **status** is read-only. Missing sshd is a warning, not a crash. Human mode **MUST** end with a recommended connect line `ssh -p <port> <user>@<lan-ipv4>` when a live IPv4 exists. **User** is `id -un`. **IPv4 SSOT:** `ifconfig wlan0` inet (Termux Wi-Fi). Then `wlan1`, then any `ifconfig` inet, then `ip` fallbacks. **MUST NOT** print a placeholder host (`<this-host>`, `<LAN-IPv4>`, `example.com`). If no usable IPv4: warn and say Next (turn on Wi-Fi, then `status`) — do not invent an address. JSON `connect` is that live string, or empty. **MUST NOT** freeze a session login or a sample home IP into product law. On a systemd host with a resolved unit, human **status** **MUST** print the unit name and active/inactive; JSON **MUST** add `sshd_systemd` (true/false), `sshd_unit` (name or `""`), `sshd_unit_active` (true/false).  
+1b. **menu** numbered rows are `status` (**1**), `start` (**2**), `stop` (**3**), `restart` (**4**), **`dns` (row 5)**, then **Exit 9**. Choosing **5** (or typing `dns`) runs the same handler as `sshd-cli dns` (TTY **Edit / Add / Delete** action menu, then Host pick). `port` / `config` / `host-keys` / `auth-keys` stay typed commands (and may be typed at the menu prompt) but **MUST NOT** appear as numbered rows 6–8. The Host pick **MUST NOT** reuse main-menu Exit `9`.  
+1c. **menu daemon rows (2/3/4):** On a **command line for normal user only** (Termux, Git Bash, Windows cmd), **MUST** print rows **2** / **3** / **4** for this login. On POSIX Linux (not that class), **MUST** print those rows **only** when this login is **root** (`id -u` is 0). When those rows are hidden, **MUST** print, **before** the numbered choices (after the nametag): `start/stop/restart sshd features are not available for non-root in <OS-Name>`. **OS-Name** is `/etc/os-release` `NAME=` (quotes stripped), else `uname -s`, else `Linux`. **MUST NOT** hardcode Ubuntu. **MUST NOT** renumber `dns` off row **5** when 2/3/4 are hidden. Hidden numbers **2** / **3** / **4** **MUST NOT** dispatch (unknown choice). Typed `start` / `stop` / `restart` at the prompt still run the handlers (fail-closed without root). **MUST NOT** wrap `sudo` to unhide the rows. Helper: `sshd_menu_show_daemon_rows` · `sshd_os_name`.  
+2. **start** is idempotent: already running → success no-op. Missing host keys → generate when the host-key dir is writable (OpenSSH fallback only; systemd unit path does **not** generate host keys — the distro unit owns that). On the OpenSSH fallback, `sshd -t` must pass before launch; launch **MUST** be `"${SSHD_BIN}" -f "${SSHD_CONFIG}"`. **MUST NOT** pass `-D`. **MUST NOT** wrap the launch in `&` / `nohup`. On a systemd host with a loaded unit, launch **MUST** follow §2.2.1 (`systemctl start <unit>` as root) — **MUST NOT** `sshd -f` beside that unit. Human mode (not quiet/json) **MUST** describe **this host** per §2.2.1 (Termux: session daemon + Termux:Boot + `${APP_NAME} start` after reboot; systemd unit path: name the unit and `systemctl`; POSIX Linux fallback: do not deny systemd). On Termux, **start** (including already-running) **MUST** auto-acquire the Android wake lock (`sshd_wake_lock_acquire`). Missing helper: **warn** + Next naming `${APP_NAME} wake-lock`; **MUST NOT** fail start solely for that. Dual mention: `requirement-shell-termux-ish`. **MUST NOT** auto-unlock on `stop`.  
+3. **stop** is idempotent: already stopped → success no-op. systemd unit path: `systemctl stop <unit>` as root (**MUST NOT** `kill` MainPID). OpenSSH fallback: signal the sshd pid (pidfile, then process match).  
 4. **port set** rewrites the `Port` line (or appends one). Does not auto-restart; human mode tells the operator to `restart` when sshd is up.  
 5. **host-keys generate** creates ed25519 if missing; tries rsa 4096 and warns if declined. Never overwrite existing private host keys.  
 6. **auth-keys add** appends one `ssh-ed25519` / `ssh-rsa` / ecdsa / sk- line from a **file**. Duplicate line → success no-op. Creates `~/.ssh` mode `700` and `authorized_keys` mode `600` when possible.  
-7. **No in-tool sudo.** If a Linux system path is not writable, fail closed and tell the operator to re-run as root or use Termux.  
-8. **No service manager.** Start is `sshd -f <config>` (OpenSSH daemonizes). Stop is signal the sshd pid (pidfile, then process match). On Termux, **MUST NOT** treat a host `pgrep -x sshd` as this login’s daemon — pidfile / `${PREFIX}/bin/sshd` only. **MUST NOT** add verbs or install units for systemd / `systemctl` / `termux-services` / `sv-enable` / `add-crontab` / `enable-service`. Termux:Boot and a Linux distro `sshd.service` stay **outside** this CLI (operator or distro).  
+7. **No in-tool sudo.** If a Linux system path is not writable, fail closed and tell the operator to **re-run as root**. **MUST NOT** name Termux (or any other platform class) as a next step on that Linux path. Termux PREFIX-writable copy is only when Termux was detected.  
+8. **Launch path, not extra verbs.** Start/stop/restart follow §2.2.1. On Termux, **MUST NOT** treat a host `pgrep -x sshd` as this login’s daemon — pidfile / `${PREFIX}/bin/sshd` only. **MUST NOT** add routed verbs `systemctl` / `enable-service` / `sv-enable` / `add-crontab`. **MUST NOT** write unit files. **MUST NOT** `systemctl enable` / `disable` / `mask`. Termux:Boot stays an **operator-owned** hook, not a CLI verb. Distro unit **start/stop/restart** is in scope via existing verbs; unit **enable-at-boot** is not.  
 9. **dns** (this login’s `~/.ssh/config` as an SSH name/IP list):
 
 | Mode | MUST | MUST NOT |
@@ -177,7 +232,7 @@ Termux detect: `PREFIX` contains `com.termux`, or `TERMUX_VERSION` set, or `/dat
 
 Intention: the operator is not forced to assemble a long flag list from memory. Dual mention: `requirement-shell-interactive-vs-noninteractive` · `requirement-shell-cli-interface`.
 
-**Non-goals:** SSH client `ProxyJump` recipes, ControlMaster session mux, Dropbear-only hosts, changing Linux firewall, wrapping `apt`/`dnf` on POSIX Linux, password-auth policy as a verb (shown on `config` only), auto-running `passwd`, systemd unit files, `termux-services` / runit supervision, cron-as-service, a Termux:Boot installer, `/etc/hosts` editing. Termux `pkg install openssh termux-auth` **is** in scope as the install companion (§2.1.1). This login `~/.ssh/config` Host list **is** in scope as **dns**.
+**Non-goals:** SSH client `ProxyJump` recipes, ControlMaster session mux, Dropbear-only hosts, changing Linux firewall, wrapping `apt`/`dnf` on POSIX Linux, password-auth policy as a verb (shown on `config` only), auto-running `passwd`, **writing** systemd unit files, `systemctl enable` / `disable` / `mask` as CLI verbs, a routed `systemctl` command, `termux-services` / runit supervision, cron-as-service, a Termux:Boot installer, `/etc/hosts` editing. Termux `pkg install openssh termux-auth` **is** in scope as the install companion (§2.1.1). This login `~/.ssh/config` Host list **is** in scope as **dns**. POSIX Linux `systemctl start` / `stop` / `restart` of the distro ssh/sshd **unit** **is** in scope (§2.2.1).
 
 **Filename grammar (when this domain allocates files):** host keys use OpenSSH names, not a dated JSON grant.
 
@@ -215,15 +270,15 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExamplePublicKeyMaterialOnly laptop-user
 
 `help` **MUST** keep Type 0 rows, then a **Domain commands (OpenSSH sshd):** section:
 
-- `status` — Show whether sshd is running, and the port/paths  
-- `start` — Start sshd as a background daemon (not a boot service; Termux also acquires Android wake lock)  
-- `stop` / `restart`  
+- `status` — Show whether sshd is running, and the port/paths (Linux systemd: unit name + active)  
+- `start` — Start sshd: Termux / no-unit Linux = background daemon (`sshd -f`); Linux with a distro unit = `systemctl start` as root (Termux also acquires Android wake lock)  
+- `stop` / `restart` — same launch-path split (`systemctl stop` / `systemctl restart` when a unit exists)  
 - `port [N]`  
 - `config`  
 - `host-keys [list|generate]`  
 - `auth-keys [list|add <file>]`  
 - `dns [list|show N|edit N|set N …|add …|delete N]` — This login `~/.ssh/config` Host list (numbered dns-ip; TTY as Termux / identity-file / Old OpenSSH; TTY edit/add/delete)  
-- `menu` — Numbered list: status, start, stop, restart, dns, Exit 9 (terminal only)
+- `menu` — Numbered list: status, start, stop, restart, dns, Exit 9 (terminal only). POSIX Linux non-root omits rows 2/3/4 and prints the non-root INFO with the OS name
 
 `help` Type 0 `install` row **MUST** mention Termux `pkg install openssh termux-auth` and `~/.bashrc` / `~/.profile` ensure (dual mention with the CLI-interface file).
 
@@ -234,15 +289,15 @@ Interactive empty argv **MUST** show this same list (zero-arguments dual mention
 
 ### 2.4 Specialized project about items
 
-Human `about` **MUST** add after storage lines: sshd platform, binary, port, running yes/no.  
-JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `sshd_running`.  
+Human `about` **MUST** add after storage lines: sshd platform, binary, port, running yes/no; on a systemd host, unit name (or none) and active yes/no.  
+JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `sshd_running`, `sshd_systemd`, `sshd_unit`, `sshd_unit_active`.  
 **MUST NOT** put `CHECKSUM` on about.
 
 ### 2.5 Implementation Notes (this project)
 
 | Item | Value |
 |------|--------|
-| Product | `sshd-cli` 1.8.0 |
+| Product | `sshd-cli` 1.10.0 |
 | Bootstrap origin | `selfmanaged` 1.2.3 (architecture + Type 0 only; A untouched) |
 | Domain prefix | `sshd_*` |
 | Channel | `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli` |
@@ -250,9 +305,9 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 | Login rc companion | Owned by `path_*` / `inst_ensure_companion` (`requirement-shell-self-management`) |
 | In-tool sudo | **none** — no `requirement-shell-sudo-command` |
 | Dest / fence | **none** (class residual: considered — no dest fence conditions) |
-| Menu | Verb `menu`/`main`; also interactive empty argv. Rows: 1 status, 2 start, 3 stop, 4 restart, 5 dns, 9 Exit. TTY `dns`: action menu Edit/Add/Delete, then Host pick |
+| Menu | Verb `menu`/`main`; also interactive empty argv. Rows: 1 status, 2 start, 3 stop, 4 restart, 5 dns, 9 Exit. POSIX Linux non-root: hide 2/3/4; INFO names OS from `sshd_os_name`; dns stays 5. TTY `dns`: action menu Edit/Add/Delete, then Host pick |
 | Status connect hint | `ifconfig wlan0` via `sshd_ifconfig_ipv4` / `sshd_lan_ipv4`; live `Connect:` line; **no** placeholder host |
-| Start launch | `"${SSHD_BIN}" -f "${SSHD_CONFIG}"` (OpenSSH daemonizes). **No** `-D`. **No** systemd / termux-services / cron verbs. Termux:Boot is operator-owned. Termux: auto-acquire Android wake lock (`sshd_wake_lock_acquire`). |
+| Start launch | §2.2.1 — systemd host + loaded `ssh.service` / `sshd.service` → `systemctl start/stop/restart` as root; else OpenSSH `sshd -f`. **No** `-D` on fallback. **No** routed `systemctl` verb. **No** `enable`/`disable`. Termux:Boot operator-owned. Termux: auto-acquire Android wake lock. Helpers: `sshd_is_systemd_host` · `sshd_systemd_unit` · `sshd_systemd_is_active` · `sshd_systemd_main_pid`. |
 | dns file | `${HOME}/.ssh/config` (OpenSSH client config; this login) |
 | dns fields | dns=`Host` · ip=`HostName` · user=`User` · port=`Port` (display 22 if empty) · identity-file=`IdentityFile` · identities-only=`IdentitiesOnly` · as Termux bundle (Port 8022 + keep-alives + IPQoS none) · Old OpenSSH (`HostKeyAlgorithms` / `PubkeyAcceptedAlgorithms` +ssh-rsa,ssh-dss) |
 | dns empty token | `""` or empty operand → empty field |
@@ -264,13 +319,14 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 - **CIAO Principle 10 – Least privilege** (https://github.com/cloudgen/ciao): No dedicated system user; no sudoers fragment.  
 - **CIAO Principle 5 – SSOT of output** (https://github.com/cloudgen/ciao): Domain messages use `out_*`.  
 - **CIAO Principle 16 – Interactive vs non-interactive** (https://github.com/cloudgen/ciao): `dns` TTY field walk; `--json` / pipe **list** or **set** without hanging.  
-- **CIAO Principle 21 – Dual policies** (https://github.com/cloudgen/ciao): Portable core; filled notes.
+- **CIAO Principle 21 – Dual policies** (https://github.com/cloudgen/ciao): Portable core; filled notes.  
+- **CIAO Principle 1 – Caution** (https://github.com/cloudgen/ciao): Killing a systemd MainPID fights the supervisor; `systemctl stop` is the unit path.
 
 ## 3. Design Principles (CIAO / CIAO-Lite)
 
 - **Caution**: Fail closed on missing sshd, bad port, unreadable pubkey file.  
 - **Intentional**: One domain SSOT; dual mention on the CLI-interface file.  
-- **Anti-fragile**: Works when systemd is absent (Termux). Start is OpenSSH’s own daemonize, not a service manager.  
+- **Anti-fragile**: Works when systemd is absent (Termux / OpenSSH fallback). When a distro unit exists, start/stop go through `systemctl` so systemd is not fighting a `kill`.  
 - **Over-protect**: Never overwrite host private keys; never `$()` a `read` helper for `menu`.
 
 ## Under command line for normal user only
@@ -286,7 +342,7 @@ When the ship unit detects a **command line for normal user only** (Termux, Git 
 
 Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface` · `requirement-shell-termux-ish`.
 
-**This requirement:** `start` / `stop` / `restart` run as this login as OpenSSH’s own background daemon (not a service manager). **dns** reads and writes **this login’s** `~/.ssh/config` (Type 0). Linux **root login** for system sshd is **not** this class (Termux / Git Bash / Windows cmd have no in-tool sudo). **MUST NOT** invent a dedicated `sshd-adm` account. **MUST NOT** add systemd / `termux-services` / cron-as-service verbs on that class.
+**This requirement:** On this class, `start` / `stop` / `restart` stay OpenSSH `sshd -f` (this login). **MUST NOT** invoke `systemctl`. **dns** reads and writes **this login’s** `~/.ssh/config` (Type 0). Linux **root login** plus `systemctl` for a distro unit is **not** this class. **MUST NOT** invent a dedicated `sshd-adm` account. **MUST NOT** add a routed `systemctl` / `enable-service` / `termux-services` verb on that class.
 
 ## 4. Protection Rule (Sacred)
 
@@ -307,8 +363,10 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 12. Print `<this-host>` or any other placeholder as the ssh host on `status` / `start`.  
 13. Finish Termux `install` without starting sshd, or fail POSIX CLI install only because system sshd needs root.  
 14. Strip the **Under command line for normal user only** section, or wrap `sudo` / create `sshd-adm` on that class.  
-15. Pass `-D` on start, wrap start in `&` / `nohup`, or add systemd / `systemctl` / `termux-services` / `sv-enable` / `add-crontab` / `enable-service` verbs.  
-16. Treat Termux:Boot or a Linux distro sshd unit as a verb this CLI owns.  
+15. Pass `-D` on the OpenSSH fallback, wrap start in `&` / `nohup`, add routed verbs `systemctl` / `enable-service` / `sv-enable` / `add-crontab` / `termux-services`, or `systemctl enable` / `disable` / `mask` as this CLI’s start/stop/restart.  
+16. Treat Termux:Boot as a verb this CLI owns. Distro unit **enable-at-boot** is out of scope; unit **start/stop/restart** is in scope via existing verbs (§2.2.1).  
+16c. On a systemd Linux host with a loaded `ssh.service` / `sshd.service`, `sshd -f` beside that unit, or `kill` the unit MainPID instead of `systemctl stop`.  
+16d. Invoke `systemctl` on Termux, Git Bash, or Windows cmd.  
 16b. Skip Termux Android wake lock auto-acquire on `start`, auto-unlock on `stop`, or treat Termux:Boot / `termux-services` as that lock.  
 17. Hang `dns` / `dns edit` / `dns delete` under `--json` / quiet / no TTY, or `$()` a `read` helper for the action menu, Host pick, or field walk.  
 18. Follow `Include`, list `Host *`, or rewrite `/etc/hosts` as dns.  
@@ -321,7 +379,10 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 25. Emit two JSON objects on `dns delete` (details + success).  
 26. Apply the Termux client bundle or Old OpenSSH algorithm lines on **non-interactive** `add`/`set` unless the operator passed `termux yes` / `old-openssh yes`.  
 27. Prompt **port** on the TTY walk when **as Termux** is yes, or skip **identity-file** / **identities-only** / **Old OpenSSH** on that walk.  
-28. Treat **as Termux** (per-Host SSH *client* profile for a phone that listens on 8022) as `sshd_is_termux` (this CLI’s runtime platform). They are different questions.
+28. Treat **as Termux** (per-Host SSH *client* profile for a phone that listens on 8022) as `sshd_is_termux` (this CLI’s runtime platform). They are different questions.  
+29. Show numbered start/stop/restart (rows **2** / **3** / **4**) to a **non-root** POSIX Linux login, skip the non-root INFO when those rows are hidden, wrap `sudo` to unhide them, or renumber `dns` off row **5** when hiding 2–4.  
+30. Print “use Termux” (or name another platform class) as a **next step** on POSIX Linux `start` / `stop` / not-writable errors (**INC-20260908-001**).  
+31. Tell a POSIX Linux operator that an **observed** sshd pid is “not a systemd” service or a “background daemon for this session” when this CLI has not established that it launched that pid (**INC-20260908-002**).
 
 ## 5. Related artifacts (versioned surface only)
 
@@ -341,13 +402,14 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 | TP family / ID | Suite | Status |
 |----------------|-------|--------|
 | **TP-CLI-04**, **TP-CLI-06**, **TP-CLI-14**, **TP-CLI-15** | `tests/test_cli.sh` | have |
-| **TP-SSHD-01** | `tests/test_cli.sh` | have |
+| **TP-SSHD-01**, **TP-SSHD-03**, **TP-SSHD-04**, **TP-SSHD-05**, **TP-SSHD-06**, **TP-SSHD-07**, **TP-SSHD-08** | `tests/test_cli.sh` | have |
+| **TP-SSHD-09** .. **TP-SSHD-14** | `tests/test_cli.sh` | have |
 | **TP-LC-16**, **TP-LC-17**, **TP-SSHD-02**, **TP-TX-09**, **TP-TX-13**, **TP-TX-16** | `tests/test_local_lifecycle.sh` | have |
 | **TP-DNS-01** .. **TP-DNS-35** | `tests/test_dns.sh` | have |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-09-08  
+**Last Updated**: 2026-09-08 (1.10.0: POSIX Linux systemd unit path implemented)  
 **Owner**: Cloudgen Wong  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

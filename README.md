@@ -1,6 +1,6 @@
 # sshd-cli - Simplify Termux to install sshd
 
-![Version](https://img.shields.io/badge/Version-1.8.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.10.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/sshd-cli?style=flat-square)](https://github.com/cloudgen/sshd-cli)
@@ -24,7 +24,7 @@
 | Start sshd | OpenSSH **forks itself** so a laptop can connect. Default Termux port is often **8022**. This is not a boot service. | `sshd-cli start` then `ssh -p 8022 user@host` |
 | After a reboot | The daemon is gone. Start again. Termux:Boot is **your** hook if you want listen-after-reboot. | `sshd-cli start` |
 
-Runtime version SSOT: `VERSION="1.8.0"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
+Runtime version SSOT: `VERSION="1.10.0"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
 
 ## Features
 
@@ -32,9 +32,10 @@ Runtime version SSOT: `VERSION="1.8.0"` in `./sshd-cli`. Install channel SSOT: `
 - Places itself for this login (`~/.local/bin`) or, on a **root login**, under `/usr/local/bin` (Termux: `$PREFIX/bin`)
 - On a **terminal**, no arguments opens a numbered **menu**; under a **pipe** (`curl | sh`, quiet, json) it **installs itself** (not help)
 - Purpose: **simplify Termux to install sshd** (`status`, `start`, `stop`, `restart`, `port`, `config`, `host-keys`, `auth-keys`)
-- `start` launches OpenSSH sshd as a **background daemon** (`sshd -f`; OpenSSH forks itself). This CLI is **not** a systemd, termux-services, or cron service manager
+- On POSIX Linux (not Termux / Git Bash / Windows cmd), the TTY menu shows **start / stop / restart** (rows **2** / **3** / **4**) **only as root**. A non-root login sees an INFO line naming this OS, then rows **1**, **5**, **9**. Typed `start` / `stop` / `restart` still fail closed without wrapping `sudo`
+- `start` launches OpenSSH sshd as a **background daemon** (`sshd -f`) on Termux and on Linux with **no** distro unit. On POSIX Linux with a loaded `ssh.service` / `sshd.service`, `start` / `stop` / `restart` call **`systemctl`** as a **root login** (no in-tool `sudo`; no `sshd-cli systemctl` verb)
 - On Termux, `start` also acquires an **Android wake lock** so sshd can keep listening with the screen off. Acquire again with `sshd-cli wake-lock` if Android dropped it. `wake-unlock` is optional and does **not** run on `stop`
-- After a reboot, run `sshd-cli start` again. On Termux, listen-after-reboot is **Termux:Boot** (you own `~/.termux/boot/`) — not a `sshd-cli` verb
+- After a reboot on Termux, run `sshd-cli start` again. Listen-after-reboot on Termux is **Termux:Boot** (you own `~/.termux/boot/`) — not a `sshd-cli` verb. On POSIX Linux, listen-after-reboot is the distro sshd unit
 - This login’s `~/.ssh/config` **Host** list (`dns`, TTY menu row **5**): action menu **Edit / Add / Delete**, then a Host pick; TTY **as Termux (Y/n)** (Port 8022 + keep-alives), **identity-file** / **identities-only**, **Old OpenSSH (Y/n)** (`ssh-rsa` / `ssh-dss`); `""` means empty; `--json` / pipes list or `set` / `delete` without hanging
 - Termux-first paths (`PREFIX`); Linux system sshd is a second home and asks for a **root login** instead of wrapping `sudo`
 - Online install / self-update fetches a SHA-256 sidecar (`${SCRIPT_URL}.sha256`) and tells you link, value, and result
@@ -94,7 +95,7 @@ After install, on a terminal (no arguments opens the menu):
 
 ```text
 $ sshd-cli
-[INFO] **sshd-cli**(*1.8.0*)
+[INFO] **sshd-cli**(*1.10.0*)
 1. Show sshd status: running, port, and paths
 2. Start sshd: launch the OpenSSH daemon (background, not a boot service)
 3. Stop sshd: end the running daemon
@@ -104,7 +105,19 @@ $ sshd-cli
 Choose a number, or type the command name:
 ```
 
-Choose a number, or type the command name. `5` opens this login’s `~/.ssh/config` Host list, then **Edit / Add / Delete**. `9` exits.
+On POSIX Linux as a **non-root** login, rows **2** / **3** / **4** are omitted (the OS name comes from this host):
+
+```text
+$ sshd-cli
+[INFO] **sshd-cli**(*1.10.0*)
+[INFO] start/stop/restart sshd features are not available for non-root in Ubuntu
+1. Show sshd status: running, port, and paths
+5. SSH names (dns): this login ~/.ssh/config Host list
+9. Exit
+Choose a number, or type the command name:
+```
+
+Choose a number, or type the command name. `5` opens this login’s `~/.ssh/config` Host list, then **Edit / Add / Delete**. `9` exits. Re-run as root on Linux to see start/stop/restart.
 
 ## Usage
 
@@ -179,7 +192,9 @@ sshd-cli dns delete 1
 | Git Bash / Windows cmd | Same “this login only” class as Termux: no `pkg`, no in-tool `sudo` |
 | Other UNIX with `/bin/sh`, `sha256sum`, `mktemp` | CLI install as this login should work; sshd paths follow POSIX defaults |
 
-`sshd-cli start` is a **background daemon for this session**, not a boot service. Leaving the shell is fine (OpenSSH already forked). A reboot, or Android killing Termux, ends the daemon — run `start` again. On Termux, `start` also acquires an Android wake lock so the CPU can stay awake with the screen off; if Android dropped it, run `sshd-cli wake-lock`. Listen-after-reboot on Termux is **Termux:Boot** (operator hook). On a Linux server, the distro `sshd` unit is the boot service; this CLI does not wrap systemd.
+On **Termux**, `sshd-cli start` is a **background daemon for this session** (OpenSSH forks itself). Leaving the shell is fine. A reboot, or Android killing Termux, ends the daemon — run `start` again. `start` also acquires an Android wake lock so the CPU can stay awake with the screen off; if Android dropped it, run `sshd-cli wake-lock`. Listen-after-reboot is **Termux:Boot** (operator hook).
+
+On a **Linux** server with a loaded distro unit (`ssh.service` or `sshd.service`), `sshd-cli start` / `stop` / `restart` as **root** call `systemctl` on that unit. Listen-after-reboot is the distro unit. There is no `sshd-cli systemctl` command and no in-tool `sudo`. Non-root logins fail closed: re-run as root.
 
 ## Related Projects
 
@@ -197,4 +212,4 @@ MIT. See [`LICENSE.md`](./LICENSE.md). Copyright (c) 2026 Cloudgen Wong.
 
 ## Last Update
 
-2026-09-08 — 1.8.0: TTY `dns` add/edit asks as Termux (Y/n), identity-file / identities-only, and Old OpenSSH (Y/n). Non-interactive `termux yes` / `old-openssh yes` / `identity-file` operands.
+2026-09-08 — 1.10.0: POSIX Linux with a distro ssh/sshd unit uses `systemctl` for start/stop/restart (root login). Termux still daemonizes with `sshd -f`.

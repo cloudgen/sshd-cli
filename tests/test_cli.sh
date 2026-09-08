@@ -3,8 +3,8 @@
 # =============================================================================
 # Primary REQs: requirement-shell-cli-interface, requirement-shell-cli-zero-arguments,
 # requirement-shell-output-requirements, requirement-shell-cli-storage,
-# requirement-domain-sshd (TP-SSHD-01)
-# TP family: TP-CLI-* · TP-SSHD-01
+# requirement-domain-sshd (TP-SSHD-01, TP-SSHD-03..08)
+# TP family: TP-CLI-* · TP-SSHD-01 · TP-SSHD-03..08
 # =============================================================================
 
 # shellcheck source=helpers.sh
@@ -95,7 +95,6 @@ run_test_cli() {
     assert_eq "TP-CLI-14 interactive empty argv exit 0" 0 "$_ec"
     assert_contains "TP-CLI-14 interactive empty argv shows menu" "$_out" "Choose a number"
     assert_contains "TP-CLI-14 interactive empty argv status row" "$_out" "Show sshd status"
-    assert_contains "TP-CLI-14 interactive empty argv restart row" "$_out" "4. Restart sshd"
     assert_contains "TP-CLI-14 interactive empty argv dns row" "$_out" "5. SSH names (dns)"
     assert_contains "TP-CLI-14 interactive empty argv Exit 9" "$_out" "9. Exit"
     assert_not_contains "TP-CLI-14 no numbered port row" "$_out" "Show listen port"
@@ -193,17 +192,145 @@ run_test_cli() {
     _out=$(sh "${SCRIPT}" help 2>&1)
     assert_eq "TP-SSHD-01 help exit 0" 0 "$?"
     assert_contains "TP-SSHD-01 help start is background daemon" "$_out" "background daemon"
-    assert_not_contains "TP-SSHD-01 help no systemctl" "$_out" "systemctl"
+    assert_contains "TP-SSHD-01 help names systemctl on Linux unit path" "$_out" "systemctl start"
     assert_not_contains "TP-SSHD-01 help no termux-services" "$_out" "termux-services"
     assert_not_contains "TP-SSHD-01 help no sv-enable" "$_out" "sv-enable"
     assert_not_contains "TP-SSHD-01 help no add-crontab" "$_out" "add-crontab"
     assert_not_contains "TP-SSHD-01 help no enable-service" "$_out" "enable-service"
     unset _src _out
+    # TP-SSHD-03 POSIX Linux non-root TTY menu hides 2/3/4; INFO names OS; dns stays 5
+    ci_isolated_env
+    _uid=$(id -u 2>/dev/null || echo 1)
+    if [ "${_uid}" -eq 0 ]; then
+        t_skip "TP-SSHD-03 non-root POSIX hide (suite running as root)"
+        t_skip "TP-SSHD-05 hidden choice 2 unknown (suite running as root)"
+    else
+        _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u TERMUX_VERSION -u MSYSTEM -u WSL_DISTRO_NAME sh "${SCRIPT}" </dev/null 2>&1)
+        _ec=$?
+        assert_eq "TP-SSHD-03 non-root POSIX menu exit 0" 0 "$_ec"
+        assert_contains "TP-SSHD-03 non-root INFO" "$_out" "start/stop/restart sshd features are not available for non-root in "
+        assert_contains "TP-SSHD-03 status row 1" "$_out" "1. Show sshd status"
+        assert_not_contains "TP-SSHD-03 no start row 2" "$_out" "2. Start sshd"
+        assert_not_contains "TP-SSHD-03 no stop row 3" "$_out" "3. Stop sshd"
+        assert_not_contains "TP-SSHD-03 no restart row 4" "$_out" "4. Restart sshd"
+        assert_contains "TP-SSHD-03 dns stays row 5" "$_out" "5. SSH names (dns)"
+        assert_contains "TP-SSHD-03 Exit 9" "$_out" "9. Exit"
+        _out=$(printf '%s\n' '2' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u TERMUX_VERSION -u MSYSTEM -u WSL_DISTRO_NAME sh "${SCRIPT}" 2>&1)
+        _ec=$?
+        assert_eq "TP-SSHD-05 hidden 2 exit 1" 1 "$_ec"
+        assert_contains "TP-SSHD-05 hidden 2 unknown" "$_out" "Unknown menu choice '2'"
+    fi
+    ci_cleanup_env
+    unset _uid _out _ec
+
+    # TP-SSHD-04 Termux mock TTY menu still shows 2/3/4; no non-root INFO
+    ci_isolated_env
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 TERMUX_VERSION=1 sh "${SCRIPT}" </dev/null 2>&1)
+    _ec=$?
+    assert_eq "TP-SSHD-04 Termux menu exit 0" 0 "$_ec"
+    assert_contains "TP-SSHD-04 start row 2" "$_out" "2. Start sshd"
+    assert_contains "TP-SSHD-04 stop row 3" "$_out" "3. Stop sshd"
+    assert_contains "TP-SSHD-04 restart row 4" "$_out" "4. Restart sshd"
+    assert_contains "TP-SSHD-04 dns row 5" "$_out" "5. SSH names (dns)"
+    assert_not_contains "TP-SSHD-04 no non-root INFO" "$_out" "not available for non-root"
+    ci_cleanup_env
+    unset _out _ec
+
     for _verb in systemctl sv-enable enable-service add-crontab; do
         _err=$(sh "${SCRIPT}" "${_verb}" 2>&1 >/dev/null)
         _ec=$?
-        assert_eq "TP-SSHD-01 ${_verb} exit 1" 1 "$_ec"
-        assert_contains "TP-SSHD-01 ${_verb} unknown" "$_err" "Unknown command"
+        assert_eq "TP-SSHD-14 ${_verb} exit 1" 1 "$_ec"
+        assert_contains "TP-SSHD-14 ${_verb} unknown" "$_err" "Unknown command"
     done
     unset _verb _err _ec
+
+    # TP-SSHD-06 / TP-SSHD-07 INC-20260908-001: Linux fail-closed copy is host-local
+    _src=$(cat "${SCRIPT}")
+    assert_not_contains "TP-SSHD-07 no use-Termux on start die" "$_src" "use Termux where sshd runs"
+    assert_not_contains "TP-SSHD-07 no use-Termux on stop die" "$_src" "use Termux where sshd belongs"
+    assert_not_contains "TP-SSHD-07 writable die is not both platforms" "$_src" "On Linux re-run as root. On Termux"
+    assert_contains "TP-SSHD-07 start die names re-run as root" "$_src" "Starting system sshd needs a root login on this host. Re-run as root."
+    assert_contains "TP-SSHD-07 stop die names re-run as root" "$_src" "Stopping system sshd needs a root login on this host. Re-run as root."
+    unset _src
+    _uid=$(id -u 2>/dev/null || echo 1)
+    if [ "${_uid}" -eq 0 ]; then
+        t_skip "TP-SSHD-06 non-root POSIX stop error (suite running as root)"
+        t_skip "TP-SSHD-08 POSIX start already-running honesty (suite running as root)"
+    else
+        _err=$(env -u TERMUX_VERSION -u MSYSTEM sh "${SCRIPT}" stop 2>&1)
+        _ec=$?
+        case "${_err}" in
+            *"already stopped"*)
+                t_skip "TP-SSHD-06 stop error (sshd already stopped)"
+                ;;
+            *)
+                assert_eq "TP-SSHD-06 non-root stop exit 1" 1 "$_ec"
+                assert_contains "TP-SSHD-06 stop names re-run as root" "$_err" "Re-run as root"
+                assert_not_contains "TP-SSHD-06 stop error has no Termux" "$_err" "Termux"
+                ;;
+        esac
+        # TP-SSHD-08 INC-20260908-002: POSIX start must not deny systemd for the live pid
+        _out=$(env -u TERMUX_VERSION -u MSYSTEM sh "${SCRIPT}" start 2>&1)
+        _ec=$?
+        case "${_out}" in
+            *"already running"*)
+                assert_eq "TP-SSHD-08 already-running start exit 0" 0 "$_ec"
+                assert_not_contains "TP-SSHD-08 no not-a-systemd" "$_out" "not a systemd"
+                assert_not_contains "TP-SSHD-08 no session-daemon claim" "$_out" "for this session"
+                assert_not_contains "TP-SSHD-08 no OpenSSH forks itself" "$_out" "OpenSSH forks itself"
+                assert_not_contains "TP-SSHD-08 no reboot sshd-cli start" "$_out" "After a reboot, run:"
+                assert_contains "TP-SSHD-08 names systemctl" "$_out" "systemctl"
+                assert_contains "TP-SSHD-08 names distro unit" "$_out" ".service"
+                ;;
+            *"needs a root login"*)
+                assert_eq "TP-SSHD-08 start fail-closed exit 1" 1 "$_ec"
+                assert_contains "TP-SSHD-08 start names re-run as root" "$_out" "Re-run as root"
+                assert_not_contains "TP-SSHD-08 start error has no Termux" "$_out" "Termux"
+                ;;
+            *)
+                t_fail "TP-SSHD-08 expected already-running or root fail-closed (got '$(_trunc "${_out}")')"
+                ;;
+        esac
+        unset _err _out _ec
+    fi
+    unset _uid
+
+    # TP-SSHD-09 / TP-SSHD-10 systemd detect + unit name (read-only)
+    _json=$(sh "${SCRIPT}" --json about 2>/dev/null)
+    if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+        assert_contains "TP-SSHD-09 posix about sshd_systemd true" "$_json" '"sshd_systemd":"true"'
+        case "${_json}" in
+            *"\"sshd_unit\":\"ssh.service\""*|*"\"sshd_unit\":\"sshd.service\""*)
+                t_pass "TP-SSHD-10 about names ssh.service or sshd.service"
+                ;;
+            *)
+                t_fail "TP-SSHD-10 about names ssh.service or sshd.service (got '$(_trunc "${_json}")')"
+                ;;
+        esac
+    else
+        assert_contains "TP-SSHD-09 posix about sshd_systemd false (no systemd runtime)" "$_json" '"sshd_systemd":"false"'
+        t_skip "TP-SSHD-10 unit name (no systemd runtime)"
+    fi
+    _json=$(TERMUX_VERSION=1 sh "${SCRIPT}" --json about 2>/dev/null)
+    assert_contains "TP-SSHD-09 Termux about sshd_systemd false" "$_json" '"sshd_systemd":"false"'
+    unset _json
+
+    _src=$(cat "${SCRIPT}")
+    assert_contains "TP-SSHD-11 source systemctl start" "$_src" 'systemctl start "${_unit}"'
+    assert_contains "TP-SSHD-12 source systemctl stop" "$_src" 'systemctl stop "${_unit}"'
+    assert_contains "TP-SSHD-12 source systemctl restart" "$_src" 'systemctl restart "${_unit}"'
+    unset _src
+
+    # TP-SSHD-13 Termux start never invokes systemctl
+    ci_isolated_env
+    mkdir -p "${CI_HOME}/stubbin"
+    printf '%s\n' '#!/bin/sh' "echo \"\$*\" >> \"${CI_HOME}/systemctl-args.log\"" 'exit 0' > "${CI_HOME}/stubbin/systemctl"
+    chmod +x "${CI_HOME}/stubbin/systemctl"
+    HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" PATH="${CI_HOME}/stubbin:${PATH}" TERMUX_VERSION=1 sh "${SCRIPT}" start >/dev/null 2>&1 || true
+    if [ -f "${CI_HOME}/systemctl-args.log" ]; then
+        t_fail "TP-SSHD-13 Termux start must not invoke systemctl"
+    else
+        t_pass "TP-SSHD-13 Termux start must not invoke systemctl"
+    fi
+    ci_cleanup_env
 }

@@ -5,6 +5,33 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.10.0] - 2026-09-08
+
+### Added
+
+- POSIX Linux systemd unit path: when `ssh.service` or `sshd.service` is loaded, `start` / `stop` / `restart` call `systemctl` as a **root login**. `status` / `about` print the unit name and active state. Tests **TP-SSHD-09** .. **TP-SSHD-14**.
+
+### Changed
+
+- Help `start` row names the Linux `systemctl` path. There is still **no** routed `systemctl` / `enable-service` verb and **no** in-tool `sudo`. Termux is unchanged (`sshd -f`).
+
+## [1.9.1] - 2026-09-08
+
+### Fixed
+
+- POSIX Linux `start` / `stop` / not-writable errors no longer name **Termux** as a next step. Next step is **re-run as root** (**INC-20260908-001**, **TP-SSHD-06**, **TP-SSHD-07**).
+- POSIX Linux human `start` (including already-running) no longer says the observed pid is a session daemon or “not a systemd” service. It says this CLI does not **manage** systemd, and listen-after-reboot is the distro unit (**INC-20260908-002**, **TP-SSHD-08**).
+
+## [1.9.0] - 2026-09-08
+
+### Added
+
+- On POSIX Linux (not Termux / Git Bash / Windows cmd), the TTY menu shows start / stop / restart (rows **2** / **3** / **4**) **only as root**. A non-root login gets `[INFO] start/stop/restart sshd features are not available for non-root in <OS-Name>` before the numbered list. `dns` stays row **5**. Tests **TP-SSHD-03** .. **TP-SSHD-05**.
+
+### Changed
+
+- Hidden numbers **2** / **3** / **4** are unknown choices. Typed `start` / `stop` / `restart` at the prompt still run the handlers (fail-closed without root; no in-tool `sudo`).
+
 ## [1.8.0] - 2026-09-08
 
 ### Added

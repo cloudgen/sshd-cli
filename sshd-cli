@@ -49,8 +49,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys) plus self-install.}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.8.0"
-: "${VERSION:=1.8.0}"
+VERSION="1.10.0"
+: "${VERSION:=1.10.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -2543,6 +2543,164 @@ sshd_is_normal_user_only_cli() {
     return 1
 }
 
+# Host OS display name for operator copy (not a platform class).
+# /etc/os-release NAME= first; else uname -s; else Linux.
+sshd_os_name() {
+    _name=""
+    if [ -r /etc/os-release ]; then
+        _name=$(grep -E '^NAME=' /etc/os-release 2>/dev/null | head -n 1 || true)
+        _name=${_name#NAME=}
+        _name=${_name#\"}
+        _name=${_name%\"}
+        _name=${_name#\'}
+        _name=${_name%\'}
+    fi
+    if [ -z "${_name}" ]; then
+        _name=$(uname -s 2>/dev/null || true)
+    fi
+    if [ -z "${_name}" ]; then
+        _name="Linux"
+    fi
+    printf '%s' "${_name}"
+    unset _name
+}
+
+# Numbered menu rows 2/3/4 (start/stop/restart): this login on a
+# command-line-for-normal-user-only host, or a root login on POSIX Linux.
+sshd_menu_show_daemon_rows() {
+    if sshd_is_normal_user_only_cli; then
+        return 0
+    fi
+    if [ "$(id -u 2>/dev/null || echo 1)" -eq 0 ]; then
+        return 0
+    fi
+    return 1
+}
+
+# POSIX Linux systemd host: not Termux/Git Bash/Windows cmd, runtime is
+# systemd, and systemctl exists. requirement-domain-sshd §2.2.1.
+sshd_is_systemd_host() {
+    if sshd_is_normal_user_only_cli; then
+        return 1
+    fi
+    if [ ! -d /run/systemd/system ]; then
+        return 1
+    fi
+    command -v systemctl >/dev/null 2>&1 || return 1
+    return 0
+}
+
+sshd_systemd_load_state() {
+    _su="${1-}"
+    if [ -z "${_su}" ]; then
+        printf '%s' "not-found"
+        unset _su
+        return 0
+    fi
+    _st=$(systemctl show -p LoadState --value "${_su}" 2>/dev/null || true)
+    _st=$(printf '%s' "${_st}" | tr -d '\n\r')
+    if [ -z "${_st}" ]; then
+        _st="not-found"
+    fi
+    printf '%s' "${_st}"
+    unset _su _st
+}
+
+sshd_systemd_unit_exists() {
+    _st=$(sshd_systemd_load_state "${1-}")
+    if [ "${_st}" = "not-found" ]; then
+        unset _st
+        return 1
+    fi
+    unset _st
+    return 0
+}
+
+sshd_systemd_is_active() {
+    _su="${1-}"
+    if [ -z "${_su}" ]; then
+        return 1
+    fi
+    _act=$(systemctl is-active "${_su}" 2>/dev/null || true)
+    _act=$(printf '%s' "${_act}" | tr -d '\n\r')
+    if [ "${_act}" = "active" ]; then
+        unset _su _act
+        return 0
+    fi
+    unset _su _act
+    return 1
+}
+
+sshd_systemd_main_pid() {
+    _su="${1-}"
+    if [ -z "${_su}" ]; then
+        return 1
+    fi
+    _mp=$(systemctl show -p MainPID --value "${_su}" 2>/dev/null || true)
+    _mp=$(printf '%s' "${_mp}" | tr -d '\n\r')
+    case "${_mp}" in
+        ""|0)
+            unset _su _mp
+            return 1
+            ;;
+    esac
+    printf '%s' "${_mp}"
+    unset _su _mp
+    return 0
+}
+
+sshd_systemd_triggered_by() {
+    _su="${1-}"
+    if [ -z "${_su}" ]; then
+        return 1
+    fi
+    _tb=$(systemctl show -p TriggeredBy --value "${_su}" 2>/dev/null || true)
+    _tb=$(printf '%s' "${_tb}" | tr -d '\n\r')
+    if [ -z "${_tb}" ]; then
+        unset _su _tb
+        return 1
+    fi
+    printf '%s' "${_tb}"
+    unset _su _tb
+    return 0
+}
+
+# Prints ssh.service or sshd.service, or returns 1 when none.
+sshd_systemd_unit() {
+    if ! sshd_is_systemd_host; then
+        return 1
+    fi
+    _ssh_ex=1
+    _sshd_ex=1
+    if sshd_systemd_unit_exists "ssh.service"; then
+        _ssh_ex=0
+    fi
+    if sshd_systemd_unit_exists "sshd.service"; then
+        _sshd_ex=0
+    fi
+    if [ "${_ssh_ex}" -eq 0 ] && [ "${_sshd_ex}" -eq 0 ]; then
+        if sshd_systemd_is_active "sshd.service" && ! sshd_systemd_is_active "ssh.service"; then
+            printf '%s' "sshd.service"
+        else
+            printf '%s' "ssh.service"
+        fi
+        unset _ssh_ex _sshd_ex
+        return 0
+    fi
+    if [ "${_ssh_ex}" -eq 0 ]; then
+        printf '%s' "ssh.service"
+        unset _ssh_ex _sshd_ex
+        return 0
+    fi
+    if [ "${_sshd_ex}" -eq 0 ]; then
+        printf '%s' "sshd.service"
+        unset _ssh_ex _sshd_ex
+        return 0
+    fi
+    unset _ssh_ex _sshd_ex
+    return 1
+}
+
 # =============================================================================
 # sshd_pkg_ensure() - Termux: pkg install openssh and termux-auth
 # =============================================================================
@@ -2763,6 +2921,21 @@ sshd_resolve() {
 
 sshd_running_pid() {
     sshd_resolve
+    if _unit=$(sshd_systemd_unit); then
+        if sshd_systemd_is_active "${_unit}"; then
+            if _pid=$(sshd_systemd_main_pid "${_unit}"); then
+                printf '%s' "${_pid}"
+                unset _unit _pid
+                return 0
+            fi
+            printf '%s' "0"
+            unset _unit _pid
+            return 0
+        fi
+        unset _unit
+        return 1
+    fi
+    unset _unit
     if [ -n "${SSHD_PIDFILE}" ] && [ -r "${SSHD_PIDFILE}" ]; then
         _pid=$(tr -d ' \n\r\t' < "${SSHD_PIDFILE}" 2>/dev/null || true)
         if [ -n "${_pid}" ] && kill -0 "${_pid}" 2>/dev/null; then
@@ -2826,7 +2999,10 @@ sshd_need_writable() {
         unset _target _dir
         return 0
     fi
-    out_die "This login cannot write ${_target}. On Linux re-run as root. On Termux these paths are usually yours after ${APP_NAME} install."
+    if sshd_is_termux; then
+        out_die "This login cannot write ${_target}. On Termux these paths are usually yours after ${APP_NAME} install."
+    fi
+    out_die "This login cannot write ${_target}. Re-run as root."
 }
 
 # =============================================================================
@@ -2988,6 +3164,16 @@ sshd_cmd_status() {
     fi
     : "${_pid:=}"
     _connect=$(sshd_connect_cmd)
+    _sysd="false"
+    _unit=""
+    _uact="false"
+    if sshd_is_systemd_host; then
+        _sysd="true"
+        _unit=$(sshd_systemd_unit || true)
+        if [ -n "${_unit}" ] && sshd_systemd_is_active "${_unit}"; then
+            _uact="true"
+        fi
+    fi
     if [ "${JSON}" -eq 1 ]; then
         out_json "status" "" \
             "app" "${APP_NAME}" \
@@ -3000,8 +3186,11 @@ sshd_cmd_status() {
             "running" "${_running}" \
             "pid" "${_pid}" \
             "auth_keys" "${SSHD_AUTH_KEYS}" \
-            "connect" "${_connect}"
-        unset _pid _running _connect
+            "connect" "${_connect}" \
+            "sshd_systemd" "${_sysd}" \
+            "sshd_unit" "${_unit}" \
+            "sshd_unit_active" "${_uact}"
+        unset _pid _running _connect _sysd _unit _uact
         return 0
     fi
     out_info "=== ${APP_NAME} sshd status ==="
@@ -3015,6 +3204,22 @@ sshd_cmd_status() {
     out_info "Host keys:    ${SSHD_HOSTKEY_DIR}"
     out_info "Listen port:  ${SSHD_PORT}"
     out_info "Auth keys:    ${SSHD_AUTH_KEYS}"
+    if [ "${_sysd}" = "true" ]; then
+        if [ -n "${_unit}" ]; then
+            if [ "${_uact}" = "true" ]; then
+                out_info "systemd unit: ${_unit} (active)"
+            else
+                out_info "systemd unit: ${_unit} (inactive)"
+            fi
+            _tb=$(sshd_systemd_triggered_by "${_unit}" || true)
+            if [ -n "${_tb}" ]; then
+                out_info "TriggeredBy:  ${_tb}"
+            fi
+            unset _tb
+        else
+            out_info "systemd unit: none"
+        fi
+    fi
     if [ "${_running}" = "true" ]; then
         out_success "sshd is running (pid ${_pid})."
     else
@@ -3025,7 +3230,7 @@ sshd_cmd_status() {
     else
         out_warn "No LAN IPv4 found (ifconfig wlan0 had no inet). Next: turn on Wi-Fi, then ${APP_NAME} status."
     fi
-    unset _pid _running _connect
+    unset _pid _running _connect _sysd _unit _uact
 }
 
 sshd_cmd_config() {
@@ -3048,17 +3253,28 @@ sshd_cmd_config() {
 }
 
 # sshd_hint_daemon() - Human-only: session daemon vs boot service
-# requirement-domain-sshd: OpenSSH daemonizes; this CLI is not a service manager.
+# requirement-domain-sshd: OpenSSH daemonizes on this CLI's launch path.
+# This CLI is not a service manager. POSIX Linux already-running pid may be
+# the distro unit — MUST NOT deny systemd for that process (INC-20260908-002).
 sshd_hint_daemon() {
     if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ]; then
         return 0
     fi
-    out_info "sshd is a background daemon for this session (OpenSSH forks itself). It is not a systemd, termux-services, or cron service this CLI manages."
-    out_info "After a reboot, run: ${APP_NAME} start"
+    _hint_unit=$(sshd_systemd_unit || true)
+    if [ -n "${_hint_unit}" ]; then
+        out_info "This CLI used systemctl on ${_hint_unit}."
+        out_info "Listen-after-reboot is this distro unit, not a session daemon."
+        unset _hint_unit
+        return 0
+    fi
+    unset _hint_unit
     if [ "${SSHD_PLATFORM}" = "termux" ]; then
+        out_info "sshd is a background daemon for this session (OpenSSH forks itself). This CLI does not manage systemd, termux-services, or cron."
+        out_info "After a reboot, run: ${APP_NAME} start"
         out_info "Listen-after-reboot on Termux is Termux:Boot (you own that hook): put ${APP_NAME} start in ~/.termux/boot/"
         out_info "Android may sleep Termux when the screen is off; this CLI acquires a wake lock on start. Re-acquire: ${APP_NAME} wake-lock"
     else
+        out_info "This CLI does not manage systemd, termux-services, or cron."
         out_info "On POSIX Linux, listen-after-reboot is the distro sshd unit, not this CLI."
     fi
 }
@@ -3067,6 +3283,43 @@ sshd_cmd_start() {
     : "${SSHD_NESTED_START:=0}"
     sshd_need_bin
     sshd_resolve
+    _unit=$(sshd_systemd_unit || true)
+    if [ -n "${_unit}" ]; then
+        if sshd_systemd_is_active "${_unit}"; then
+            sshd_wake_lock_acquire
+            _pid=$(sshd_systemd_main_pid "${_unit}" || true)
+            if [ "${JSON}" -eq 1 ] && [ "${SSHD_NESTED_START}" -eq 0 ]; then
+                out_json "out_success" "sshd is already running." "pid" "${_pid}" "port" "${SSHD_PORT}" "sshd_unit" "${_unit}"
+            elif [ "${JSON}" -eq 0 ]; then
+                out_success "sshd is already running (pid ${_pid:-none}) on port ${SSHD_PORT} via ${_unit}."
+                sshd_hint_daemon
+            fi
+            unset _pid _unit
+            return 0
+        fi
+        if [ "$(id -u 2>/dev/null || echo 1)" -ne 0 ]; then
+            out_die "Starting system sshd needs a root login on this host. Re-run as root."
+        fi
+        if ! systemctl start "${_unit}"; then
+            out_die "systemctl start ${_unit} failed. Re-run as root."
+        fi
+        _pid=$(sshd_systemd_main_pid "${_unit}" || true)
+        sshd_wake_lock_acquire
+        if [ "${JSON}" -eq 1 ] && [ "${SSHD_NESTED_START}" -eq 0 ]; then
+            out_json "out_success" "sshd started." "pid" "${_pid}" "port" "${SSHD_PORT}" "sshd_unit" "${_unit}"
+        elif [ "${JSON}" -eq 0 ]; then
+            out_success "sshd started on port ${SSHD_PORT} via systemctl ${_unit}${_pid:+ (pid ${_pid})}."
+            _c=$(sshd_connect_cmd)
+            if [ -n "${_c}" ]; then
+                out_info "Connect:      ${_c}"
+            fi
+            unset _c
+            sshd_hint_daemon
+        fi
+        unset _pid _unit
+        return 0
+    fi
+    unset _unit
     if _pid=$(sshd_running_pid); then
         sshd_wake_lock_acquire
         if [ "${JSON}" -eq 1 ] && [ "${SSHD_NESTED_START}" -eq 0 ]; then
@@ -3092,15 +3345,15 @@ sshd_cmd_start() {
     fi
     if [ "${SSHD_PLATFORM}" != "termux" ] && [ "$(id -u 2>/dev/null || echo 1)" -ne 0 ]; then
         if [ ! -w "${SSHD_CONFIG}" ]; then
-            out_die "Starting system sshd needs a root login on this host. Re-run as root, or use Termux where sshd runs as your login."
+            out_die "Starting system sshd needs a root login on this host. Re-run as root."
         fi
     fi
     if ! "${SSHD_BIN}" -t -f "${SSHD_CONFIG}" >/dev/null 2>&1; then
         _err=$("${SSHD_BIN}" -t -f "${SSHD_CONFIG}" 2>&1 || true)
         out_die "sshd refused the config (${SSHD_CONFIG}). ${_err}"
     fi
-    # OpenSSH daemonizes unless -D. Do not pass -D; do not wrap in & / nohup.
-    # requirement-domain-sshd: no systemd / termux-services / cron-as-service.
+    # OpenSSH fallback daemonizes unless -D. Do not pass -D; do not wrap in & / nohup.
+    # systemd unit path is handled above (requirement-domain-sshd §2.2.1).
     if ! "${SSHD_BIN}" -f "${SSHD_CONFIG}"; then
         out_die "sshd did not start. Check ${SSHD_CONFIG} and host keys under ${SSHD_HOSTKEY_DIR}."
     fi
@@ -3123,6 +3376,33 @@ sshd_cmd_start() {
 
 sshd_cmd_stop() {
     sshd_resolve
+    _unit=$(sshd_systemd_unit || true)
+    if [ -n "${_unit}" ]; then
+        if ! sshd_systemd_is_active "${_unit}"; then
+            if [ "${JSON}" -eq 1 ]; then
+                out_json "out_success" "sshd is already stopped." "sshd_unit" "${_unit}"
+            else
+                out_success "sshd is already stopped."
+            fi
+            unset _unit
+            return 0
+        fi
+        if [ "$(id -u 2>/dev/null || echo 1)" -ne 0 ]; then
+            out_die "Stopping system sshd needs a root login on this host. Re-run as root."
+        fi
+        _pid=$(sshd_systemd_main_pid "${_unit}" || true)
+        if ! systemctl stop "${_unit}"; then
+            out_die "systemctl stop ${_unit} failed. Re-run as root."
+        fi
+        if [ "${JSON}" -eq 1 ]; then
+            out_json "out_success" "sshd stopped." "pid" "${_pid}" "sshd_unit" "${_unit}"
+        else
+            out_success "sshd stopped via systemctl ${_unit}${_pid:+ (was pid ${_pid})}."
+        fi
+        unset _pid _unit
+        return 0
+    fi
+    unset _unit
     if ! _pid=$(sshd_running_pid); then
         if [ "${JSON}" -eq 1 ]; then
             out_json "out_success" "sshd is already stopped."
@@ -3133,7 +3413,7 @@ sshd_cmd_stop() {
         return 0
     fi
     if [ "${SSHD_PLATFORM}" != "termux" ] && [ "$(id -u 2>/dev/null || echo 1)" -ne 0 ]; then
-        out_die "Stopping system sshd needs a root login on this host. Re-run as root, or use Termux where sshd belongs to your login."
+        out_die "Stopping system sshd needs a root login on this host. Re-run as root."
     fi
     if ! kill "${_pid}" 2>/dev/null; then
         out_die "Could not stop sshd (pid ${_pid})."
@@ -3158,6 +3438,27 @@ sshd_cmd_stop() {
 }
 
 sshd_cmd_restart() {
+    sshd_resolve
+    _unit=$(sshd_systemd_unit || true)
+    if [ -n "${_unit}" ]; then
+        if [ "$(id -u 2>/dev/null || echo 1)" -ne 0 ]; then
+            out_die "Restarting system sshd needs a root login on this host. Re-run as root."
+        fi
+        if ! systemctl restart "${_unit}"; then
+            out_die "systemctl restart ${_unit} failed. Re-run as root."
+        fi
+        _pid=$(sshd_systemd_main_pid "${_unit}" || true)
+        sshd_wake_lock_acquire
+        if [ "${JSON}" -eq 1 ]; then
+            out_json "out_success" "sshd restarted." "pid" "${_pid}" "port" "${SSHD_PORT}" "sshd_unit" "${_unit}"
+        else
+            out_success "sshd restarted on port ${SSHD_PORT} via systemctl ${_unit}${_pid:+ (pid ${_pid})}."
+            sshd_hint_daemon
+        fi
+        unset _pid _unit
+        return 0
+    fi
+    unset _unit
     sshd_cmd_stop
     sshd_cmd_start
 }
@@ -4587,11 +4888,20 @@ sshd_cmd_menu() {
     if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ] || [ "${TTY}" -ne 1 ]; then
         out_die "menu needs a terminal. Run a named command instead, for example: ${APP_NAME} status"
     fi
+    _show_daemon=0
+    if sshd_menu_show_daemon_rows; then
+        _show_daemon=1
+    fi
     out_info "**${APP_NAME}**(*${VERSION}*)"
+    if [ "${_show_daemon}" -eq 0 ]; then
+        out_info "start/stop/restart sshd features are not available for non-root in $(sshd_os_name)"
+    fi
     out_plain "1. Show sshd status: running, port, and paths"
-    out_plain "2. Start sshd: launch the OpenSSH daemon (background, not a boot service)"
-    out_plain "3. Stop sshd: end the running daemon"
-    out_plain "4. Restart sshd: stop then start"
+    if [ "${_show_daemon}" -eq 1 ]; then
+        out_plain "2. Start sshd: launch the OpenSSH daemon (background, not a boot service)"
+        out_plain "3. Stop sshd: end the running daemon"
+        out_plain "4. Restart sshd: stop then start"
+    fi
     out_plain "5. SSH names (dns): this login ~/.ssh/config Host list"
     out_plain "9. Exit"
     out_msg_n "Choose a number, or type the command name: "
@@ -4599,9 +4909,21 @@ sshd_cmd_menu() {
     read -r _choice || true
     case "${_choice}" in
         1|status) sshd_cmd_status ;;
-        2|start) sshd_cmd_start ;;
-        3|stop) sshd_cmd_stop ;;
-        4|restart) sshd_cmd_restart ;;
+        2)
+            [ "${_show_daemon}" -eq 1 ] || out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help."
+            sshd_cmd_start
+            ;;
+        start) sshd_cmd_start ;;
+        3)
+            [ "${_show_daemon}" -eq 1 ] || out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help."
+            sshd_cmd_stop
+            ;;
+        stop) sshd_cmd_stop ;;
+        4)
+            [ "${_show_daemon}" -eq 1 ] || out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help."
+            sshd_cmd_restart
+            ;;
+        restart) sshd_cmd_restart ;;
         5|dns) sshd_cmd_dns ;;
         port) sshd_cmd_port ;;
         config) sshd_cmd_config ;;
@@ -4612,7 +4934,7 @@ sshd_cmd_menu() {
         9|99|999|exit|"") return 0 ;;
         *) out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help." ;;
     esac
-    unset _choice
+    unset _choice _show_daemon
 }
 
 
@@ -4622,7 +4944,7 @@ app_about() {
     : "${QUIET:=0}"
     : "${APP_NAME:=sshd-cli}"
     # Version comes from global SSOT (VERSION="…" hard-assign near top); default only if unset
-    : "${VERSION:=1.7.0}"
+    : "${VERSION:=1.10.0}"
     if [ -n "${PREFIX-}" ] && [ -d "${PREFIX}/bin" ]; then
     : "${GLOBAL_BIN:=${PREFIX}/bin}"
 else
@@ -4644,6 +4966,16 @@ fi
     SSHD_ABOUT_RUNNING="false"
     if sshd_running_pid >/dev/null 2>&1; then
         SSHD_ABOUT_RUNNING="true"
+    fi
+    SSHD_ABOUT_SYSTEMD="false"
+    SSHD_ABOUT_UNIT=""
+    SSHD_ABOUT_UNIT_ACTIVE="false"
+    if sshd_is_systemd_host; then
+        SSHD_ABOUT_SYSTEMD="true"
+        SSHD_ABOUT_UNIT=$(sshd_systemd_unit || true)
+        if [ -n "${SSHD_ABOUT_UNIT}" ] && sshd_systemd_is_active "${SSHD_ABOUT_UNIT}"; then
+            SSHD_ABOUT_UNIT_ACTIVE="true"
+        fi
     fi
 
     if [ "${JSON}" -eq 1 ]; then
@@ -4684,7 +5016,10 @@ fi
             "sshd_platform" "${SSHD_PLATFORM:-}" \
             "sshd_bin" "${SSHD_BIN:-}" \
             "sshd_port" "${SSHD_PORT:-}" \
-            "sshd_running" "${SSHD_ABOUT_RUNNING:-false}"
+            "sshd_running" "${SSHD_ABOUT_RUNNING:-false}" \
+            "sshd_systemd" "${SSHD_ABOUT_SYSTEMD:-false}" \
+            "sshd_unit" "${SSHD_ABOUT_UNIT:-}" \
+            "sshd_unit_active" "${SSHD_ABOUT_UNIT_ACTIVE:-false}"
         return 0
     fi
 
@@ -4762,6 +5097,13 @@ fi
     else
         out_info "sshd running:     no"
     fi
+    if [ "${SSHD_ABOUT_SYSTEMD}" = "true" ]; then
+        if [ -n "${SSHD_ABOUT_UNIT}" ]; then
+            out_info "sshd unit:        ${SSHD_ABOUT_UNIT} (active=${SSHD_ABOUT_UNIT_ACTIVE})"
+        else
+            out_info "sshd unit:        none"
+        fi
+    fi
     # --- end DOMAIN_ABOUT_FIELDS ---
 
     out_empty_line
@@ -4777,7 +5119,7 @@ fi
 
 app_version() {
     : "${APP_NAME:=sshd-cli}"
-    : "${VERSION:=1.7.0}"
+    : "${VERSION:=1.10.0}"
     : "${JSON:=0}"
     if [ "${JSON}" -eq 1 ]; then
         # Same machine contract as historical app_main inline path
@@ -4835,16 +5177,16 @@ app_help() {
 
     # --- DOMAIN_HELP_ROWS (specializee injection) ---
     out_info "Domain commands (OpenSSH sshd):"
-    out_plain "  status               Show whether sshd is running, and the port/paths"
-    out_plain "  start                Start sshd as a background daemon (not a boot service; Termux as this login; Linux often needs root)"
-    out_plain "  stop                 Stop sshd"
-    out_plain "  restart              Stop then start sshd"
+    out_plain "  status               Show whether sshd is running, and the port/paths (Linux systemd: unit name + active)"
+    out_plain "  start                Start sshd: Termux / no-unit Linux = background daemon (sshd -f); Linux distro unit = systemctl start as root"
+    out_plain "  stop                 Stop sshd (systemctl stop when a distro unit exists)"
+    out_plain "  restart              Restart sshd (systemctl restart when a distro unit exists; else stop then start)"
     out_plain "  port [N]             Show or set the listen Port in sshd_config"
     out_plain "  config               Show resolved sshd paths and key settings"
     out_plain "  host-keys [list|generate]  List or create host keys"
     out_plain "  auth-keys [list|add <file>]  This login authorized_keys"
     out_plain "  dns [list|show N|edit N|set N …|add …|delete N]  This login ~/.ssh/config Host list (dns-ip; as Termux / identity-file / Old OpenSSH)"
-    out_plain "  menu                 Numbered list: status, start, stop, restart, dns, Exit 9 (terminal only; alias: main)"
+    out_plain "  menu                 Numbered list: status, start, stop, restart, dns, Exit 9 (terminal only; alias: main). POSIX Linux non-root omits 2/3/4"
     out_empty_line
     out_info "Termux (Android wake lock):"
     out_plain "  wake-lock            Acquire the Android wake lock so sshd can keep listening with the screen off (idempotent; acquire again if Android dropped it)"

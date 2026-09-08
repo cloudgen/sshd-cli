@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.8.0  
+**Product VERSION:** 1.10.0  
 **Last plan update:** 2026-09-08  
-**Last suite run:** PASS=328 FAIL=0 SKIP=0 (2026-09-08)
+**Last suite run:** PASS=365 FAIL=0 SKIP=0 (2026-09-08)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -17,7 +17,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 |------|--------|----------|
 | Syntax `sh -n` | have | TP-CLI-01 |
 | version / help / about human + JSON | have | TP-CLI-02..06 |
-| Empty argv: non-TTY install-ensure / TTY menu | have | TP-CLI-07, TP-CLI-14 |
+| Empty argv: non-TTY install-ensure / TTY menu | have | TP-CLI-07, TP-CLI-14, TP-SSHD-03..05 |
 | Unknown + quiet + set -u HOME | have | TP-CLI-08..11 |
 | Storage isolation | have | TP-CLI-12 |
 | Channel verbs routed (`self-update`, `version-check`); no public network in CI | have | TP-CLI-04, TP-CLI-10 |
@@ -25,6 +25,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | Local install / idempotent / uninstall / mode 0755 / login rc / Termux pkg | have | TP-LC-01..19 |
 | Android wake lock (auto on start + `wake-lock` verb) | have | TP-TX-08..16 |
 | sshd start is a background daemon (not a service manager) | have | TP-SSHD-01, TP-SSHD-02 |
+| POSIX Linux systemd unit path (`systemctl` start/stop/restart) | have | TP-SSHD-09..14 |
 | this-login `~/.ssh/config` dns-ip list / show / set / add / delete | have | TP-DNS-01..35 |
 | Automatic companion link on install (file://) | have | TP-CSUM-01 |
 | Backup / restore / sudoers emit | n/a | Absent by design (not a backup product) |
@@ -53,15 +54,27 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-CLI-11 | env -u HOME version | test_cli | class / requirement-shell-script-coding | **have** |
 | TP-CLI-12 | storage isolation | test_cli | requirement-shell-cli-storage | **have** |
 | TP-CLI-13 | backup/restore/sudoers verbs unknown | test_cli | requirement-shell-cli-interface | **have** |
-| TP-CLI-14 | empty argv interactive → domain menu (no install); rows 1–5 (dns) + Exit 9 | test_cli | requirement-shell-cli-zero-arguments · requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-CLI-14 | empty argv interactive → domain menu (no install); status + dns row 5 + Exit 9 | test_cli | requirement-shell-cli-zero-arguments · requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-CLI-15 | status Connect: live ssh -p user@ipv4; no `<this-host>` | test_cli | requirement-domain-sshd | **have** |
 
-### TP-SSHD (domain start: daemon, not a service)
+### TP-SSHD (domain start: Termux daemonize / Linux systemd unit)
 
 | TP-ID | Intent | Suite | Primary requirement(s) | Status |
 |-------|--------|-------|------------------------|--------|
 | TP-SSHD-01 | Start launch is `sshd -f`; help/dispatcher have no systemd / termux-services / sv-enable / add-crontab / enable-service | `tests/test_cli.sh` | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
 | TP-SSHD-02 | Termux stub install/start names background daemon, reboot re-start, Termux:Boot operator hook | `tests/test_local_lifecycle.sh` | requirement-domain-sshd | **have** |
+| TP-SSHD-03 | POSIX Linux non-root TTY menu hides rows 2/3/4; INFO names OS; dns stays 5 | `tests/test_cli.sh` | requirement-domain-sshd | **have** |
+| TP-SSHD-04 | Termux mock TTY menu still shows rows 2/3/4; no non-root INFO | `tests/test_cli.sh` | requirement-domain-sshd · requirement-shell-termux-ish | **have** |
+| TP-SSHD-05 | POSIX Linux non-root: numbered **2** is unknown (does not start) | `tests/test_cli.sh` | requirement-domain-sshd | **have** |
+| TP-SSHD-06 | POSIX Linux non-root `stop` error names re-run as root; no Termux | `tests/test_cli.sh` | requirement-domain-sshd | **have** |
+| TP-SSHD-07 | Ship-unit start/stop/writable die copy is host-local (no “use Termux”) | `tests/test_cli.sh` | requirement-domain-sshd | **have** |
+| TP-SSHD-08 | POSIX Linux `start` already-running does not deny systemd / session-daemon | `tests/test_cli.sh` | requirement-domain-sshd | **have** |
+| TP-SSHD-09 | systemd host detect: `/run/systemd/system` + `systemctl`; Termux class never true | `tests/test_cli.sh` | requirement-domain-sshd | **have** |
+| TP-SSHD-10 | Unit name: `ssh.service` before `sshd.service`; skip LoadState not-found | `tests/test_cli.sh` | requirement-domain-sshd | **have** |
+| TP-SSHD-11 | Source unit path invokes `systemctl start` | `tests/test_cli.sh` | requirement-domain-sshd | **have** |
+| TP-SSHD-12 | Source unit path invokes `systemctl stop` / `restart` | `tests/test_cli.sh` | requirement-domain-sshd | **have** |
+| TP-SSHD-13 | Termux mock `start` never invokes `systemctl` | `tests/test_cli.sh` | requirement-domain-sshd · requirement-shell-termux-ish | **have** |
+| TP-SSHD-14 | Dispatcher has no routed verb `systemctl` / `enable-service` | `tests/test_cli.sh` | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
 
 ### TP-DNS (this login ~/.ssh/config Host list)
 

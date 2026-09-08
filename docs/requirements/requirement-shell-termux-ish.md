@@ -139,7 +139,7 @@ When the ship unit detects a **command line for normal user only** (Termux, Git 
 
 Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface`.
 
-**This requirement:** `pkg` and `termux-wake-lock` run only on Termux detect; Git Bash and Windows cmd are the same privilege class and **MUST NOT** invoke `pkg` or `termux-wake-lock`; this companion is not Type 1 host bootstrap.
+**This requirement:** `pkg` and `termux-wake-lock` run only on Termux detect; Git Bash and Windows cmd are the same privilege class and **MUST NOT** invoke `pkg` or `termux-wake-lock`; **MUST NOT** invoke `systemctl` on this class (POSIX Linux unit path is `requirement-domain-sshd` §2.2.1). This companion is not Type 1 host bootstrap.
 
 ## 4. Protection Rule (Sacred)
 
