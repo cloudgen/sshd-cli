@@ -113,6 +113,7 @@ run_test_dns() {
     _cfg=$(cat "${CI_HOME}/.ssh/config")
     assert_contains "TP-DNS-10 Host nas written" "$_cfg" "Host nas"
     assert_contains "TP-DNS-10 Port 2200 written" "$_cfg" "Port 2200"
+    assert_not_contains "TP-DNS-10 no Termux bundle without termux yes" "$_cfg" "ServerAliveInterval"
 
     # TP-DNS-11 non-interactive dns (no subcommand) lists, no hang
     _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns 2>&1)
@@ -353,6 +354,116 @@ EOF
     assert_contains "TP-DNS-26 laptop kept" "$_cfg" "Host laptop"
     assert_contains "TP-DNS-26 laptop User kept" "$_cfg" "User alice"
     assert_contains "TP-DNS-26 Host * kept" "$_cfg" "Host *"
+
+    # TP-DNS-27 non-interactive add termux yes writes Port 8022 + keep-alive bundle
+    _dns_fixture
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns add dns tphone ip 10.4.4.4 termux yes 2>&1)
+    _ec=$?
+    assert_eq "TP-DNS-27 termux add exit 0" 0 "$_ec"
+    _cfg=$(cat "${CI_HOME}/.ssh/config")
+    assert_contains "TP-DNS-27 Host tphone" "$_cfg" "Host tphone"
+    assert_contains "TP-DNS-27 Port 8022" "$_cfg" "Port 8022"
+    assert_contains "TP-DNS-27 ServerAliveInterval 15" "$_cfg" "ServerAliveInterval 15"
+    assert_contains "TP-DNS-27 ServerAliveCountMax 12" "$_cfg" "ServerAliveCountMax 12"
+    assert_contains "TP-DNS-27 TCPKeepAlive yes" "$_cfg" "TCPKeepAlive yes"
+    assert_contains "TP-DNS-27 IPQoS none" "$_cfg" "IPQoS none"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show tphone 2>&1)
+    assert_contains "TP-DNS-27 show termux yes" "$_out" "termux: yes"
+
+    # TP-DNS-28 old-openssh yes writes rsa/dss algorithm lines
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns add dns oldbox ip 10.5.5.5 old-openssh yes 2>&1)
+    _ec=$?
+    assert_eq "TP-DNS-28 old-openssh add exit 0" 0 "$_ec"
+    _cfg=$(cat "${CI_HOME}/.ssh/config")
+    assert_contains "TP-DNS-28 HostKeyAlgorithms" "$_cfg" "HostKeyAlgorithms +ssh-rsa,ssh-dss"
+    assert_contains "TP-DNS-28 PubkeyAcceptedAlgorithms" "$_cfg" "PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show oldbox 2>&1)
+    assert_contains "TP-DNS-28 show old-openssh yes" "$_out" "old-openssh: yes"
+
+    # TP-DNS-29 identity-file + identities-only
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns add dns idbox ip 10.6.6.6 identity-file '~/.ssh/id_ed25519' identities-only yes 2>&1)
+    _ec=$?
+    assert_eq "TP-DNS-29 identity add exit 0" 0 "$_ec"
+    _cfg=$(cat "${CI_HOME}/.ssh/config")
+    assert_contains "TP-DNS-29 IdentityFile" "$_cfg" "IdentityFile ~/.ssh/id_ed25519"
+    assert_contains "TP-DNS-29 IdentitiesOnly yes" "$_cfg" "IdentitiesOnly yes"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show idbox 2>&1)
+    assert_contains "TP-DNS-29 show identity-file" "$_out" "identity-file: ~/.ssh/id_ed25519"
+    assert_contains "TP-DNS-29 show identities-only" "$_out" "identities-only: yes"
+
+    # TP-DNS-30 INTERACTIVE add: default as Termux (Y) + default Old OpenSSH (Y)
+    _out=$(HOME="${CI_HOME}" INTERACTIVE=1 sh "${SCRIPT}" dns add <<'EOF'
+walktermux
+10.7.7.7
+u
+
+EOF
+)
+    _ec=$?
+    assert_eq "TP-DNS-30 interactive Termux default exit 0" 0 "$_ec"
+    _cfg=$(cat "${CI_HOME}/.ssh/config")
+    assert_contains "TP-DNS-30 walk Host" "$_cfg" "Host walktermux"
+    assert_contains "TP-DNS-30 walk Port 8022" "$_cfg" "Port 8022"
+    assert_contains "TP-DNS-30 walk ServerAliveInterval" "$_cfg" "ServerAliveInterval 15"
+    assert_contains "TP-DNS-30 walk HostKeyAlgorithms" "$_cfg" "HostKeyAlgorithms +ssh-rsa,ssh-dss"
+
+    # TP-DNS-31 INTERACTIVE add: Termux n prompts Port; Old OpenSSH n omits algorithms
+    _out=$(HOME="${CI_HOME}" INTERACTIVE=1 sh "${SCRIPT}" dns add <<'EOF'
+walklinux
+10.8.8.8
+u
+n
+2200
+
+
+n
+EOF
+)
+    _ec=$?
+    assert_eq "TP-DNS-31 interactive Termux n exit 0" 0 "$_ec"
+    _cfg=$(cat "${CI_HOME}/.ssh/config")
+    assert_contains "TP-DNS-31 Host walklinux" "$_cfg" "Host walklinux"
+    assert_contains "TP-DNS-31 Port 2200" "$_cfg" "Port 2200"
+    _wl=$(awk 'BEGIN{p=0} /^Host walklinux/{p=1; next} /^Host /{p=0} p{print}' "${CI_HOME}/.ssh/config")
+    assert_not_contains "TP-DNS-31 no ServerAlive on Termux n" "$_wl" "ServerAliveInterval"
+    assert_not_contains "TP-DNS-31 no HostKeyAlgorithms on old n" "$_wl" "HostKeyAlgorithms"
+
+    # TP-DNS-32 set termux no strips keep-alives; Port stays unless set
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns set tphone termux no 2>&1)
+    _ec=$?
+    assert_eq "TP-DNS-32 set termux no exit 0" 0 "$_ec"
+    _cfg=$(cat "${CI_HOME}/.ssh/config")
+    _tp=$(awk 'BEGIN{p=0} /^Host tphone/{p=1; next} /^Host /{p=0} p{print}' "${CI_HOME}/.ssh/config")
+    assert_contains "TP-DNS-32 Port 8022 kept" "$_tp" "Port 8022"
+    assert_not_contains "TP-DNS-32 ServerAlive stripped" "$_tp" "ServerAliveInterval"
+    assert_not_contains "TP-DNS-32 TCPKeepAlive stripped" "$_tp" "TCPKeepAlive"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show tphone 2>&1)
+    assert_contains "TP-DNS-32 show termux no" "$_out" "termux: no"
+
+    # TP-DNS-33 set old-openssh no strips algorithm lines
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns set oldbox old-openssh no 2>&1)
+    _ec=$?
+    assert_eq "TP-DNS-33 old-openssh no exit 0" 0 "$_ec"
+    _ob=$(awk 'BEGIN{p=0} /^Host oldbox/{p=1; next} /^Host /{p=0} p{print}' "${CI_HOME}/.ssh/config")
+    assert_not_contains "TP-DNS-33 HostKeyAlgorithms stripped" "$_ob" "HostKeyAlgorithms"
+    assert_not_contains "TP-DNS-33 PubkeyAcceptedAlgorithms stripped" "$_ob" "PubkeyAcceptedAlgorithms"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show oldbox 2>&1)
+    assert_contains "TP-DNS-33 show old-openssh no" "$_out" "old-openssh: no"
+
+    # TP-DNS-34 show names identity / termux / old-openssh fields
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show idbox 2>&1)
+    assert_contains "TP-DNS-34 identity-file label" "$_out" "identity-file:"
+    assert_contains "TP-DNS-34 identities-only label" "$_out" "identities-only:"
+    assert_contains "TP-DNS-34 termux label" "$_out" "termux:"
+    assert_contains "TP-DNS-34 old-openssh label" "$_out" "old-openssh:"
+
+    # TP-DNS-35 unknown field fail-closed names the allowed list
+    _err=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns set 1 not-a-field x 2>&1 >/dev/null)
+    _ec=$?
+    assert_eq "TP-DNS-35 unknown field exit 1" 1 "$_ec"
+    assert_contains "TP-DNS-35 names identity-file" "$_err" "identity-file"
+    assert_contains "TP-DNS-35 names termux" "$_err" "termux"
+    assert_contains "TP-DNS-35 names old-openssh" "$_err" "old-openssh"
 
     ci_cleanup_env
 }

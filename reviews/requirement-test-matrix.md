@@ -1,7 +1,7 @@
 # Requirement ↔ test matrix — sshd-cli
 
-**Updated:** 2026-09-07  
-**Product VERSION:** 1.7.0  
+**Updated:** 2026-09-08  
+**Product VERSION:** 1.8.0  
 **Suite:** `tests/run.sh`
 
 | Requirement key | Area | TP families | Coverage notes |
@@ -16,7 +16,7 @@
 | requirement-shell-interactive-vs-noninteractive | shell | TP-LC-05, TP-CLI-07, TP-CLI-14, TP-DNS-05, TP-DNS-08, TP-DNS-11, TP-DNS-13 | self-uninstall confirm; empty-argv TTY vs pipe; dns walk vs list/set; pick 9 is a Host |
 | requirement-shell-cli-storage | shell | TP-CLI-12, TP-CLI-06 | Isolation; about JSON storage fields |
 | requirement-shell-automatic-checksum | shell | TP-CSUM-01, TP-CLI-04, TP-CLI-06 | Companion **link** on install; CHECKSUM omitted from help/about. Not TP-LC-01. |
-| requirement-domain-sshd | domain | TP-CLI-04, TP-CLI-06, TP-CLI-14, TP-CLI-15, TP-LC-16, TP-LC-17, **TP-SSHD-01**, **TP-SSHD-02**, **TP-DNS-01..26**, **TP-TX-09**, **TP-TX-13**, **TP-TX-16** | help rows; menu 1–5 (dns); connect IPv4; package names; install starts sshd; daemon vs service; Termux wake lock on start; dns Edit/Add/Delete |
+| requirement-domain-sshd | domain | TP-CLI-04, TP-CLI-06, TP-CLI-14, TP-CLI-15, TP-LC-16, TP-LC-17, **TP-SSHD-01**, **TP-SSHD-02**, **TP-DNS-01..35**, **TP-TX-09**, **TP-TX-13**, **TP-TX-16** | help rows; menu 1–5 (dns); connect IPv4; package names; install starts sshd; daemon vs service; Termux wake lock on start; dns Edit/Add/Delete; as Termux / identity / Old OpenSSH |
 | requirement-shell-termux-ish | shell | TP-LC-15, TP-LC-16, TP-LC-18, TP-LC-19, **TP-TX-08..16** | not Termux: `pkg` / `termux-wake-lock` not invoked; Termux mock: `pkg install -y openssh termux-auth`; auto-acquire + `wake-lock` verb; Git Bash / Windows cmd skip |
 | requirement-shell-script-coding | shell | TP-CLI-01, TP-CLI-11 | `sh -n`; `set -u` with HOME unset |
 

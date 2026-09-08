@@ -99,7 +99,7 @@ sshd-cli --json wake-lock
 
 | Item | Value |
 |------|--------|
-| Product | `sshd-cli` 1.7.0 |
+| Product | `sshd-cli` 1.8.0 |
 | Detect | `sshd_is_termux` |
 | Class union | `sshd_is_normal_user_only_cli` (Termux **or** Git Bash **or** Windows cmd) |
 | Git Bash | `sshd_is_git_bash` — no `pkg`; no `termux-wake-lock` |

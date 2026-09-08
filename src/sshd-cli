@@ -49,8 +49,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys) plus self-install.}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.7.0"
-: "${VERSION:=1.7.0}"
+VERSION="1.8.0"
+: "${VERSION:=1.8.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -3393,7 +3393,128 @@ sshd_dns_disp_ip() {
     fi
 }
 
-# Class-B: print TSV n<TAB>dns<TAB>ip<TAB>user<TAB>port for concrete Host rows.
+sshd_dns_disp_opt() {
+    if [ -n "${1-}" ]; then
+        printf '%s' "$1"
+    else
+        printf 'empty'
+    fi
+}
+
+# Termux client profile for a Host: Port 8022 + keep-alive / IPQoS bundle.
+sshd_dns_termux_profile() {
+    [ "${1-}" = "8022" ] && [ "${2-}" = "15" ] && [ "${3-}" = "12" ] && [ "${4-}" = "yes" ] && [ "${5-}" = "none" ]
+}
+
+sshd_dns_old_profile() {
+    [ -n "${1-}" ] || [ -n "${2-}" ]
+}
+
+sshd_dns_disp_termux() {
+    if sshd_dns_termux_profile "${1-}" "${2-}" "${3-}" "${4-}" "${5-}"; then
+        printf 'yes'
+    else
+        printf 'no'
+    fi
+}
+
+sshd_dns_disp_old() {
+    if sshd_dns_old_profile "${1-}" "${2-}"; then
+        printf 'yes'
+    else
+        printf 'no'
+    fi
+}
+
+sshd_dns_load_row() {
+    _lr="${1-}"
+    DNS_R_N=$(printf '%s\n' "${_lr}" | cut -f1)
+    DNS_R_DNS=$(printf '%s\n' "${_lr}" | cut -f2)
+    DNS_R_IP=$(printf '%s\n' "${_lr}" | cut -f3)
+    DNS_R_USER=$(printf '%s\n' "${_lr}" | cut -f4)
+    DNS_R_PORT=$(printf '%s\n' "${_lr}" | cut -f5)
+    DNS_R_IDFILE=$(printf '%s\n' "${_lr}" | cut -f6)
+    DNS_R_IDONLY=$(printf '%s\n' "${_lr}" | cut -f7)
+    DNS_R_SAI=$(printf '%s\n' "${_lr}" | cut -f8)
+    DNS_R_SACM=$(printf '%s\n' "${_lr}" | cut -f9)
+    DNS_R_TCPKA=$(printf '%s\n' "${_lr}" | cut -f10)
+    DNS_R_IPQOS=$(printf '%s\n' "${_lr}" | cut -f11)
+    DNS_R_HKA=$(printf '%s\n' "${_lr}" | cut -f12)
+    DNS_R_PAA=$(printf '%s\n' "${_lr}" | cut -f13)
+    unset _lr
+}
+
+# Sets DNS_YN_VALUE to yes or no. MUST run in current shell (do-not-capture-read).
+sshd_dns_prompt_yn() {
+    _yn_label="$1"
+    _yn_default="${2:-yes}"
+    DNS_YN_VALUE="${_yn_default}"
+    if ! sshd_dns_can_prompt; then
+        unset _yn_label _yn_default
+        return 0
+    fi
+    if [ "${_yn_default}" = "yes" ]; then
+        _yn_hint="Y/n"
+    else
+        _yn_hint="y/N"
+    fi
+    out_msg_n "${_yn_label} (${_yn_hint}): "
+    _yn_ans=""
+    read -r _yn_ans || true
+    case "${_yn_ans}" in
+        "")
+            DNS_YN_VALUE="${_yn_default}"
+            ;;
+        [Yy]|[Yy][Ee][Ss])
+            DNS_YN_VALUE="yes"
+            ;;
+        [Nn]|[Nn][Oo])
+            DNS_YN_VALUE="no"
+            ;;
+        *)
+            out_die "${_yn_label} needs y or n, not '${_yn_ans}'."
+            ;;
+    esac
+    unset _yn_label _yn_default _yn_hint _yn_ans
+}
+
+sshd_dns_parse_yn_operand() {
+    _yn_field="$1"
+    _yn_raw="${2-}"
+    case "${_yn_raw}" in
+        [Yy]|[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee])
+            DNS_YN_VALUE="yes"
+            ;;
+        [Nn]|[Nn][Oo]|[Ff][Aa][Ll][Ss][Ee])
+            DNS_YN_VALUE="no"
+            ;;
+        *)
+            out_die "${_yn_field} needs yes or no, not '${_yn_raw}'."
+            ;;
+    esac
+    unset _yn_field _yn_raw
+}
+
+sshd_dns_norm_idonly() {
+    case "${1-}" in
+        ''|'""'|"''") printf '' ;;
+        [Yy]|[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]) printf 'yes' ;;
+        [Nn]|[Nn][Oo]|[Ff][Aa][Ll][Ss][Ee]) printf 'no' ;;
+        yes|no) printf '%s' "$1" ;;
+        *) printf '%s' "$1" ;;
+    esac
+}
+
+sshd_dns_validate_idonly() {
+    _vio="${1-}"
+    case "${_vio}" in
+        ''|yes|no) ;;
+        *) out_die "identities-only needs yes, no, or empty, not '${_vio}'." ;;
+    esac
+    unset _vio
+}
+
+# Class-B: print TSV n dns ip user port idfile idonly sai sacm tcpka ipqos hka paa.
 # OpenSSH accepts "Key value", "Key=value", and "Key = value".
 sshd_dns_records() {
     _rec_cfg=$(sshd_dns_config_path)
@@ -3419,14 +3540,18 @@ sshd_dns_records() {
         function is_concrete(p) {
             return (p != "" && p !~ /[?*]/)
         }
+        function reset_body() {
+            ip=""; user=""; port=""
+            idfile=""; idonly=""; sai=""; sacm=""; tcpka=""; ipqos=""; hka=""; paa=""
+        }
         function flush() {
             if (concrete && dns != "") {
                 n++
-                printf "%d\t%s\t%s\t%s\t%s\n", n, dns, ip, user, port
+                printf "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", n, dns, ip, user, port, idfile, idonly, sai, sacm, tcpka, ipqos, hka, paa
             }
-            concrete=0; dns=""; ip=""; user=""; port=""
+            concrete=0; dns=""; reset_body()
         }
-        BEGIN { n=0; in_match=0; concrete=0; dns=""; ip=""; user=""; port="" }
+        BEGIN { n=0; in_match=0; concrete=0; dns=""; reset_body() }
         {
             if (!parse_line($0)) next
             if (lk=="match") { flush(); in_match=1; next }
@@ -3436,7 +3561,7 @@ sshd_dns_records() {
                 if (!is_concrete(val)) { concrete=0; dns=""; next }
                 concrete=1
                 dns=val
-                ip=""; user=""; port=""
+                reset_body()
                 next
             }
             if (in_match) next
@@ -3444,6 +3569,14 @@ sshd_dns_records() {
                 if (lk=="hostname") ip=val
                 if (lk=="user") user=val
                 if (lk=="port") port=val
+                if (lk=="identityfile") idfile=val
+                if (lk=="identitiesonly") idonly=tolower(val)
+                if (lk=="serveraliveinterval") sai=val
+                if (lk=="serveralivecountmax") sacm=val
+                if (lk=="tcpkeepalive") tcpka=tolower(val)
+                if (lk=="ipqos") ipqos=val
+                if (lk=="hostkeyalgorithms") hka=val
+                if (lk=="pubkeyacceptedalgorithms" || lk=="pubkeyacceptedkeytypes") paa=val
             }
         }
         END { flush() }
@@ -3518,6 +3651,11 @@ sshd_dns_validate_port() {
 
 sshd_dns_print_details() {
     _pd_n="$1"; _pd_dns="$2"; _pd_ip="$3"; _pd_user="$4"; _pd_port="$5"
+    _pd_idfile="${6-}"; _pd_idonly="${7-}"
+    _pd_sai="${8-}"; _pd_sacm="${9-}"; _pd_tcpka="${10-}"; _pd_ipqos="${11-}"
+    _pd_hka="${12-}"; _pd_paa="${13-}"
+    _pd_termux=$(sshd_dns_disp_termux "${_pd_port}" "${_pd_sai}" "${_pd_sacm}" "${_pd_tcpka}" "${_pd_ipqos}")
+    _pd_old=$(sshd_dns_disp_old "${_pd_hka}" "${_pd_paa}")
     if [ "${JSON}" -eq 1 ]; then
         out_json "dns_show" "" \
             "n" "${_pd_n}" \
@@ -3525,6 +3663,10 @@ sshd_dns_print_details() {
             "ip" "${_pd_ip}" \
             "user" "${_pd_user}" \
             "port" "${_pd_port}" \
+            "identity_file" "${_pd_idfile}" \
+            "identities_only" "${_pd_idonly}" \
+            "termux" "${_pd_termux}" \
+            "old_openssh" "${_pd_old}" \
             "user_display" "$(sshd_dns_disp_user "${_pd_user}")" \
             "port_display" "$(sshd_dns_disp_port "${_pd_port}")"
     else
@@ -3536,8 +3678,13 @@ sshd_dns_print_details() {
         fi
         out_plain "user: $(sshd_dns_disp_user "${_pd_user}")"
         out_plain "port: $(sshd_dns_disp_port "${_pd_port}")"
+        out_plain "identity-file: $(sshd_dns_disp_opt "${_pd_idfile}")"
+        out_plain "identities-only: $(sshd_dns_disp_opt "${_pd_idonly}")"
+        out_plain "termux: ${_pd_termux}"
+        out_plain "old-openssh: ${_pd_old}"
     fi
-    unset _pd_n _pd_dns _pd_ip _pd_user _pd_port
+    unset _pd_n _pd_dns _pd_ip _pd_user _pd_port _pd_idfile _pd_idonly
+    unset _pd_sai _pd_sacm _pd_tcpka _pd_ipqos _pd_hka _pd_paa _pd_termux _pd_old
 }
 
 sshd_dns_list_human() {
@@ -3656,12 +3803,24 @@ sshd_dns_rewrite() {
     _new_ip="$3"
     _new_user="$4"
     _new_port="$5"
+    _new_idfile="${6-}"
+    _new_idonly="${7-}"
+    _new_sai="${8-}"
+    _new_sacm="${9-}"
+    _new_tcpka="${10-}"
+    _new_ipqos="${11-}"
+    _new_hka="${12-}"
+    _new_paa="${13-}"
     _cfg=$(sshd_dns_config_path)
     sshd_dns_ensure_file
     sshd_dns_backup "${_cfg}" "dns-edit"
     _tmp=$(mktemp -t "${APP_NAME}.ssh_config.XXXXXX") || out_die "Could not create a temp file for ssh config."
     awk -v target="${_rw_n}" -v newdns="${_new_dns}" -v newip="${_new_ip}" \
-        -v newuser="${_new_user}" -v newport="${_new_port}" '
+        -v newuser="${_new_user}" -v newport="${_new_port}" \
+        -v newidfile="${_new_idfile}" -v newidonly="${_new_idonly}" \
+        -v newsai="${_new_sai}" -v newsacm="${_new_sacm}" \
+        -v newtcpka="${_new_tcpka}" -v newipqos="${_new_ipqos}" \
+        -v newhka="${_new_hka}" -v newpaa="${_new_paa}" '
         function parse_line(line,    s) {
             key=""; val=""; lk=""; host_rest=""
             s=line
@@ -3683,13 +3842,26 @@ sshd_dns_rewrite() {
         function is_concrete(p) {
             return (p != "" && p !~ /[?*]/)
         }
+        function reset_saw() {
+            saw_hn=0; saw_user=0; saw_port=0
+            saw_idfile=0; saw_idonly=0; saw_sai=0; saw_sacm=0
+            saw_tcpka=0; saw_ipqos=0; saw_hka=0; saw_paa=0
+        }
         function emit_missing() {
             if (!in_target) return
             if (!saw_hn && newip != "") print "    HostName " newip
             if (!saw_user && newuser != "") print "    User " newuser
             if (!saw_port && newport != "" && newport != "22") print "    Port " newport
+            if (!saw_idfile && newidfile != "") print "    IdentityFile " newidfile
+            if (!saw_idonly && newidonly != "") print "    IdentitiesOnly " newidonly
+            if (!saw_sai && newsai != "") print "    ServerAliveInterval " newsai
+            if (!saw_sacm && newsacm != "") print "    ServerAliveCountMax " newsacm
+            if (!saw_tcpka && newtcpka != "") print "    TCPKeepAlive " newtcpka
+            if (!saw_ipqos && newipqos != "") print "    IPQoS " newipqos
+            if (!saw_hka && newhka != "") print "    HostKeyAlgorithms " newhka
+            if (!saw_paa && newpaa != "") print "    PubkeyAcceptedAlgorithms " newpaa
         }
-        BEGIN { n=0; in_match=0; in_target=0; saw_hn=0; saw_user=0; saw_port=0 }
+        BEGIN { n=0; in_match=0; in_target=0; reset_saw() }
         {
             raw=$0
             if (!parse_line($0)) {
@@ -3711,7 +3883,7 @@ sshd_dns_rewrite() {
                     n++
                     if (n==target+0) {
                         in_target=1
-                        saw_hn=0; saw_user=0; saw_port=0
+                        reset_saw()
                         extra=host_rest
                         sub(/^[[:space:]]+/, "", extra)
                         sub(/[[:space:]]+$/, "", extra)
@@ -3740,6 +3912,46 @@ sshd_dns_rewrite() {
                     if (newport != "" && newport != "22") print "    Port " newport
                     next
                 }
+                if (lk=="identityfile") {
+                    saw_idfile=1
+                    if (newidfile != "") print "    IdentityFile " newidfile
+                    next
+                }
+                if (lk=="identitiesonly") {
+                    saw_idonly=1
+                    if (newidonly != "") print "    IdentitiesOnly " newidonly
+                    next
+                }
+                if (lk=="serveraliveinterval") {
+                    saw_sai=1
+                    if (newsai != "") print "    ServerAliveInterval " newsai
+                    next
+                }
+                if (lk=="serveralivecountmax") {
+                    saw_sacm=1
+                    if (newsacm != "") print "    ServerAliveCountMax " newsacm
+                    next
+                }
+                if (lk=="tcpkeepalive") {
+                    saw_tcpka=1
+                    if (newtcpka != "") print "    TCPKeepAlive " newtcpka
+                    next
+                }
+                if (lk=="ipqos") {
+                    saw_ipqos=1
+                    if (newipqos != "") print "    IPQoS " newipqos
+                    next
+                }
+                if (lk=="hostkeyalgorithms") {
+                    saw_hka=1
+                    if (newhka != "") print "    HostKeyAlgorithms " newhka
+                    next
+                }
+                if (lk=="pubkeyacceptedalgorithms" || lk=="pubkeyacceptedkeytypes") {
+                    saw_paa=1
+                    if (newpaa != "") print "    PubkeyAcceptedAlgorithms " newpaa
+                    next
+                }
                 print raw
                 next
             }
@@ -3751,7 +3963,8 @@ sshd_dns_rewrite() {
         out_die "Could not rewrite ${_cfg}."
     }
     sshd_dns_commit_tmp "${_tmp}" "${_cfg}"
-    unset _rw_n _new_dns _new_ip _new_user _new_port _cfg _tmp
+    unset _rw_n _new_dns _new_ip _new_user _new_port _new_idfile _new_idonly
+    unset _new_sai _new_sacm _new_tcpka _new_ipqos _new_hka _new_paa _cfg _tmp
 }
 
 # Insert a concrete Host before the first wildcard Host / Match (OpenSSH first-match).
@@ -3760,12 +3973,24 @@ sshd_dns_append() {
     _new_ip="$2"
     _new_user="$3"
     _new_port="$4"
+    _new_idfile="${5-}"
+    _new_idonly="${6-}"
+    _new_sai="${7-}"
+    _new_sacm="${8-}"
+    _new_tcpka="${9-}"
+    _new_ipqos="${10-}"
+    _new_hka="${11-}"
+    _new_paa="${12-}"
     _cfg=$(sshd_dns_config_path)
     sshd_dns_ensure_file
     sshd_dns_backup "${_cfg}" "dns-add"
     _tmp=$(mktemp -t "${APP_NAME}.ssh_config.XXXXXX") || out_die "Could not create a temp file for ssh config."
     awk -v newdns="${_new_dns}" -v newip="${_new_ip}" \
-        -v newuser="${_new_user}" -v newport="${_new_port}" '
+        -v newuser="${_new_user}" -v newport="${_new_port}" \
+        -v newidfile="${_new_idfile}" -v newidonly="${_new_idonly}" \
+        -v newsai="${_new_sai}" -v newsacm="${_new_sacm}" \
+        -v newtcpka="${_new_tcpka}" -v newipqos="${_new_ipqos}" \
+        -v newhka="${_new_hka}" -v newpaa="${_new_paa}" '
         function parse_line(line,    s) {
             key=""; val=""; lk=""
             s=line
@@ -3787,6 +4012,14 @@ sshd_dns_append() {
             if (newip != "") print "    HostName " newip
             if (newuser != "") print "    User " newuser
             if (newport != "" && newport != "22") print "    Port " newport
+            if (newidfile != "") print "    IdentityFile " newidfile
+            if (newidonly != "") print "    IdentitiesOnly " newidonly
+            if (newsai != "") print "    ServerAliveInterval " newsai
+            if (newsacm != "") print "    ServerAliveCountMax " newsacm
+            if (newtcpka != "") print "    TCPKeepAlive " newtcpka
+            if (newipqos != "") print "    IPQoS " newipqos
+            if (newhka != "") print "    HostKeyAlgorithms " newhka
+            if (newpaa != "") print "    PubkeyAcceptedAlgorithms " newpaa
             emitted=1
         }
         BEGIN { emitted=0; had_output=0 }
@@ -3805,7 +4038,8 @@ sshd_dns_append() {
         out_die "Could not rewrite ${_cfg}."
     }
     sshd_dns_commit_tmp "${_tmp}" "${_cfg}"
-    unset _new_dns _new_ip _new_user _new_port _cfg _tmp
+    unset _new_dns _new_ip _new_user _new_port _new_idfile _new_idonly
+    unset _new_sai _new_sacm _new_tcpka _new_ipqos _new_hka _new_paa _cfg _tmp
 }
 
 # Drop concrete Host stanza number n (whole stanza, including extra aliases).
@@ -3904,10 +4138,18 @@ sshd_dns_parse_kv() {
     DNS_SET_IP=0
     DNS_SET_USER=0
     DNS_SET_PORT=0
+    DNS_SET_IDFILE=0
+    DNS_SET_IDONLY=0
+    DNS_SET_TERMUX=0
+    DNS_SET_OLD=0
     DNS_NEW_DNS=""
     DNS_NEW_IP=""
     DNS_NEW_USER=""
     DNS_NEW_PORT=""
+    DNS_NEW_IDFILE=""
+    DNS_NEW_IDONLY=""
+    DNS_NEW_TERMUX=""
+    DNS_NEW_OLD=""
     while [ $# -gt 0 ]; do
         case "$1" in
             --dns|dns)
@@ -3934,8 +4176,34 @@ sshd_dns_parse_kv() {
                 DNS_NEW_PORT=$(sshd_dns_norm "$2")
                 shift 2
                 ;;
+            --identity-file|identity-file|identityfile)
+                [ $# -lt 2 ] && out_die "identity-file needs a value (use \"\" for empty). Next: ${APP_NAME} dns set <n> identity-file \"\""
+                DNS_SET_IDFILE=1
+                DNS_NEW_IDFILE=$(sshd_dns_norm "$2")
+                shift 2
+                ;;
+            --identities-only|identities-only|identitiesonly)
+                [ $# -lt 2 ] && out_die "identities-only needs yes, no, or empty. Next: ${APP_NAME} dns set <n> identities-only yes"
+                DNS_SET_IDONLY=1
+                DNS_NEW_IDONLY=$(sshd_dns_norm_idonly "$(sshd_dns_norm "$2")")
+                shift 2
+                ;;
+            --termux|termux)
+                [ $# -lt 2 ] && out_die "termux needs yes or no. Next: ${APP_NAME} dns add dns <name> termux yes"
+                DNS_SET_TERMUX=1
+                sshd_dns_parse_yn_operand "termux" "$2"
+                DNS_NEW_TERMUX="${DNS_YN_VALUE}"
+                shift 2
+                ;;
+            --old-openssh|old-openssh|oldopenssh)
+                [ $# -lt 2 ] && out_die "old-openssh needs yes or no. Next: ${APP_NAME} dns add dns <name> old-openssh yes"
+                DNS_SET_OLD=1
+                sshd_dns_parse_yn_operand "old-openssh" "$2"
+                DNS_NEW_OLD="${DNS_YN_VALUE}"
+                shift 2
+                ;;
             *)
-                out_die "Unknown dns field '${1}'. Use dns, ip, user, or port."
+                out_die "Unknown dns field '${1}'. Use dns, ip, user, port, identity-file, identities-only, termux, or old-openssh."
                 ;;
         esac
     done
@@ -3945,40 +4213,87 @@ sshd_dns_apply_set() {
     _sel="$1"
     shift
     _row=$(sshd_dns_lookup "${_sel}") || out_die "No Host entry '${_sel}' in $(sshd_dns_config_path). Next: ${APP_NAME} dns list"
-    _n=$(printf '%s' "${_row}" | awk -F '\t' '{print $1}')
-    _dns=$(printf '%s' "${_row}" | awk -F '\t' '{print $2}')
-    _ip=$(printf '%s' "${_row}" | awk -F '\t' '{print $3}')
-    _user=$(printf '%s' "${_row}" | awk -F '\t' '{print $4}')
-    _port=$(printf '%s' "${_row}" | awk -F '\t' '{print $5}')
+    sshd_dns_load_row "${_row}"
+    _n="${DNS_R_N}"
+    _dns="${DNS_R_DNS}"
+    _ip="${DNS_R_IP}"
+    _user="${DNS_R_USER}"
+    _port="${DNS_R_PORT}"
+    _idfile="${DNS_R_IDFILE}"
+    _idonly="${DNS_R_IDONLY}"
+    _sai="${DNS_R_SAI}"
+    _sacm="${DNS_R_SACM}"
+    _tcpka="${DNS_R_TCPKA}"
+    _ipqos="${DNS_R_IPQOS}"
+    _hka="${DNS_R_HKA}"
+    _paa="${DNS_R_PAA}"
     sshd_dns_parse_kv "$@"
     [ "${DNS_SET_DNS}" -eq 1 ] && _dns="${DNS_NEW_DNS}"
     [ "${DNS_SET_IP}" -eq 1 ] && _ip="${DNS_NEW_IP}"
     [ "${DNS_SET_USER}" -eq 1 ] && _user="${DNS_NEW_USER}"
     [ "${DNS_SET_PORT}" -eq 1 ] && _port="${DNS_NEW_PORT}"
+    [ "${DNS_SET_IDFILE}" -eq 1 ] && _idfile="${DNS_NEW_IDFILE}"
+    [ "${DNS_SET_IDONLY}" -eq 1 ] && _idonly="${DNS_NEW_IDONLY}"
+    if [ "${DNS_SET_TERMUX}" -eq 1 ]; then
+        if [ "${DNS_NEW_TERMUX}" = "yes" ]; then
+            _port="8022"
+            _sai="15"
+            _sacm="12"
+            _tcpka="yes"
+            _ipqos="none"
+        else
+            _sai=""
+            _sacm=""
+            _tcpka=""
+            _ipqos=""
+        fi
+    fi
+    if [ "${DNS_SET_OLD}" -eq 1 ]; then
+        if [ "${DNS_NEW_OLD}" = "yes" ]; then
+            _hka="+ssh-rsa,ssh-dss"
+            _paa="+ssh-rsa,ssh-dss"
+        else
+            _hka=""
+            _paa=""
+        fi
+    fi
     sshd_dns_validate_name "${_dns}" "${APP_NAME} dns set ${_n} dns <name>"
     sshd_dns_validate_port "${_port}"
+    sshd_dns_validate_idonly "${_idonly}"
     if sshd_dns_name_taken "${_dns}" "${_n}"; then
         out_die "dns name '${_dns}' is already a Host entry. Next: ${APP_NAME} dns list"
     fi
-    sshd_dns_rewrite "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
+    sshd_dns_rewrite "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
+        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}"
     if [ "${JSON}" -eq 1 ]; then
         out_json "out_success" "Host entry updated." "n" "${_n}" "dns" "${_dns}" "ip" "${_ip}" "user" "${_user}" "port" "${_port}"
     else
         out_success "Updated Host ${_dns} in $(sshd_dns_config_path)."
-        sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
+        sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
+            "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}"
     fi
-    unset _sel _row _n _dns _ip _user _port
+    unset _sel _row _n _dns _ip _user _port _idfile _idonly _sai _sacm _tcpka _ipqos _hka _paa
 }
 
 sshd_dns_walk_edit() {
     _sel="$1"
     _row=$(sshd_dns_lookup "${_sel}") || out_die "No Host entry '${_sel}' in $(sshd_dns_config_path). Next: ${APP_NAME} dns list"
-    _n=$(printf '%s' "${_row}" | awk -F '\t' '{print $1}')
-    _dns=$(printf '%s' "${_row}" | awk -F '\t' '{print $2}')
-    _ip=$(printf '%s' "${_row}" | awk -F '\t' '{print $3}')
-    _user=$(printf '%s' "${_row}" | awk -F '\t' '{print $4}')
-    _port=$(printf '%s' "${_row}" | awk -F '\t' '{print $5}')
-    sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
+    sshd_dns_load_row "${_row}"
+    _n="${DNS_R_N}"
+    _dns="${DNS_R_DNS}"
+    _ip="${DNS_R_IP}"
+    _user="${DNS_R_USER}"
+    _port="${DNS_R_PORT}"
+    _idfile="${DNS_R_IDFILE}"
+    _idonly="${DNS_R_IDONLY}"
+    _sai="${DNS_R_SAI}"
+    _sacm="${DNS_R_SACM}"
+    _tcpka="${DNS_R_TCPKA}"
+    _ipqos="${DNS_R_IPQOS}"
+    _hka="${DNS_R_HKA}"
+    _paa="${DNS_R_PAA}"
+    sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
+        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}"
     if ! sshd_dns_can_prompt; then
         out_die "dns edit needs a terminal. Next: ${APP_NAME} dns set ${_n} ip <addr> user \"\" port 22"
     fi
@@ -3989,17 +4304,49 @@ sshd_dns_walk_edit() {
     _ip="${DNS_FIELD_VALUE}"
     sshd_dns_prompt_field "user" "${_user}" "$(sshd_dns_disp_user "${_user}")"
     _user="${DNS_FIELD_VALUE}"
-    sshd_dns_prompt_field "port" "${_port}" "$(sshd_dns_disp_port "${_port}")"
-    _port="${DNS_FIELD_VALUE}"
+    _termux_def=$(sshd_dns_disp_termux "${_port}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}")
+    out_info "as Termux writes Port 8022, ServerAliveInterval 15, ServerAliveCountMax 12, TCPKeepAlive yes, IPQoS none."
+    sshd_dns_prompt_yn "as Termux" "${_termux_def}"
+    if [ "${DNS_YN_VALUE}" = "yes" ]; then
+        _port="8022"
+        _sai="15"
+        _sacm="12"
+        _tcpka="yes"
+        _ipqos="none"
+    else
+        _sai=""
+        _sacm=""
+        _tcpka=""
+        _ipqos=""
+        sshd_dns_prompt_field "port" "${_port}" "$(sshd_dns_disp_port "${_port}")"
+        _port="${DNS_FIELD_VALUE}"
+    fi
+    sshd_dns_prompt_field "identity-file" "${_idfile}" "$(sshd_dns_disp_opt "${_idfile}")"
+    _idfile="${DNS_FIELD_VALUE}"
+    sshd_dns_prompt_field "identities-only" "${_idonly}" "$(sshd_dns_disp_opt "${_idonly}")"
+    _idonly=$(sshd_dns_norm_idonly "${DNS_FIELD_VALUE}")
+    _old_def=$(sshd_dns_disp_old "${_hka}" "${_paa}")
+    out_info "Old OpenSSH writes HostKeyAlgorithms and PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss."
+    sshd_dns_prompt_yn "Old OpenSSH" "${_old_def}"
+    if [ "${DNS_YN_VALUE}" = "yes" ]; then
+        _hka="+ssh-rsa,ssh-dss"
+        _paa="+ssh-rsa,ssh-dss"
+    else
+        _hka=""
+        _paa=""
+    fi
     sshd_dns_validate_name "${_dns}" "${APP_NAME} dns set ${_n} dns <name>"
     sshd_dns_validate_port "${_port}"
+    sshd_dns_validate_idonly "${_idonly}"
     if sshd_dns_name_taken "${_dns}" "${_n}"; then
         out_die "dns name '${_dns}' is already a Host entry. Next: ${APP_NAME} dns list"
     fi
-    sshd_dns_rewrite "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
+    sshd_dns_rewrite "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
+        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}"
     out_success "Updated Host ${_dns} in $(sshd_dns_config_path)."
-    sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
-    unset _sel _row _n _dns _ip _user _port
+    sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
+        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}"
+    unset _sel _row _n _dns _ip _user _port _idfile _idonly _sai _sacm _tcpka _ipqos _hka _paa _termux_def _old_def
 }
 
 sshd_dns_walk_add() {
@@ -4007,6 +4354,15 @@ sshd_dns_walk_add() {
     _ip=""
     _user=""
     _port=""
+    _idfile=""
+    _idonly=""
+    _sai=""
+    _sacm=""
+    _tcpka=""
+    _ipqos=""
+    _hka=""
+    _paa=""
+    _idonly_def=""
     if sshd_dns_can_prompt && [ $# -eq 0 ]; then
         out_info "New Host in $(sshd_dns_config_path). Enter keeps empty. Type \"\" for empty."
         sshd_dns_prompt_field "dns" "" "(empty)"
@@ -4015,42 +4371,85 @@ sshd_dns_walk_add() {
         _ip="${DNS_FIELD_VALUE}"
         sshd_dns_prompt_field "user" "" "empty"
         _user="${DNS_FIELD_VALUE}"
-        sshd_dns_prompt_field "port" "" "22"
-        _port="${DNS_FIELD_VALUE}"
+        out_info "as Termux writes Port 8022, ServerAliveInterval 15, ServerAliveCountMax 12, TCPKeepAlive yes, IPQoS none."
+        sshd_dns_prompt_yn "as Termux" "yes"
+        if [ "${DNS_YN_VALUE}" = "yes" ]; then
+            _port="8022"
+            _sai="15"
+            _sacm="12"
+            _tcpka="yes"
+            _ipqos="none"
+        else
+            sshd_dns_prompt_field "port" "" "22"
+            _port="${DNS_FIELD_VALUE}"
+        fi
+        sshd_dns_prompt_field "identity-file" "" "empty"
+        _idfile="${DNS_FIELD_VALUE}"
+        if [ -n "${_idfile}" ]; then
+            _idonly_def="yes"
+        else
+            _idonly_def=""
+        fi
+        sshd_dns_prompt_field "identities-only" "${_idonly_def}" "$(sshd_dns_disp_opt "${_idonly_def}")"
+        _idonly=$(sshd_dns_norm_idonly "${DNS_FIELD_VALUE}")
+        out_info "Old OpenSSH writes HostKeyAlgorithms and PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss."
+        sshd_dns_prompt_yn "Old OpenSSH" "yes"
+        if [ "${DNS_YN_VALUE}" = "yes" ]; then
+            _hka="+ssh-rsa,ssh-dss"
+            _paa="+ssh-rsa,ssh-dss"
+        fi
     else
         sshd_dns_parse_kv "$@"
         [ "${DNS_SET_DNS}" -eq 1 ] && _dns="${DNS_NEW_DNS}"
         [ "${DNS_SET_IP}" -eq 1 ] && _ip="${DNS_NEW_IP}"
         [ "${DNS_SET_USER}" -eq 1 ] && _user="${DNS_NEW_USER}"
         [ "${DNS_SET_PORT}" -eq 1 ] && _port="${DNS_NEW_PORT}"
+        [ "${DNS_SET_IDFILE}" -eq 1 ] && _idfile="${DNS_NEW_IDFILE}"
+        [ "${DNS_SET_IDONLY}" -eq 1 ] && _idonly="${DNS_NEW_IDONLY}"
+        if [ "${DNS_SET_TERMUX}" -eq 1 ] && [ "${DNS_NEW_TERMUX}" = "yes" ]; then
+            _port="8022"
+            _sai="15"
+            _sacm="12"
+            _tcpka="yes"
+            _ipqos="none"
+        fi
+        if [ "${DNS_SET_OLD}" -eq 1 ] && [ "${DNS_NEW_OLD}" = "yes" ]; then
+            _hka="+ssh-rsa,ssh-dss"
+            _paa="+ssh-rsa,ssh-dss"
+        fi
     fi
     sshd_dns_validate_name "${_dns}" "${APP_NAME} dns add dns <name>"
     sshd_dns_validate_port "${_port}"
+    sshd_dns_validate_idonly "${_idonly}"
     if sshd_dns_name_taken "${_dns}" ""; then
         out_die "dns name '${_dns}' is already a Host entry. Next: ${APP_NAME} dns list"
     fi
-    sshd_dns_append "${_dns}" "${_ip}" "${_user}" "${_port}"
+    sshd_dns_append "${_dns}" "${_ip}" "${_user}" "${_port}" \
+        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}"
     _n=$(sshd_dns_count)
     if [ "${JSON}" -eq 1 ]; then
         out_json "out_success" "Host entry added." "n" "${_n}" "dns" "${_dns}" "ip" "${_ip}" "user" "${_user}" "port" "${_port}"
     else
         out_success "Added Host ${_dns} in $(sshd_dns_config_path)."
-        sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
+        sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
+            "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}"
     fi
-    unset _dns _ip _user _port _n
+    unset _dns _ip _user _port _idfile _idonly _sai _sacm _tcpka _ipqos _hka _paa _n _idonly_def
 }
 
 sshd_dns_apply_delete() {
     : "${FORCE:=0}"
     _sel="$1"
     _row=$(sshd_dns_lookup "${_sel}") || out_die "No Host entry '${_sel}' in $(sshd_dns_config_path). Next: ${APP_NAME} dns list"
-    _n=$(printf '%s' "${_row}" | awk -F '\t' '{print $1}')
-    _dns=$(printf '%s' "${_row}" | awk -F '\t' '{print $2}')
-    _ip=$(printf '%s' "${_row}" | awk -F '\t' '{print $3}')
-    _user=$(printf '%s' "${_row}" | awk -F '\t' '{print $4}')
-    _port=$(printf '%s' "${_row}" | awk -F '\t' '{print $5}')
+    sshd_dns_load_row "${_row}"
+    _n="${DNS_R_N}"
+    _dns="${DNS_R_DNS}"
+    _ip="${DNS_R_IP}"
+    _user="${DNS_R_USER}"
+    _port="${DNS_R_PORT}"
     if sshd_dns_can_prompt; then
-        sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
+        sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
+            "${DNS_R_IDFILE}" "${DNS_R_IDONLY}" "${DNS_R_SAI}" "${DNS_R_SACM}" "${DNS_R_TCPKA}" "${DNS_R_IPQOS}" "${DNS_R_HKA}" "${DNS_R_PAA}"
         if [ "${FORCE}" -eq 0 ]; then
             if ! prompt_yes_no "Delete Host ${_dns} from $(sshd_dns_config_path)"; then
                 out_info "Delete cancelled."
@@ -4098,7 +4497,7 @@ sshd_dns_pick_host() {
 sshd_dns_interactive_pick() {
     out_info "SSH names (dns) in $(sshd_dns_config_path)"
     sshd_dns_list_context
-    out_plain "1. Edit: change dns, ip, user, or port"
+    out_plain "1. Edit: change this Host (dns, ip, user, Termux, identity, Old OpenSSH)"
     out_plain "2. Add: new Host in this login ~/.ssh/config"
     out_plain "3. Delete: remove a Host"
     out_plain "9. Exit"
@@ -4150,13 +4549,10 @@ sshd_cmd_dns() {
             _sel="${1-}"
             [ -z "${_sel}" ] && out_die "dns show needs a number or Host name. Next: ${APP_NAME} dns list"
             _row=$(sshd_dns_lookup "${_sel}") || out_die "No Host entry '${_sel}' in $(sshd_dns_config_path). Next: ${APP_NAME} dns list"
-            _n=$(printf '%s' "${_row}" | awk -F '\t' '{print $1}')
-            _dns=$(printf '%s' "${_row}" | awk -F '\t' '{print $2}')
-            _ip=$(printf '%s' "${_row}" | awk -F '\t' '{print $3}')
-            _user=$(printf '%s' "${_row}" | awk -F '\t' '{print $4}')
-            _port=$(printf '%s' "${_row}" | awk -F '\t' '{print $5}')
-            sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}"
-            unset _sel _row _n _dns _ip _user _port
+            sshd_dns_load_row "${_row}"
+            sshd_dns_print_details "${DNS_R_N}" "${DNS_R_DNS}" "${DNS_R_IP}" "${DNS_R_USER}" "${DNS_R_PORT}" \
+                "${DNS_R_IDFILE}" "${DNS_R_IDONLY}" "${DNS_R_SAI}" "${DNS_R_SACM}" "${DNS_R_TCPKA}" "${DNS_R_IPQOS}" "${DNS_R_HKA}" "${DNS_R_PAA}"
+            unset _sel _row
             ;;
         edit)
             _sel="${1-}"
@@ -4447,7 +4843,7 @@ app_help() {
     out_plain "  config               Show resolved sshd paths and key settings"
     out_plain "  host-keys [list|generate]  List or create host keys"
     out_plain "  auth-keys [list|add <file>]  This login authorized_keys"
-    out_plain "  dns [list|show N|edit N|set N …|add …|delete N]  This login ~/.ssh/config Host list (dns-ip)"
+    out_plain "  dns [list|show N|edit N|set N …|add …|delete N]  This login ~/.ssh/config Host list (dns-ip; as Termux / identity-file / Old OpenSSH)"
     out_plain "  menu                 Numbered list: status, start, stop, restart, dns, Exit 9 (terminal only; alias: main)"
     out_empty_line
     out_info "Termux (Android wake lock):"

@@ -1,6 +1,6 @@
 # sshd-cli - Simplify Termux to install sshd
 
-![Version](https://img.shields.io/badge/Version-1.7.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.8.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/sshd-cli?style=flat-square)](https://github.com/cloudgen/sshd-cli)
@@ -24,7 +24,7 @@
 | Start sshd | OpenSSH **forks itself** so a laptop can connect. Default Termux port is often **8022**. This is not a boot service. | `sshd-cli start` then `ssh -p 8022 user@host` |
 | After a reboot | The daemon is gone. Start again. Termux:Boot is **your** hook if you want listen-after-reboot. | `sshd-cli start` |
 
-Runtime version SSOT: `VERSION="1.7.0"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
+Runtime version SSOT: `VERSION="1.8.0"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
 
 ## Features
 
@@ -35,7 +35,7 @@ Runtime version SSOT: `VERSION="1.7.0"` in `./sshd-cli`. Install channel SSOT: `
 - `start` launches OpenSSH sshd as a **background daemon** (`sshd -f`; OpenSSH forks itself). This CLI is **not** a systemd, termux-services, or cron service manager
 - On Termux, `start` also acquires an **Android wake lock** so sshd can keep listening with the screen off. Acquire again with `sshd-cli wake-lock` if Android dropped it. `wake-unlock` is optional and does **not** run on `stop`
 - After a reboot, run `sshd-cli start` again. On Termux, listen-after-reboot is **Termux:Boot** (you own `~/.termux/boot/`) — not a `sshd-cli` verb
-- This login’s `~/.ssh/config` **Host** list (`dns`, TTY menu row **5**): action menu **Edit / Add / Delete**, then a Host pick; `""` means empty; `--json` / pipes list or `set` / `delete` without hanging
+- This login’s `~/.ssh/config` **Host** list (`dns`, TTY menu row **5**): action menu **Edit / Add / Delete**, then a Host pick; TTY **as Termux (Y/n)** (Port 8022 + keep-alives), **identity-file** / **identities-only**, **Old OpenSSH (Y/n)** (`ssh-rsa` / `ssh-dss`); `""` means empty; `--json` / pipes list or `set` / `delete` without hanging
 - Termux-first paths (`PREFIX`); Linux system sshd is a second home and asks for a **root login** instead of wrapping `sudo`
 - Online install / self-update fetches a SHA-256 sidecar (`${SCRIPT_URL}.sha256`) and tells you link, value, and result
 - Built under **[CIAO](https://github.com/cloudgen/ciao) v2.10.*** (fail closed; one printer family for messages)
@@ -94,7 +94,7 @@ After install, on a terminal (no arguments opens the menu):
 
 ```text
 $ sshd-cli
-[INFO] **sshd-cli**(*1.7.0*)
+[INFO] **sshd-cli**(*1.8.0*)
 1. Show sshd status: running, port, and paths
 2. Start sshd: launch the OpenSSH daemon (background, not a boot service)
 3. Stop sshd: end the running daemon
@@ -127,6 +127,7 @@ sshd-cli dns
 sshd-cli dns list
 sshd-cli dns show 1
 sshd-cli dns set 1 ip 192.168.1.10 user "" port 8022
+sshd-cli dns add dns phone ip 192.168.1.10 termux yes old-openssh yes
 sshd-cli dns delete 1
 sshd-cli menu
 ```
@@ -163,7 +164,7 @@ chmod +x ~/.termux/boot/start-sshd
 sshd-cli dns list
 sshd-cli dns show 1
 sshd-cli dns set 1 ip 192.168.1.10 user "" port 8022
-sshd-cli dns add dns phone ip 192.168.1.10
+sshd-cli dns add dns phone ip 192.168.1.10 termux yes old-openssh yes identity-file '~/.ssh/phone' identities-only yes
 sshd-cli dns delete 1
 ```
 
@@ -196,4 +197,4 @@ MIT. See [`LICENSE.md`](./LICENSE.md). Copyright (c) 2026 Cloudgen Wong.
 
 ## Last Update
 
-2026-09-07 — 1.6.0: TTY `dns` (menu row 5) shows an Edit / Add / Delete action menu before changing a Host. `dns delete N` removes a concrete Host stanza.
+2026-09-08 — 1.8.0: TTY `dns` add/edit asks as Termux (Y/n), identity-file / identities-only, and Old OpenSSH (Y/n). Non-interactive `termux yes` / `old-openssh yes` / `identity-file` operands.

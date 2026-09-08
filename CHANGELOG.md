@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.8.0] - 2026-09-08
+
+### Added
+
+- TTY `dns` add/edit asks **as Termux (Y/n)**. Yes writes Port **8022**, `ServerAliveInterval 15`, `ServerAliveCountMax 12`, `TCPKeepAlive yes`, `IPQoS none` and skips the Port prompt. No prompts **Port** as before.
+- TTY walk always asks **identity-file** and **identities-only** (default `yes` when identity-file is set on add).
+- TTY **Old OpenSSH (Y/n)**. Yes writes `HostKeyAlgorithms +ssh-rsa,ssh-dss` and `PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss`.
+- Non-interactive operands: `termux yes|no`, `old-openssh yes|no`, `identity-file`, `identities-only`. Add without those operands does **not** write the bundles.
+- Tests **TP-DNS-27** .. **TP-DNS-35**.
+
+### Changed
+
+- `dns show` prints identity-file, identities-only, termux, and old-openssh. Help `dns` row names the new fields.
+
 ## [1.7.0] - 2026-09-07
 
 ### Added

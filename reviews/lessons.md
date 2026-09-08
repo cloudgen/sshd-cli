@@ -12,7 +12,8 @@ Durable failure modes. **Always re-check on product review.**
 | L-PUSH-VAULT-01 | Bare `git push` uses wrong active SSH vault when default face ≠ repository-user | Pre-git report + bound SSH transport; incident 20260810-001 | open watch |
 | L-SETU-01 | `set -u` crash with unset HOME | TP-CLI-11 | open watch |
 | L-STOR-01 | Shared world-writable storage | util_resolve_storage; TP-CLI-12 | open watch |
-| L-INTENT-01 | Harness Type 0 / “don’t wrap package managers” overrode a clear Termux sshd purpose; `pkg` listed as a domain non-goal until the operator named packages | Purpose wins: specialize **`LM-SHELL-TERMUX-ISH`** / `requirement-shell-termux-ish`; bootstrap Step 5c; domain Protection Rule 8b; Linux `apt` stays out; **INC-20260905-001**; TP-LC-15/16 | open watch |
+| L-INTENT-01 | Harness Type 0 / “don’t wrap package managers” overrode a clear Termux sshd purpose; `pkg` listed as a domain non-goal until the operator named packages | Purpose wins: specialize **`LM-SHELL-TERMUX-ISH`** / `requirement-shell-termux-ish`; bootstrap Step 5c; domain Protection Rule 8b; Linux `apt` stays out; TP-LC-15/16 | open watch |
+| L-ERR-HOST-01 | POSIX Linux start/stop fail-closed copy hardcoded “use Termux” as a next step on a host that is not Termux | Next step is host-local (Linux: re-run as root); do not name another platform after detect; **INC-20260908-001**; `CL-OPERATOR-READABLE-ERROR` E3 | open watch |
 | L-DNS-01 | TTY Host pick reused main-menu Exit `9` on an unbounded list | Leave with `0` / empty; TP-DNS-13 | open watch |
 | L-DNS-02 | `dns add` appended after trailing `Host *` so OpenSSH first-match ignored new User/Port | Insert before first wildcard Host / Match; atomic replace; TP-DNS-14 | open watch |
 | L-DNS-03 | `Key=value` / extra Host aliases lost on set | Parse optional `=`; keep aliases after first pattern; TP-DNS-15/16 | open watch |

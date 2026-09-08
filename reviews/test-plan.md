@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.7.0  
-**Last plan update:** 2026-09-07  
-**Last suite run:** PASS=283 FAIL=0 SKIP=0 (2026-09-07)
+**Product VERSION:** 1.8.0  
+**Last plan update:** 2026-09-08  
+**Last suite run:** PASS=328 FAIL=0 SKIP=0 (2026-09-08)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -25,7 +25,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | Local install / idempotent / uninstall / mode 0755 / login rc / Termux pkg | have | TP-LC-01..19 |
 | Android wake lock (auto on start + `wake-lock` verb) | have | TP-TX-08..16 |
 | sshd start is a background daemon (not a service manager) | have | TP-SSHD-01, TP-SSHD-02 |
-| this-login `~/.ssh/config` dns-ip list / show / set / add / delete | have | TP-DNS-01..26 |
+| this-login `~/.ssh/config` dns-ip list / show / set / add / delete | have | TP-DNS-01..35 |
 | Automatic companion link on install (file://) | have | TP-CSUM-01 |
 | Backup / restore / sudoers emit | n/a | Absent by design (not a backup product) |
 | Online curl against public GitHub | n/a | Core suite stays offline; channel is `file://` in CI |
@@ -93,6 +93,15 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-DNS-24 | TTY delete yes | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-25 | delete without n fail-closed | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-26 | JSON delete one object; other stanzas kept | test_dns | requirement-domain-sshd · requirement-shell-output-requirements | **have** |
+| TP-DNS-27 | non-interactive `add termux yes` writes Port 8022 + keep-alive / IPQoS bundle | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-28 | `old-openssh yes` writes HostKeyAlgorithms / PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-29 | `identity-file` + `identities-only` written and shown | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-30 | INTERACTIVE add default as Termux (Y) + Old OpenSSH (Y) | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DNS-31 | INTERACTIVE add Termux n prompts Port; Old OpenSSH n omits algorithms | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DNS-32 | `set termux no` strips keep-alives; Port kept | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-33 | `set old-openssh no` strips algorithm lines | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-34 | show names identity-file / termux / old-openssh | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-35 | unknown field fail-closed names identity-file / termux / old-openssh | test_dns | requirement-domain-sshd | **have** |
 
 ### TP-LC (local lifecycle)
 
