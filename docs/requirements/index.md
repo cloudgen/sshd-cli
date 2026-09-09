@@ -10,16 +10,16 @@
 | requirement-shell-automatic-checksum | Automatic companion-digest integrity (transparent link/value/result; CHECKSUM not help/about) | shell | Active | `requirement-shell-automatic-checksum.md` | 2026-09-06 |
 | requirement-shell-cli-interface | Shell CLI interface (commands, flags, dispatch, modes; `wake-lock`; `BASHRC`; `rc-test` dual mention) | shell | Active | `requirement-shell-cli-interface.md` | 2026-09-09 |
 | requirement-shell-cli-storage | Scratch/cache storage resolve (per-user isolation, main wire, about fields) | shell | Active | `requirement-shell-cli-storage.md` | 2026-09-05 |
-| requirement-shell-cli-zero-arguments | Empty argv: TTY menu / non-TTY Type O install-ensure | shell | Active | `requirement-shell-cli-zero-arguments.md` | 2026-09-05 |
+| requirement-shell-cli-zero-arguments | Empty argv: TTY menu / non-TTY Type O install-ensure | shell | Active | `requirement-shell-cli-zero-arguments.md` | 2026-09-09 |
 | requirement-shell-idempotency | Shell idempotency / re-run safety for ensure-style ops | shell | Active | `requirement-shell-idempotency.md` | 2026-09-09 |
-| requirement-shell-interactive-vs-noninteractive | Interactive vs non-interactive / `curl\|sh` behavior | shell | Active | `requirement-shell-interactive-vs-noninteractive.md` | 2026-09-07 |
+| requirement-shell-interactive-vs-noninteractive | Interactive vs non-interactive / `curl\|sh` behavior | shell | Active | `requirement-shell-interactive-vs-noninteractive.md` | 2026-09-09 |
 | requirement-shell-modular-function-design | Single-file modular function design (prefixes, zones) | shell | Active | `requirement-shell-modular-function-design.md` | 2026-09-05 |
 | requirement-shell-output-requirements | Central `out_*` output SSOT (stdout/stderr, modes; `@key` raw nested JSON) | shell | Active | `requirement-shell-output-requirements.md` | 2026-09-05 |
 | requirement-shell-path-and-shell-support | Shell-rc PATH + profile ensure (sibling unify, scoped uninstall, heal, `rc-test`) | shell | Active | `requirement-shell-path-and-shell-support.md` | 2026-09-09 |
 | requirement-shell-self-management | Self-management lifecycle (version-check, update, uninstall, about; companion **call site**) | shell | Active | `requirement-shell-self-management.md` | 2026-09-09 |
 | requirement-shell-script-coding | POSIX shell coding-style home (set -u, prefixes, do-not-capture-read) | shell | Active | `requirement-shell-script-coding.md` | 2026-09-05 |
 | requirement-shell-termux-ish | Termux-like this-login `pkg` companion (detect/invoke/fail-closed; not Linux `apt`) + Android wake lock | shell | Active | `requirement-shell-termux-ish.md` | 2026-09-07 |
-| requirement-domain-sshd | OpenSSH sshd domain (status/start/stop/port/keys/menu/dns; Termux daemonize; POSIX Linux systemd `systemctl` unit path; this-login ssh_config dns-ip; as-Termux simpler Ciphers/MACs; menu row 5; non-root hides 2/3/4) | domain | Active | `requirement-domain-sshd.md` | 2026-09-09 |
+| requirement-domain-sshd | OpenSSH sshd domain (status/start/stop/port/keys/menu/dns; Termux daemonize; POSIX Linux systemd `systemctl` unit path; this-login ssh_config dns-ip; as-Termux simpler Ciphers/MACs; menu row 5; non-root hides 2/3/4; self-update CLI-only) | domain | Active | `requirement-domain-sshd.md` | 2026-09-09 |
 
 **Rules for agents:**
 

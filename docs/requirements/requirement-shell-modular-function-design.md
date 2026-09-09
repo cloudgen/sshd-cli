@@ -185,7 +185,7 @@ function_name() {
 | `util_` | `util_json_escape`, `util_sha256_file`, `util_fetch_remote_version`, `util_get_install_bin_path`, `util_backup`, `util_resolve_storage` (**wired** from `app_main` / `app_about`; SSOT: `requirement-shell-cli-storage.md`), `util_get_current_shell` |
 | `prompt_` | `prompt_ask`, `prompt_yes_no` |
 | `app_` | `app_about`, `app_version` (dispatcher routes `version` here), `app_help`, `app_main` |
-| `sshd_` | `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`, `sshd_os_name`, `sshd_menu_show_daemon_rows`, `sshd_is_systemd_host`, `sshd_systemd_unit`, `sshd_systemd_is_active`, `sshd_systemd_main_pid`, `sshd_resolve`, `sshd_pkg_ensure`, `sshd_start_after_install`, `sshd_ifconfig_ipv4`, `sshd_lan_ipv4`, `sshd_connect_cmd`, `sshd_cmd_status` / `start` / `stop` / `restart` / `port` / `config` / `host_keys` / `auth_keys` / `menu` |
+| `sshd_` | `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`, `sshd_os_name`, `sshd_menu_show_daemon_rows`, `sshd_is_systemd_host`, `sshd_systemd_unit`, `sshd_systemd_is_active`, `sshd_systemd_main_pid`, `sshd_resolve`, `sshd_pkg_ensure`, `sshd_start_after_install`, `sshd_try_start_linux`, `sshd_ifconfig_ipv4`, `sshd_lan_ipv4`, `sshd_connect_cmd`, `sshd_cmd_status` / `start` / `stop` / `restart` / `port` / `config` / `host_keys` / `auth_keys` / `menu` |
 
 #### Structural notes (implementation status)
 

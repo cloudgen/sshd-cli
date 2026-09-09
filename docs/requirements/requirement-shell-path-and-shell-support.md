@@ -189,6 +189,29 @@ Helpers: `path_add_shell` (orchestrator), `path_add_bashrc`, `path_add_zshrc`, `
 | `rc-test` routed; help testers heading | **Implemented** (`path_rc_test`; **TP-LC-31** · **TP-CLI-18**) |
 | Login-hook | **Unused** (honest) |
 
+#### Worked samples (this project — from `./sshd-cli`)
+
+**Invocation (test-purpose, listed apart from operational help):**
+
+```sh
+sshd-cli rc-test --root "$tmpdir" --file bashrc --case create
+sshd-cli rc-test --root "$tmpdir" --file bashrc --case modify
+sshd-cli rc-test --root "$tmpdir" --file bashrc --case noop
+sshd-cli rc-test --root "$tmpdir" --file profile --case create
+sshd-cli --json rc-test --root "$tmpdir" --file bashrc --case create
+```
+
+**Sibling-unify comment-only** (exact PATH already present; MAY append this product’s sticker):
+
+```sh
+_comment=$(printf '# Added by %s installer (%s)' "$APP_NAME" "$VERSION")
+if ! grep -qF "${_comment}" "$bashrc" 2>/dev/null; then
+    printf '\n%s\n' "${_comment}" >> "$bashrc"
+fi
+```
+
+**Profile create-if-absent** (never overwrite; honor `PROFILE`): helpers `path_ensure_profile` + `path_add_shell`. Bodies live in `./sshd-cli`.
+
 ### 2.9 Why This Requirement Exists (Direct CIAO Alignment)
 
 - **CIAO Principle 1 – Caution** (https://github.com/cloudgen/ciao): Never replace an existing rc body; never strip a shared `USER_BIN` PATH while other tools remain.  

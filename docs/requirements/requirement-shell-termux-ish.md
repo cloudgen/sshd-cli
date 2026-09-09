@@ -111,6 +111,34 @@ sshd-cli --json wake-lock
 | Linux | no-op (no `apt`; wake lock no-op) |
 | In-tool sudo | none |
 
+#### Worked samples (this project)
+
+```sh
+sshd_is_termux() {
+    : "${PREFIX:=}"
+    if [ -n "${PREFIX}" ] && [ -d "${PREFIX}/bin" ]; then
+        case "${PREFIX}" in
+            */com.termux/*) return 0 ;;
+        esac
+    fi
+    if [ -n "${TERMUX_VERSION-}" ] || [ -d /data/data/com.termux/files/usr ]; then
+        return 0
+    fi
+    return 1
+}
+
+sshd_is_normal_user_only_cli() {
+    sshd_is_termux && return 0
+    sshd_is_git_bash && return 0
+    sshd_is_windows_cmd && return 0
+    return 1
+}
+```
+
+`sshd_pkg_ensure`: on Termux `pkg install -y openssh termux-auth` (quiet/json suppress stdout); missing `pkg` / non-zero → `out_die` with Next. Off-Termux: return 0. Git Bash / Windows cmd **MUST NOT** call this helper’s `pkg` path (union detect returns before `pkg`).
+
+Wake lock: `sshd_termux_wake_lock_invoke` returns 0 acquired / 1 not Termux / 2 helper missing / 3 helper failed. `sshd_wake_lock_acquire` on `start`: not-Termux no-op; missing helper **warn**. Verb `wake-lock`: missing helper **`out_die`**. **MUST NOT** auto-unlock on `stop`.
+
 ### 2.5 Why This Requirement Exists (Direct CIAO Alignment)
 
 - **CIAO Principle 2 – Intentional** (https://github.com/cloudgen/ciao): Termux `pkg` and Linux `apt` are named as different tools.  

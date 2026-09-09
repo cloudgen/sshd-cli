@@ -189,22 +189,28 @@ Empty-argv quiet/json in `app_main` is **not** a license for the helper to no-op
 
 #### Dispatcher algorithm (normative sketch)
 
-```text
-app_main:
-  if [ $# -eq 0 ]; then
-    if TTY=1 and not JSON and not QUIET:
-      sshd_cmd_menu; exit $?          # interactive: domain menu
-    if JSON or QUIET:
-      inst_perform_install; exit $?   # Case A/B/C; no prompt; no menu
-    elif inst_is_installed:
-      inst_perform_install   # Case B/C success no-op
-      exit $?
-    else
-      inst_maybe_install     # Case A (pipe auto)
-      exit $?
+```sh
+# Consume process TTY (measured once at startup). Overlay flags-only is still empty argv
+# after parse; this product uses $# -eq 0 at the top of app_main (before flag parse).
+if [ $# -eq 0 ]; then
+    if [ "${TTY}" -eq 1 ] && [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
+        sshd_cmd_menu
+        exit $?
     fi
-  fi
+    if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ]; then
+        inst_perform_install
+        exit $?
+    elif inst_is_installed; then
+        inst_perform_install
+        exit $?
+    else
+        inst_maybe_install
+        exit $?
+    fi
+fi
 ```
+
+This product: `--json` with no command is **Type O install-ensure** (not JSON help). Portable mold special-case JSON help **MUST NOT** override this specialized empty-argv law.
 
 #### Message contract (already installed, human)
 

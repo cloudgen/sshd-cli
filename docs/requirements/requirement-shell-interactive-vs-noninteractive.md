@@ -200,9 +200,12 @@ prompt_yes_no() {
 | `TTY` is not `1` (and `INTERACTIVE` ≠ 1) | Return **default** without `read` |
 | `TTY=1` interactive | Show current/default via `out_*`, then `read` |
 
-Sample (consume `TTY`):
+Sample (consume `TTY`). **WARNING — do-not-capture-read (`PP-A-22`):** MUST NOT `_x=$(prompt_ask …)` / `$()` / backticks. This body contains `read`. Call in the current shell. Portable mold uses `PROMPT_ASK_VALUE`; this ship unit still returns via stdout (legacy) — **MUST NOT** copy `$()` into new helpers (menu / dns walks already use in-shell `read`).
 
 ```sh
+# WARNING — do-not-capture-read (PP-A-22 / T1-PROMPT-CAPTURE)
+# MUST NOT _x=$(prompt_ask …). New code: assign PROMPT_ASK_VALUE; this product
+# still prints the value on stdout (legacy). Menu/dns use in-shell read.
 prompt_ask() {
     : "${JSON:=0}" : "${QUIET:=0}" : "${TTY:=0}" : "${INTERACTIVE:=0}"
     message="${1-}"; default="${2-}"

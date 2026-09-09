@@ -51,8 +51,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys) plus self-install.}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.13.0"
-: "${VERSION:=1.13.0}"
+VERSION="1.13.1"
+: "${VERSION:=1.13.1}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -540,6 +540,7 @@ fi
     : "${USER_BIN:=${HOME}/.local/bin}"
     : "${INSTALL_PATH:=${GLOBAL_BIN}/${APP_NAME}}"
     : "${FORCE_REINSTALL:=0}"
+    : "${SKIP_DOMAIN_START:=0}"
     : "${CHECKSUM:=}"
     : "${SCRIPT_URL:=}"
     : "${REMOTE_VERSION:=}"
@@ -573,7 +574,9 @@ fi
             out_success "${APP_NAME} is already installed."
             out_info "Use --force only to reinstall deliberately (or run: ${APP_NAME} self-update)."
         fi
-        sshd_start_after_install
+        if [ "${SKIP_DOMAIN_START}" -ne 1 ]; then
+            sshd_start_after_install
+        fi
         return 0
     fi
 
@@ -621,7 +624,9 @@ fi
         return 1
     fi
 
-    sshd_start_after_install
+    if [ "${SKIP_DOMAIN_START}" -ne 1 ]; then
+        sshd_start_after_install
+    fi
     return 0
 }
 
@@ -993,6 +998,8 @@ sshd_start_after_install() {
     : "${JSON:=0}"
     : "${APP_NAME:=sshd-cli}"
     : "${SSHD_NESTED_START:=0}"
+    : "${SKIP_DOMAIN_START:=0}"
+    [ "${SKIP_DOMAIN_START}" -eq 1 ] && return 0
     sshd_resolve
     if sshd_is_termux; then
         SSHD_NESTED_START=1
@@ -1014,10 +1021,65 @@ sshd_start_after_install() {
             return 0
         fi
     fi
-    SSHD_NESTED_START=1
-    sshd_cmd_start
-    SSHD_NESTED_START=0
-    return $?
+    # POSIX Linux: attempt start; MUST NOT fail CLI place.
+    # MUST NOT rewrite /etc/ssh/sshd_config. MUST NOT create /run/sshd here.
+    # MUST NOT out_die — sshd -t / missing privilege-separation dir is host sshd.
+    if sshd_try_start_linux; then
+        return 0
+    fi
+    if [ "${JSON}" -eq 0 ]; then
+        out_warn "${APP_NAME} is installed. System sshd was not started. Next: ${APP_NAME} start as root (or start the distro ssh/sshd unit)."
+    fi
+    return 0
+}
+
+# =============================================================================
+# sshd_try_start_linux() - Non-fatal Linux auto-start after CLI place
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Best-effort start of system sshd after install. Return 0 if already running
+# or start succeeded. Return 1 on any host sshd failure. Never out_die.
+# Never rewrite sshd_config. Never mkdir /run/sshd. Never generate host keys
+# as a side effect of CLI install.
+#
+# ALIGNMENT (live requirements only):
+# - requirement-domain-sshd.md
+#
+# Last updated: 2026-09-09
+# =============================================================================
+sshd_try_start_linux() {
+    sshd_resolve
+    _unit=$(sshd_systemd_unit || true)
+    if [ -n "${_unit}" ]; then
+        if sshd_systemd_is_active "${_unit}"; then
+            unset _unit
+            return 0
+        fi
+        if [ "$(id -u 2>/dev/null || echo 1)" -ne 0 ]; then
+            unset _unit
+            return 1
+        fi
+        if systemctl start "${_unit}" >/dev/null 2>&1; then
+            unset _unit
+            return 0
+        fi
+        unset _unit
+        return 1
+    fi
+    unset _unit
+    if sshd_running_pid >/dev/null 2>&1; then
+        return 0
+    fi
+    [ -n "${SSHD_BIN}" ] && [ -x "${SSHD_BIN}" ] || return 1
+    [ -n "${SSHD_CONFIG}" ] && [ -r "${SSHD_CONFIG}" ] || return 1
+    if ! "${SSHD_BIN}" -t -f "${SSHD_CONFIG}" >/dev/null 2>&1; then
+        return 1
+    fi
+    if ! "${SSHD_BIN}" -f "${SSHD_CONFIG}"; then
+        return 1
+    fi
+    return 0
 }
 
 # =============================================================================
@@ -1146,7 +1208,7 @@ inst_maybe_install() {
 #             for SCRIPT_URL and explicit comment about distribution URL
 #             requirement. No hard-coded project-specific values introduced.
 #
-# Last reviewed: 2026-06-26
+# Last updated: 2026-09-09
 # =============================================================================
 
 inst_self_update() {
@@ -1156,6 +1218,7 @@ inst_self_update() {
     : "${QUIET:=0}"
     : "${FORCE:=0}"
     : "${FORCE_REINSTALL:=0}"
+    : "${SKIP_DOMAIN_START:=0}"
     : "${SCRIPT_URL:=}"
 
     # Align force aliases (CLI --force sets both)
@@ -1217,7 +1280,10 @@ inst_self_update() {
     fi
 
     FORCE_REINSTALL=1
+    # CLI-only: do not auto-start host sshd or sshd -t /etc/ssh/sshd_config.
+    SKIP_DOMAIN_START=1
     inst_perform_install
+    SKIP_DOMAIN_START=0
 }
 
 # =============================================================================

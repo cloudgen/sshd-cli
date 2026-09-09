@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.13.1] - 2026-09-09
+
+### Fixed
+
+- **`self-update` is CLI-only:** after a successful binary place it no longer auto-starts OpenSSH sshd or runs `sshd -t` on `/etc/ssh/sshd_config`. A missing `/run/sshd` (or any host sshd config test failure) no longer turns a completed CLI update into `[ERROR]`. Use `sshd-cli start` when you want the daemon.
+- POSIX Linux **`install`** still best-effort starts sshd, but **MUST NOT** `out_die` the CLI install if `sshd -t` / `/run/sshd` / unit start fails (warn instead). Does not rewrite `/etc/ssh/sshd_config`. Incident **INC-20260909-002**. Test **TP-SSHD-15**.
+
 ## [1.13.0] - 2026-09-09
 
 ### Added

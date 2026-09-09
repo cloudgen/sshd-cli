@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.12.0)  
+**Status**: Active (Version 1.13.0)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -74,13 +74,18 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 
 ### 2.1.1 Install companion packages (Termux)
 
-`install` and **non-interactive** empty-argv install-ensure **MUST** call domain helper `sshd_pkg_ensure` (via `inst_ensure_companion`) **before** the already-installed binary no-op. After the CLI binary is placed **or** the already-installed no-op, **MUST** start sshd (`sshd_start_after_install` → `sshd_cmd_start`). Dual mention: `requirement-shell-termux-ish` (detect / invoke contract), `requirement-shell-cli-interface` (`install` row), and `requirement-shell-self-management` (orchestrator). Interactive empty argv is the menu and **MUST NOT** run package ensure or auto-start as a side effect.
+`install` and **non-interactive** empty-argv install-ensure **MUST** call domain helper `sshd_pkg_ensure` (via `inst_ensure_companion`) **before** the already-installed binary no-op. Dual mention: `requirement-shell-termux-ish` (detect / invoke contract), `requirement-shell-cli-interface` (`install` / `self-update` rows), and `requirement-shell-self-management` (orchestrator). Interactive empty argv is the menu and **MUST NOT** run package ensure or auto-start as a side effect.
+
+**`self-update` is CLI-only.** After a successful CLI place it **MUST NOT** call `sshd_cmd_start`, **MUST NOT** run `sshd -t` of `/etc/ssh/sshd_config`, **MUST NOT** rewrite that file, and **MUST NOT** create `/run/sshd`. Operator runs `sshd-cli start` when they want the daemon.
+
+After **`install`** / non-interactive empty-argv CLI place (not `self-update`):
 
 | After CLI place | MUST | MUST NOT |
 |-----------------|------|----------|
-| **Termux** | Start sshd (idempotent if already running). Fail closed if `sshd` is still missing after `pkg`. | Leave sshd stopped after a successful Termux `install` |
-| **POSIX Linux** | Start when this login can (root / writable config). If not, **warn** and still succeed the CLI install | Fail the CLI install solely because system sshd needs root |
-| **JSON `install`** | Start the daemon; **MUST NOT** emit a second JSON object from `start` | Mix two JSON objects on stdout |
+| **Termux `install`** | Start sshd (idempotent if already running). Fail closed if `sshd` is still missing after `pkg`. | Leave sshd stopped after a successful Termux `install` |
+| **POSIX Linux `install`** | Best-effort start when this login can. If start cannot run (`sshd -t` fail, missing `/run/sshd`, not root, no unit), **warn** and **still succeed** the CLI install | `out_die` the CLI install; rewrite `/etc/ssh/sshd_config`; mkdir `/run/sshd` as a CLI-install side effect |
+| **`self-update`** | Stop after CLI place + checksum | Auto-start sshd; fail because host sshd_config / privilege-separation dir |
+| **JSON `install`** | Termux: start the daemon; **MUST NOT** emit a second JSON object from `start`. Linux: same warn-and-succeed if start fails | Mix two JSON objects on stdout; fail JSON install on Linux `sshd -t` |
 
 | Host | MUST | MUST NOT |
 |------|------|----------|
@@ -299,11 +304,11 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 
 | Item | Value |
 |------|--------|
-| Product | `sshd-cli` 1.10.0 |
+| Product | `sshd-cli` 1.13.1 |
 | Bootstrap origin | `selfmanaged` 1.2.3 (architecture + Type 0 only; A untouched) |
 | Domain prefix | `sshd_*` |
 | Channel | `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli` |
-| Install companion | `sshd_pkg_ensure` then `sshd_start_after_install` |
+| Install companion | `sshd_pkg_ensure` then `sshd_start_after_install` on **`install`** / empty-argv. **`self-update`** sets `SKIP_DOMAIN_START=1` (no auto-start, no `sshd -t`) |
 | Login rc companion | Owned by `path_*` / `inst_ensure_companion` (`requirement-shell-self-management`) |
 | In-tool sudo | **none** — no `requirement-shell-sudo-command` |
 | Dest / fence | **none** (class residual: considered — no dest fence conditions) |
@@ -313,6 +318,40 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 | dns file | `${HOME}/.ssh/config` (OpenSSH client config; this login) |
 | dns fields | dns=`Host` · ip=`HostName` · user=`User` · port=`Port` (display 22 if empty) · identity-file=`IdentityFile` · identities-only=`IdentitiesOnly` · as Termux bundle (Port 8022 + keep-alives + IPQoS none) · Old OpenSSH (`HostKeyAlgorithms` / `PubkeyAcceptedAlgorithms` +ssh-rsa,ssh-dss) |
 | dns empty token | `""` or empty operand → empty field |
+
+#### Worked samples (this project)
+
+**Launch-path sketch** (`sshd_cmd_start` — not the full body):
+
+```sh
+_unit=$(sshd_systemd_unit || true)
+if [ -n "${_unit}" ]; then
+    [ "$(id -u 2>/dev/null || echo 1)" -eq 0 ] || \
+        out_die "Starting system sshd needs a root login on this host. Re-run as root."
+    systemctl start "${_unit}" || out_die "systemctl start ${_unit} failed. Re-run as root."
+    sshd_wake_lock_acquire
+    return 0
+fi
+# OpenSSH fallback: sshd -f (MUST NOT -D; MUST NOT & / nohup)
+"${SSHD_BIN}" -f "${SSHD_CONFIG}" || out_die "sshd did not start."
+sshd_wake_lock_acquire
+```
+
+**Menu choice** (current-shell `read`; **MUST NOT** `$()`):
+
+```sh
+# WARNING — do-not-capture-read (PP-A-22)
+out_info "**${APP_NAME}**(*${VERSION}*)"
+out_plain "1. Show sshd status: running, port, and paths"
+# rows 2/3/4 only when sshd_menu_show_daemon_rows
+out_plain "5. SSH names (dns): this login ~/.ssh/config Host list"
+out_plain "9. Exit"
+out_msg_n "Choose a number, or type the command name: "
+_choice=""
+read -r _choice || true
+```
+
+**systemd unit pick:** probe `ssh.service` then `sshd.service`; both exist → prefer the active one, else `ssh.service`. `sshd_is_systemd_host` is false on Termux / Git Bash / Windows cmd.
 
 ### 2.6 Why This Requirement Exists (Direct CIAO Alignment)
 
@@ -363,7 +402,8 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 10. Number `port` / `config` / `host-keys` / `auth-keys` as menu rows 6–8.  
 11. Freeze a session Unix login or a literal LAN IP into product law as the connect example.  
 12. Print `<this-host>` or any other placeholder as the ssh host on `status` / `start`.  
-13. Finish Termux `install` without starting sshd, or fail POSIX CLI install only because system sshd needs root.  
+13. Finish Termux `install` without starting sshd, or fail POSIX CLI **install** / **self-update** because system sshd needs root, `sshd -t` of `/etc/ssh/sshd_config` failed, or `/run/sshd` is missing.  
+13b. Auto-start sshd from **`self-update`**, rewrite `/etc/ssh/sshd_config` on CLI update, or treat host sshd config test as CLI-update success.  
 14. Strip the **Under command line for normal user only** section, or wrap `sudo` / create `sshd-adm` on that class.  
 15. Pass `-D` on the OpenSSH fallback, wrap start in `&` / `nohup`, add routed verbs `systemctl` / `enable-service` / `sv-enable` / `add-crontab` / `termux-services`, or `systemctl enable` / `disable` / `mask` as this CLI’s start/stop/restart.  
 16. Treat Termux:Boot as a verb this CLI owns. Distro unit **enable-at-boot** is out of scope; unit **start/stop/restart** is in scope via existing verbs (§2.2.1).  

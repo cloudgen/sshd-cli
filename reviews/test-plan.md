@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.13.0  
+**Product VERSION:** 1.13.1  
 **Last plan update:** 2026-09-09  
-**Last suite run:** PASS=394 FAIL=0 SKIP=0 (2026-09-09)
+**Last suite run:** PASS=439 FAIL=0 SKIP=0 (2026-09-09)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -76,6 +76,7 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-SSHD-12 | Source unit path invokes `systemctl stop` / `restart` | `tests/test_cli.sh` | requirement-domain-sshd | **have** |
 | TP-SSHD-13 | Termux mock `start` never invokes `systemctl` | `tests/test_cli.sh` | requirement-domain-sshd · requirement-shell-termux-ish | **have** |
 | TP-SSHD-14 | Dispatcher has no routed verb `systemctl` / `enable-service` | `tests/test_cli.sh` | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
+| TP-SSHD-15 | `self-update --force` still exit 0 when stub `sshd -t` would fail; no sshd_config ERROR | `tests/test_local_lifecycle.sh` | requirement-domain-sshd · requirement-shell-self-management | **have** |
 
 ### TP-DNS (this login ~/.ssh/config Host list)
 

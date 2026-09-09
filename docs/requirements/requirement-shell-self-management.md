@@ -142,6 +142,23 @@ Root may write global install path; non-root uses user path. Do not assume root 
 | **Privilege** | Type 0 only for self-management surface; no dedicated system user |
 | **Version SSOT** | `VERSION` default `1.6.0` in script config block (`VERSION="1.6.0"`) |
 
+#### Worked samples (this project)
+
+**Downgrade gate** (`inst_self_update`):
+
+```sh
+if [ "$local_version" != "not installed" ] && [ "$local_version" != "unknown" ] && \
+   ver_gt "$local_version" "$REMOTE_VERSION" && [ "${FORCE_REINSTALL:-0}" -eq 0 ]; then
+    out_json_error "Refusing downgrade from ${local_version} to ${REMOTE_VERSION} (use --force)" "downgrade_blocked"
+    return 1
+fi
+FORCE_REINSTALL=1
+SKIP_DOMAIN_START=1
+inst_perform_install
+```
+
+**Companion before already-installed no-op** (`inst_ensure_companion` then start): `install` / non-interactive empty argv always call `inst_ensure_companion` (rc + Termux `pkg`) **before** returning success on an already-placed binary. Uninstall confirm: `if prompt_yes_no "…"; then` in the current shell — **MUST NOT** `$()`.
+
 #### Normative acceptance behaviors (this project)
 
 0. **`install` companion (always):** `inst_ensure_companion` runs **before** the already-installed binary no-op. Rc PATH / profile bodies: `requirement-shell-path-and-shell-support`. Termux `pkg` invoke is `requirement-shell-termux-ish`; package names are `requirement-domain-sshd`.  
@@ -151,6 +168,7 @@ Root may write global install path; non-root uses user path. Do not assume root 
    - If local equals remote and force off → success no-op (“already latest”).  
    - If remote is **older** than local and force off → **refuse** (no silent downgrade).  
    - If remote is newer (or force policy allows reinstall) → set reinstall and call `inst_perform_install` with integrity + atomic replace.  
+   - **CLI-only:** **MUST NOT** auto-start sshd, **MUST NOT** run `sshd -t` of `/etc/ssh/sshd_config`, **MUST NOT** rewrite that file. Place success is CLI success even if host sshd is unhealthy. Dual mention: `requirement-domain-sshd`.  
 3. **`self-uninstall`:** Resolve binary; confirm when interactive and force off; remove only that binary; clean PATH only if `~/.local/bin` empty (non-root); never delete unrelated trees.  
 4. **`about`:** Human diagnostics + JSON about object; no secrets; **no `CHECKSUM` name/value**.  
 5. **Shared install path:** Self-update **must not** introduce a parallel curl-to-final-path overwrite outside `inst_perform_install*`.
@@ -220,7 +238,8 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 10. Invent a second update implementation path that bypasses `inst_perform_install*`.  
 11. Skip `inst_ensure_companion` on `install` / empty-argv because the CLI binary is already placed.  
 12. Re-own PATH / profile bodies here instead of `requirement-shell-path-and-shell-support`.  
-13. Strip the **Under command line for normal user only** section, or recommend `sudo curl | sh` when that class is detected.
+13. Strip the **Under command line for normal user only** section, or recommend `sudo curl | sh` when that class is detected.  
+14. Fail **`self-update`** after a successful CLI place because host `sshd -t` / `/etc/ssh/sshd_config` / `/run/sshd` failed, or rewrite that config as a side effect of CLI update.
 
 **Self-management is critical for long-term maintainability of one-command shell CLIs. Violating this rule is a critical regression.**
 

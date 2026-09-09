@@ -366,6 +366,45 @@ EOF
     HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" sh "${CI_USER_BIN}/${APP_NAME}" self-uninstall --force >/dev/null 2>&1 || true
     ci_cleanup_env
 
+    # TP-SSHD-15 self-update is CLI-only: host sshd -t failure must not fail CLI place
+    ci_isolated_env
+    PREFIX="${CI_HOME}/usr"
+    mkdir -p "${PREFIX}/bin" "${PREFIX}/etc/ssh" "${PREFIX}/var/run" "${CI_HOME}/stubbin"
+    printf '%s\n' 'Port 8022' "PidFile ${PREFIX}/var/run/sshd.pid" > "${PREFIX}/etc/ssh/sshd_config"
+    : > "${PREFIX}/etc/ssh/ssh_host_ed25519_key"
+    cat > "${PREFIX}/bin/sshd" <<EOF
+#!/bin/sh
+if [ "\$1" = "-t" ]; then
+    exit 0
+fi
+nohup sleep 120 >/dev/null 2>&1 &
+echo \$! > "${PREFIX}/var/run/sshd.pid"
+exit 0
+EOF
+    chmod +x "${PREFIX}/bin/sshd"
+    printf '%s\n' '#!/bin/sh' "printf '%s\\n' \"\$*\" >> \"${CI_HOME}/pkg-args.log\"" 'exit 0' > "${CI_HOME}/stubbin/pkg"
+    chmod +x "${CI_HOME}/stubbin/pkg"
+    HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" PREFIX="${PREFIX}" PATH="${CI_HOME}/stubbin:${PREFIX}/bin:${PATH}" TERMUX_VERSION=1 sh "${SCRIPT}" install >/dev/null 2>&1
+    cat > "${PREFIX}/bin/sshd" <<EOF
+#!/bin/sh
+echo CALLED_T >> "${CI_HOME}/sshd-t.log"
+if [ "\$1" = "-t" ]; then
+    echo "Missing privilege separation directory: /run/sshd" >&2
+    exit 1
+fi
+exit 1
+EOF
+    chmod +x "${PREFIX}/bin/sshd"
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" PREFIX="${PREFIX}" PATH="${CI_HOME}/stubbin:${PREFIX}/bin:${PATH}" TERMUX_VERSION=1 SCRIPT_URL="${SCRIPT_URL}" sh "${SCRIPT}" --force self-update 2>&1)
+    _ec=$?
+    assert_eq "TP-SSHD-15 self-update exit 0 despite sshd -t fail" 0 "$_ec"
+    assert_not_contains "TP-SSHD-15 no sshd_config ERROR" "$_out" "sshd refused the config"
+    assert_not_contains "TP-SSHD-15 no /run/sshd ERROR" "$_out" "Missing privilege separation directory"
+    assert_file_exists "TP-SSHD-15 CLI still installed" "${CI_USER_BIN}/${APP_NAME}"
+    assert_file_missing "TP-SSHD-15 sshd -t not invoked" "${CI_HOME}/sshd-t.log"
+    HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" sh "${CI_USER_BIN}/${APP_NAME}" self-uninstall --force >/dev/null 2>&1 || true
+    ci_cleanup_env
+
     # TP-LC-18 Git Bash mock: command line for normal user only — pkg not invoked
     ci_isolated_env
     mkdir -p "${CI_HOME}/stubbin"

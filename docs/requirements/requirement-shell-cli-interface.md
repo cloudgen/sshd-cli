@@ -134,7 +134,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | **Primary executable** | Repo root `./sshd-cli` (POSIX `/bin/sh`, single-file for `curl \| sh`) |
 | **Dispatcher** | `app_main` (always invoked at end of script: `app_main "$@"` — no `${0##*/}` / APP_NAME basename gate; required for `curl \| sh`) |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION` default `1.13.0` (script header / config block: `VERSION="1.13.0"`) |
+| **Version SSOT** | `VERSION` default `1.13.1` (script header / config block: `VERSION="1.13.1"`) |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`, or `${PREFIX}/bin` when Termux `PREFIX/bin` exists; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Interactive rc write path** | `BASHRC` default `${HOME}/.bashrc`. `install` PATH ensure creates/modifies this file. Tests/CI **MAY** set `BASHRC` to a file in a temp folder. Dual mention: `requirement-shell-path-and-shell-support`. |
 | **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`). **`help` Environment also lists `BASHRC`.** |
@@ -151,7 +151,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | `version` | Type 0 | `app_main` / `app_version` | Print local version; JSON object when `--json` |
 | `about` | Type 0 | `app_about` | Diagnostics: install presence, global/local paths, user, shell, TTY; JSON when `--json`; **no `CHECKSUM` field** |
 | `version-check` | Type 0 | `ver_check` | Compare local vs remote `VERSION` from `SCRIPT_URL`; fail clearly if URL unset/unreachable |
-| `self-update` | Type 0 | `inst_self_update` | Fetch remote version; reinstall when policy allows; reuse install primitives |
+| `self-update` | Type 0 | `inst_self_update` | Fetch remote version; reinstall when policy allows; reuse install primitives. **CLI-only:** no auto-start sshd; no `sshd -t` of `/etc/ssh/sshd_config`. Dual mention: `requirement-shell-self-management` · `requirement-domain-sshd` |
 | `self-uninstall` | Type 0 | `inst_self_uninstall` | Remove managed binary; PATH cleanup only if `~/.local/bin` empty (user installs) |
 | `help` | Type 0 | `app_help` | Full usage in human mode; short JSON note in JSON mode; Environment lists channel vars plus `BASHRC` — **not** `CHECKSUM` |
 | `status` | Type 0 domain | `sshd_cmd_status` | Show sshd running/port/paths and a live `ssh -p … user@lan` connect line. systemd host: unit name + active. Dual mention: `requirement-domain-sshd` |
@@ -194,6 +194,31 @@ Every routed verb is named **here** and on a topic-owner. Help/`app_help` is **n
 | `--json` | Set `JSON=1` and `QUIET=1` in `app_main` |
 | `--debug` | Set `DEBUG=1` in `app_main` |
 | `--force` | Parsed by `app_main` → `FORCE=1` and `FORCE_REINSTALL=1`; used by install reinstall, self-update (incl. deliberate downgrade), and uninstall confirm skip |
+
+#### Dispatcher sample (this project — empty argv + test-purpose + domain)
+
+```sh
+# Empty argv: TTY menu vs Type O install-ensure. Always app_main "$@" (no basename gate).
+if [ $# -eq 0 ]; then
+    if [ "${TTY}" -eq 1 ] && [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
+        sshd_cmd_menu
+        exit $?
+    fi
+    if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ]; then
+        inst_perform_install
+        exit $?
+    elif inst_is_installed; then
+        inst_perform_install
+        exit $?
+    else
+        inst_maybe_install
+        exit $?
+    fi
+fi
+# rc-test operands accumulate then: set -- ${RC_TEST_OPERANDS}; path_rc_test "$@"
+# Domain verbs (status|start|stop|restart|port|config|host-keys|auth-keys|dns|menu|main|wake-lock|wake-unlock)
+# share the same parse pass as Type 0. Operands after port/dns/… go in DOMAIN_OPERANDS.
+```
 
 #### Dispatcher acceptance criteria (this project)
 
@@ -269,7 +294,8 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 11. Strip the **Under command line for normal user only** section.  
 12. Add routed verbs `systemctl` / `enable-service` / `termux-services` / `sv-enable` / `add-crontab`, or invoke `systemctl` on Termux / Git Bash / Windows cmd. POSIX Linux unit start/stop/restart stays on existing verbs (`requirement-domain-sshd` §2.2.1).  
 13. Drop `wake-lock` / `wake-unlock` from the command table without updating `requirement-shell-termux-ish`, or auto-unlock on `stop`.  
-14. Drop `rc-test` from the dual-mention table without updating `requirement-shell-path-and-shell-support`, mix it into operational help grouping, or treat it as install.
+14. Drop `rc-test` from the dual-mention table without updating `requirement-shell-path-and-shell-support`, mix it into operational help grouping, or treat it as install.  
+15. Fail **`self-update`** after a successful CLI place because host `sshd -t` / `/etc/ssh/sshd_config` / `/run/sshd` failed.
 
 **Violating this rule is a critical CLI interface regression.**
 
