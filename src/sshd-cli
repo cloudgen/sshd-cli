@@ -33,6 +33,8 @@
 # SCRIPT_URL: product channel SSOT — composed from repo identity + APP_NAME (raw content URL).
 #   Override SCRIPT_URL with env for a full custom channel; or override REPO_* before first use
 #   so the composed default follows a fork. Empty SCRIPT_URL disables version-check / self-update network steps.
+# BASHRC: interactive rc write path for PATH ensure (default ${HOME}/.bashrc). Override for tests/CI
+#   so install can target a temp file instead of this login's real ~/.bashrc.
 #
 # =============================================================================
 
@@ -49,8 +51,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys) plus self-install.}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.10.0"
-: "${VERSION:=1.10.0}"
+VERSION="1.13.0"
+: "${VERSION:=1.13.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -93,6 +95,8 @@ if [ -z "${HOME-}" ]; then
 fi
 : "${HOME:=/tmp}"
 : "${USER_BIN:=${HOME}/.local/bin}"
+# Interactive rc write path (PATH ensure). Empty/unset → ${HOME}/.bashrc.
+: "${BASHRC:=${HOME}/.bashrc}"
 : "${INSTALL_PATH:=${GLOBAL_BIN}/${APP_NAME}}"
 # Repository identity → install channel (Option B: raw.githubusercontent.com)
 : "${REPO_USER:=cloudgen}"
@@ -484,8 +488,8 @@ out_json_error() {
 #
 # GENERAL PURPOSE:
 # Orchestrates the complete installation flow:
-#   0. Companion ensure (always): create/modify ~/.bashrc PATH, create ~/.profile
-#      if absent, Termux `pkg install -y openssh termux-auth`
+#   0. Companion ensure (always): create/modify BASHRC (default ~/.bashrc) PATH,
+#      create ~/.profile if absent, Termux `pkg install -y openssh termux-auth`
 #      (requirement-domain-sshd, requirement-shell-self-management)
 #   1. Privilege-aware path setup (root → /usr/local/bin, normal user → ~/.local/bin)
 #   2. Early exit if already installed (unless --force / FORCE_REINSTALL=1)
@@ -946,9 +950,9 @@ inst_perform_install_atomic_install() {
 #
 # GENERAL PURPOSE:
 # Always-on companion of `install` / empty-argv install-ensure. Creates or
-# modifies this login's ~/.bashrc (PATH), creates ~/.profile if missing, and
-# on Termux runs `pkg install -y openssh termux-auth`. Idempotent. Runs even
-# when the CLI binary is already installed.
+# modifies BASHRC (default this login's ~/.bashrc) PATH, creates ~/.profile
+# if missing, and on Termux runs `pkg install -y openssh termux-auth`.
+# Idempotent. Runs even when the CLI binary is already installed.
 #
 # CIAO PRINCIPLES APPLIED:
 # - Caution (Principle 1): Termux pkg only when this is Termux; never apt on
@@ -1399,6 +1403,7 @@ inst_self_uninstall_cleanup_path() {
 
     : "${HOME:=/tmp}"
     : "${USER_BIN:=${HOME}/.local/bin}"
+    : "${BASHRC:=${HOME}/.bashrc}"
     local bin_dir="${USER_BIN}"
     local should_clean_path=1
 
@@ -1413,23 +1418,31 @@ inst_self_uninstall_cleanup_path() {
         fi
     fi
 
-    if [ "$should_clean_path" -eq 0 ]; then
-        return 0
-    fi
-
-    # Directory is empty or missing → safe to remove our PATH entries
+    # Always strip this product's installer comments. Strip the shared PATH
+    # line only when USER_BIN is empty (sibling unify).
     local cleaned=0
     local escaped_bin
-    # Escape sed | delimiter characters in USER_BIN for path-line removal
+    local escaped_name
     escaped_bin=$(printf '%s' "${bin_dir}" | sed 's/[\\/&|]/\\&/g')
+    escaped_name=$(printf '%s' "${APP_NAME}" | sed 's/[\\/&|]/\\&/g')
+    : "${ZSHRC:=${HOME}/.zshrc}"
+    : "${FISH_CONFIG:=${HOME}/.config/fish/config.fish}"
 
-    for config in "${HOME}/.bashrc" "${HOME}/.zshrc" "${HOME}/.config/fish/config.fish"; do
+    for config in "${BASHRC}" "${ZSHRC}" "${FISH_CONFIG}"; do
         if [ -f "$config" ]; then
-            if sed -i.bak \
-                -e '/# Added by .* installer/d' \
-                -e "\|${escaped_bin}|d" \
-                "$config" 2>/dev/null; then
-                cleaned=1
+            if [ "$should_clean_path" -eq 1 ]; then
+                if sed -i.bak \
+                    -e "/# Added by ${escaped_name} installer/d" \
+                    -e "\|${escaped_bin}|d" \
+                    "$config" 2>/dev/null; then
+                    cleaned=1
+                fi
+            else
+                if sed -i.bak \
+                    -e "/# Added by ${escaped_name} installer/d" \
+                    "$config" 2>/dev/null; then
+                    cleaned=1
+                fi
             fi
             rm -f "${config}.bak" 2>/dev/null || true
         fi
@@ -1723,31 +1736,36 @@ ver_check() {
 
 
 # =============================================================================
-# path_add_bashrc() - Add ~/.local/bin to ~/.bashrc
+# path_add_bashrc() - Add USER_BIN to BASHRC (default ~/.bashrc)
 # =============================================================================
 #
 # GENERAL PURPOSE:
-# Appends the PATH export to ~/.bashrc only if not already present.
+# Appends the PATH export to BASHRC only if the exact export line is absent.
 #
-# Creates ~/.bashrc if missing, then appends the PATH export only if not
-# already present. Returns 0 if created or PATH was added, 1 if already
-# present or create/write failed.
+# BASHRC defaults to ${HOME}/.bashrc. Tests/CI may override BASHRC to a file
+# in a temp folder so this login's real interactive rc is not touched.
+#
+# Creates the file if missing, then appends the PATH export only if the exact
+# `export PATH="<USER_BIN>:$PATH"` line is not already present. Returns 0 if
+# created or PATH was added, 1 if the exact line is already present or
+# create/write failed.
 #
 # PRINTF EXCEPTION (class C – file I/O redirect):
 # printf … >> "$bashrc" writes shell config content to a file, not product
 # stdout/stderr. User-visible “→ Added …” lines use out_plain.
 # See requirement-shell-output-requirements.md §2.1.1.
 #
-# Last reviewed: 2026-09-05
+# Last reviewed: 2026-09-09
 # =============================================================================
 
 path_add_bashrc() {
     : "${HOME:=/tmp}"
     : "${USER_BIN:=${HOME}/.local/bin}"
+    : "${BASHRC:=${HOME}/.bashrc}"
     : "${APP_NAME:=sshd-cli}"
     : "${VERSION:=0}"
     : "${JSON:=0}"
-    local bashrc="${HOME}/.bashrc"
+    local bashrc="${BASHRC}"
     local path_line
     local created=0
     path_line=$(printf 'export PATH="%s:$PATH"' "${USER_BIN}")
@@ -1766,7 +1784,7 @@ path_add_bashrc() {
         fi
     fi
 
-    if ! grep -qF "${USER_BIN}" "$bashrc" 2>/dev/null; then
+    if ! grep -qF "${path_line}" "$bashrc" 2>/dev/null; then
         printf "\n# Added by %s installer (%s)\n" "$APP_NAME" "$VERSION" >> "$bashrc"
         printf '%s\n' "${path_line}" >> "$bashrc"
         if [ "${JSON}" -eq 0 ]; then
@@ -1774,6 +1792,21 @@ path_add_bashrc() {
         fi
         return 0
     fi
+    # Sibling unify: exact PATH already present (this product or another).
+    # MAY append only this product's comment; MUST NOT a second export.
+    _comment=$(printf '# Added by %s installer (%s)' "$APP_NAME" "$VERSION")
+    if ! grep -qF "${_comment}" "$bashrc" 2>/dev/null; then
+        printf '\n%s\n' "${_comment}" >> "$bashrc"
+        unset _comment
+        if [ "$created" -eq 1 ]; then
+            return 0
+        fi
+        if [ "${JSON}" -eq 0 ]; then
+            out_plain "→ Noted ${APP_NAME} on existing PATH line"
+        fi
+        return 0
+    fi
+    unset _comment
     if [ "$created" -eq 1 ]; then
         return 0
     fi
@@ -1803,7 +1836,8 @@ path_ensure_profile() {
     : "${HOME:=/tmp}"
     : "${APP_NAME:=sshd-cli}"
     : "${JSON:=0}"
-    local profile="${HOME}/.profile"
+    : "${PROFILE:=${HOME}/.profile}"
+    local profile="${PROFILE}"
 
     if [ -f "$profile" ]; then
         return 1
@@ -1851,14 +1885,15 @@ path_ensure_profile() {
 path_add_zshrc() {
     : "${HOME:=/tmp}"
     : "${USER_BIN:=${HOME}/.local/bin}"
-    local zshrc="${HOME}/.zshrc"
+    : "${ZSHRC:=${HOME}/.zshrc}"
+    local zshrc="${ZSHRC}"
     local path_line
     path_line=$(printf 'export PATH="%s:$PATH"' "${USER_BIN}")
     if [ ! -f "$zshrc" ]; then
         return 1
     fi
 
-    if ! grep -qF "${USER_BIN}" "$zshrc" 2>/dev/null; then
+    if ! grep -qF "${path_line}" "$zshrc" 2>/dev/null; then
         printf "\n# Added by %s installer (%s)\n" "$APP_NAME" "$VERSION" >> "$zshrc"
         printf '%s\n' "${path_line}" >> "$zshrc"
         if [ "${JSON}" -eq 0 ]; then
@@ -1890,16 +1925,20 @@ path_add_zshrc() {
 path_add_fish() {
     : "${HOME:=/tmp}"
     : "${USER_BIN:=${HOME}/.local/bin}"
-    local fish_config="${HOME}/.config/fish/config.fish"
+    : "${FISH_CONFIG:=${HOME}/.config/fish/config.fish}"
+    local fish_config="${FISH_CONFIG}"
     local path_line
     path_line=$(printf 'set -gx PATH %s $PATH' "${USER_BIN}")
 
-    # Ensure directory exists
-    if [ ! -d "${HOME}/.config/fish" ] && ! mkdir -p "${HOME}/.config/fish" 2>/dev/null; then
+    # Ensure parent directory exists (default ~/.config/fish; fixture may retarget)
+    _fish_dir=$(dirname "${fish_config}")
+    if [ ! -d "${_fish_dir}" ] && ! mkdir -p "${_fish_dir}" 2>/dev/null; then
+        unset _fish_dir
         return 1
     fi
+    unset _fish_dir
 
-    if [ -f "$fish_config" ] && grep -qF "${USER_BIN}" "$fish_config" 2>/dev/null; then
+    if [ -f "$fish_config" ] && grep -qF "${path_line}" "$fish_config" 2>/dev/null; then
         return 1  # already present
     fi
 
@@ -1918,23 +1957,25 @@ path_add_fish() {
 #
 # GENERAL PURPOSE:
 # Adds ${USER_BIN} (default ${HOME}/.local/bin) to bash, zsh, and fish
-# configuration files if not already present. Creates ~/.bashrc when missing.
-# Creates ~/.profile when missing so a login shell sources ~/.bashrc.
-# Thin orchestrator for path_add_* / path_ensure_profile.
+# configuration files if not already present. Creates BASHRC (default
+# ~/.bashrc) when missing. Creates ~/.profile when missing so a login shell
+# sources ~/.bashrc. Thin orchestrator for path_add_* / path_ensure_profile.
 #
 # Respects --json mode (silent in JSON).
 #
-# Last reviewed: 2026-09-05
+# Last reviewed: 2026-09-09
 # =============================================================================
 
 path_add_shell() {
     local added=0
     local shell_config="N/A"
+    : "${HOME:=/tmp}"
+    : "${BASHRC:=${HOME}/.bashrc}"
 
-    # Bash (create ~/.bashrc if missing, then PATH)
+    # Bash (create BASHRC if missing, then PATH)
     if path_add_bashrc; then
         added=1
-        shell_config="${HOME}/.bashrc"
+        shell_config="${BASHRC}"
     fi
 
     # Zsh
@@ -1968,6 +2009,186 @@ path_add_shell() {
     if [ "$added" -eq 1 ] && [ "${JSON}" -eq 0 ]; then
         out_plain "→ Restart your terminal or run: source ${shell_config}"
     fi
+}
+
+# =============================================================================
+# path_rc_test() - Type 0 test-purpose: PATH / profile ensure against --root
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Prove path-ensure / profile-ensure create|modify|noop on files under a
+# caller --root tmp folder. Does not write this login's real ~/.bashrc.
+# Law: requirement-shell-path-and-shell-support (rc-test).
+#
+# Last reviewed: 2026-09-09
+# =============================================================================
+
+path_rc_test() {
+    : "${HOME:=/tmp}"
+    : "${USER_BIN:=${HOME}/.local/bin}"
+    : "${APP_NAME:=sshd-cli}"
+    : "${VERSION:=0}"
+    : "${JSON:=0}"
+    local root="" file="bashrc" cas="create" created_root=0
+    local real_bashrc="${HOME}/.bashrc"
+    local real_profile="${HOME}/.profile"
+    local dest="" before="" after="" path_line
+    path_line=$(printf 'export PATH="%s:$PATH"' "${USER_BIN}")
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --root)
+                shift
+                root="${1-}"
+                ;;
+            --file)
+                shift
+                file="${1-}"
+                ;;
+            --case)
+                shift
+                cas="${1-}"
+                ;;
+            --feature)
+                shift
+                ;;
+            *)
+                out_die "Unknown rc-test operand: $1. Next: ${APP_NAME} rc-test --root <dir> --file bashrc|profile --case create|modify|noop"
+                ;;
+        esac
+        shift
+    done
+
+    case "${file}" in
+        bashrc|zshrc|profile) ;;
+        *)
+            out_die "Unknown rc-test --file ${file}. Next: use bashrc, zshrc, or profile."
+            ;;
+    esac
+    case "${cas}" in
+        create|modify|noop) ;;
+        *)
+            out_die "Unknown rc-test --case ${cas}. Next: use create, modify, or noop."
+            ;;
+    esac
+
+    if [ -z "${root}" ]; then
+        root=$(mktemp -d "${TMPDIR:-/tmp}/rc-test.XXXXXX") || out_die "Could not create rc-test root."
+        created_root=1
+    fi
+    if [ ! -d "${root}" ]; then
+        mkdir -p "${root}" || out_die "Could not create rc-test --root ${root}."
+    fi
+
+    case "${file}" in
+        bashrc) dest="${root}/.bashrc"; export BASHRC="${dest}" ;;
+        zshrc) dest="${root}/.zshrc"; export ZSHRC="${dest}" ;;
+        profile) dest="${root}/.profile"; export PROFILE="${dest}" ;;
+    esac
+
+    case "${cas}" in
+        create)
+            rm -f -- "${dest}"
+            ;;
+        modify)
+            printf '%s\n' "# dongle-keep-rc-test" > "${dest}"
+            ;;
+        noop)
+            if [ "${file}" = "profile" ]; then
+                {
+                    printf '# BEGIN %s profile source-bashrc\n' "$APP_NAME"
+                    printf 'if [ -n "${BASH_VERSION:-}" ]; then\n'
+                    printf '    if [ -f "${HOME}/.bashrc" ]; then\n'
+                    printf '        . "${HOME}/.bashrc"\n'
+                    printf '    fi\n'
+                    printf 'fi\n'
+                    printf '# END %s profile source-bashrc\n' "$APP_NAME"
+                } > "${dest}"
+            else
+                {
+                    printf '# Interactive rc created by %s installer (%s)\n' "$APP_NAME" "$VERSION"
+                    printf '# Added by %s installer (%s)\n' "$APP_NAME" "$VERSION"
+                    printf '%s\n' "${path_line}"
+                } > "${dest}"
+            fi
+            ;;
+    esac
+
+    before=$(cat "${dest}" 2>/dev/null || true)
+    case "${file}" in
+        bashrc) path_add_bashrc || true ;;
+        zshrc)
+            [ -f "${dest}" ] || : > "${dest}"
+            path_add_zshrc || true
+            ;;
+        profile) path_ensure_profile || true ;;
+    esac
+    after=$(cat "${dest}" 2>/dev/null || true)
+
+    if [ -f "${real_bashrc}" ] && [ "${dest}" != "${real_bashrc}" ]; then
+        :
+    fi
+    if [ "${file}" = "bashrc" ] && [ -e "${real_bashrc}" ] && [ "${BASHRC}" != "${real_bashrc}" ]; then
+        if [ "${cas}" = "create" ] && [ ! -f "${dest}" ]; then
+            out_die "rc-test create did not write ${dest}."
+        fi
+    fi
+
+    if [ "${file}" = "zshrc" ] && [ "${cas}" = "create" ]; then
+        if [ -f "${dest}" ]; then
+            out_die "rc-test create must not invent .zshrc."
+        fi
+        if [ "${JSON}" -eq 1 ]; then
+            out_json "out_success" "rc-test create zshrc skipped (do not invent)" \
+                "command" "rc-test" "file" "zshrc" "case" "create" "root" "${root}"
+            return 0
+        fi
+        out_plain "→ rc-test create zshrc skipped (do not invent) under ${root}"
+        return 0
+    fi
+    if [ "${cas}" = "create" ] && [ ! -f "${dest}" ]; then
+        out_die "rc-test create did not create ${dest}. Next: check --root is writable."
+    fi
+    if [ "${cas}" = "modify" ]; then
+        case "${after}" in
+            *dongle-keep-rc-test*) ;;
+            *)
+                out_die "rc-test modify lost the dongle body in ${dest}."
+                ;;
+        esac
+    fi
+    if [ "${cas}" = "noop" ] && [ "${before}" != "${after}" ]; then
+        out_die "rc-test noop changed ${dest}."
+    fi
+    if [ "${file}" != "profile" ]; then
+        case "${after}" in
+            *"${path_line}"*) ;;
+            *)
+                out_die "rc-test ${cas} missing exact PATH line in ${dest}."
+                ;;
+        esac
+    else
+        case "${after}" in
+            *'. "${HOME}/.bashrc"'*) ;;
+            *)
+                out_die "rc-test ${cas} profile does not source bashrc."
+                ;;
+        esac
+    fi
+
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "out_success" "rc-test ${cas} ${file}" \
+            "command" "rc-test" \
+            "file" "${file}" \
+            "case" "${cas}" \
+            "root" "${root}"
+        return 0
+    fi
+    out_plain "→ rc-test ${cas} ${file} under ${root}"
+    if [ "${created_root}" -eq 1 ]; then
+        out_plain "→ Created fixture root ${root} (caller may remove)"
+    fi
+    return 0
 }
 
 # =============================================================================
@@ -3702,9 +3923,22 @@ sshd_dns_disp_opt() {
     fi
 }
 
-# Termux client profile for a Host: Port 8022 + keep-alive / IPQoS bundle.
+# Termux client profile (as Termux): Port 8022 + keep-alives + IPQoS + simpler
+# Ciphers/MACs. Some Termux OpenSSH sshd versions reply too slowly under default
+# AEAD; the client then aborts (ssh-connection-corrupt).
+sshd_dns_termux_bundle_yes() {
+    DNS_TX_PORT="8022"
+    DNS_TX_SAI="15"
+    DNS_TX_SACM="12"
+    DNS_TX_TCPKA="yes"
+    DNS_TX_IPQOS="none"
+    DNS_TX_CIPHERS="aes128-ctr,aes256-ctr"
+    DNS_TX_MACS="hmac-sha2-256"
+}
+
 sshd_dns_termux_profile() {
-    [ "${1-}" = "8022" ] && [ "${2-}" = "15" ] && [ "${3-}" = "12" ] && [ "${4-}" = "yes" ] && [ "${5-}" = "none" ]
+    sshd_dns_termux_bundle_yes
+    [ "${1-}" = "${DNS_TX_PORT}" ] && [ "${2-}" = "${DNS_TX_SAI}" ] && [ "${3-}" = "${DNS_TX_SACM}" ] && [ "${4-}" = "${DNS_TX_TCPKA}" ] && [ "${5-}" = "${DNS_TX_IPQOS}" ] && [ "${6-}" = "${DNS_TX_CIPHERS}" ] && [ "${7-}" = "${DNS_TX_MACS}" ]
 }
 
 sshd_dns_old_profile() {
@@ -3712,7 +3946,7 @@ sshd_dns_old_profile() {
 }
 
 sshd_dns_disp_termux() {
-    if sshd_dns_termux_profile "${1-}" "${2-}" "${3-}" "${4-}" "${5-}"; then
+    if sshd_dns_termux_profile "${1-}" "${2-}" "${3-}" "${4-}" "${5-}" "${6-}" "${7-}"; then
         printf 'yes'
     else
         printf 'no'
@@ -3742,6 +3976,8 @@ sshd_dns_load_row() {
     DNS_R_IPQOS=$(printf '%s\n' "${_lr}" | cut -f11)
     DNS_R_HKA=$(printf '%s\n' "${_lr}" | cut -f12)
     DNS_R_PAA=$(printf '%s\n' "${_lr}" | cut -f13)
+    DNS_R_CIPHERS=$(printf '%s\n' "${_lr}" | cut -f14)
+    DNS_R_MACS=$(printf '%s\n' "${_lr}" | cut -f15)
     unset _lr
 }
 
@@ -3815,7 +4051,7 @@ sshd_dns_validate_idonly() {
     unset _vio
 }
 
-# Class-B: print TSV n dns ip user port idfile idonly sai sacm tcpka ipqos hka paa.
+# Class-B: print TSV n dns ip user port idfile idonly sai sacm tcpka ipqos hka paa ciphers macs.
 # OpenSSH accepts "Key value", "Key=value", and "Key = value".
 sshd_dns_records() {
     _rec_cfg=$(sshd_dns_config_path)
@@ -3844,11 +4080,12 @@ sshd_dns_records() {
         function reset_body() {
             ip=""; user=""; port=""
             idfile=""; idonly=""; sai=""; sacm=""; tcpka=""; ipqos=""; hka=""; paa=""
+            ciphers=""; macs=""
         }
         function flush() {
             if (concrete && dns != "") {
                 n++
-                printf "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", n, dns, ip, user, port, idfile, idonly, sai, sacm, tcpka, ipqos, hka, paa
+                printf "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", n, dns, ip, user, port, idfile, idonly, sai, sacm, tcpka, ipqos, hka, paa, ciphers, macs
             }
             concrete=0; dns=""; reset_body()
         }
@@ -3878,6 +4115,8 @@ sshd_dns_records() {
                 if (lk=="ipqos") ipqos=val
                 if (lk=="hostkeyalgorithms") hka=val
                 if (lk=="pubkeyacceptedalgorithms" || lk=="pubkeyacceptedkeytypes") paa=val
+                if (lk=="ciphers") ciphers=val
+                if (lk=="macs") macs=val
             }
         }
         END { flush() }
@@ -3955,7 +4194,8 @@ sshd_dns_print_details() {
     _pd_idfile="${6-}"; _pd_idonly="${7-}"
     _pd_sai="${8-}"; _pd_sacm="${9-}"; _pd_tcpka="${10-}"; _pd_ipqos="${11-}"
     _pd_hka="${12-}"; _pd_paa="${13-}"
-    _pd_termux=$(sshd_dns_disp_termux "${_pd_port}" "${_pd_sai}" "${_pd_sacm}" "${_pd_tcpka}" "${_pd_ipqos}")
+    _pd_ciphers="${14-}"; _pd_macs="${15-}"
+    _pd_termux=$(sshd_dns_disp_termux "${_pd_port}" "${_pd_sai}" "${_pd_sacm}" "${_pd_tcpka}" "${_pd_ipqos}" "${_pd_ciphers}" "${_pd_macs}")
     _pd_old=$(sshd_dns_disp_old "${_pd_hka}" "${_pd_paa}")
     if [ "${JSON}" -eq 1 ]; then
         out_json "dns_show" "" \
@@ -3985,7 +4225,7 @@ sshd_dns_print_details() {
         out_plain "old-openssh: ${_pd_old}"
     fi
     unset _pd_n _pd_dns _pd_ip _pd_user _pd_port _pd_idfile _pd_idonly
-    unset _pd_sai _pd_sacm _pd_tcpka _pd_ipqos _pd_hka _pd_paa _pd_termux _pd_old
+    unset _pd_sai _pd_sacm _pd_tcpka _pd_ipqos _pd_hka _pd_paa _pd_ciphers _pd_macs _pd_termux _pd_old
 }
 
 sshd_dns_list_human() {
@@ -4112,6 +4352,8 @@ sshd_dns_rewrite() {
     _new_ipqos="${11-}"
     _new_hka="${12-}"
     _new_paa="${13-}"
+    _new_ciphers="${14-}"
+    _new_macs="${15-}"
     _cfg=$(sshd_dns_config_path)
     sshd_dns_ensure_file
     sshd_dns_backup "${_cfg}" "dns-edit"
@@ -4121,7 +4363,8 @@ sshd_dns_rewrite() {
         -v newidfile="${_new_idfile}" -v newidonly="${_new_idonly}" \
         -v newsai="${_new_sai}" -v newsacm="${_new_sacm}" \
         -v newtcpka="${_new_tcpka}" -v newipqos="${_new_ipqos}" \
-        -v newhka="${_new_hka}" -v newpaa="${_new_paa}" '
+        -v newhka="${_new_hka}" -v newpaa="${_new_paa}" \
+        -v newciphers="${_new_ciphers}" -v newmacs="${_new_macs}" '
         function parse_line(line,    s) {
             key=""; val=""; lk=""; host_rest=""
             s=line
@@ -4147,6 +4390,7 @@ sshd_dns_rewrite() {
             saw_hn=0; saw_user=0; saw_port=0
             saw_idfile=0; saw_idonly=0; saw_sai=0; saw_sacm=0
             saw_tcpka=0; saw_ipqos=0; saw_hka=0; saw_paa=0
+            saw_ciphers=0; saw_macs=0
         }
         function emit_missing() {
             if (!in_target) return
@@ -4155,6 +4399,8 @@ sshd_dns_rewrite() {
             if (!saw_port && newport != "" && newport != "22") print "    Port " newport
             if (!saw_idfile && newidfile != "") print "    IdentityFile " newidfile
             if (!saw_idonly && newidonly != "") print "    IdentitiesOnly " newidonly
+            if (!saw_ciphers && newciphers != "") print "    Ciphers " newciphers
+            if (!saw_macs && newmacs != "") print "    MACs " newmacs
             if (!saw_sai && newsai != "") print "    ServerAliveInterval " newsai
             if (!saw_sacm && newsacm != "") print "    ServerAliveCountMax " newsacm
             if (!saw_tcpka && newtcpka != "") print "    TCPKeepAlive " newtcpka
@@ -4223,6 +4469,16 @@ sshd_dns_rewrite() {
                     if (newidonly != "") print "    IdentitiesOnly " newidonly
                     next
                 }
+                if (lk=="ciphers") {
+                    saw_ciphers=1
+                    if (newciphers != "") print "    Ciphers " newciphers
+                    next
+                }
+                if (lk=="macs") {
+                    saw_macs=1
+                    if (newmacs != "") print "    MACs " newmacs
+                    next
+                }
                 if (lk=="serveraliveinterval") {
                     saw_sai=1
                     if (newsai != "") print "    ServerAliveInterval " newsai
@@ -4265,7 +4521,8 @@ sshd_dns_rewrite() {
     }
     sshd_dns_commit_tmp "${_tmp}" "${_cfg}"
     unset _rw_n _new_dns _new_ip _new_user _new_port _new_idfile _new_idonly
-    unset _new_sai _new_sacm _new_tcpka _new_ipqos _new_hka _new_paa _cfg _tmp
+    unset _new_sai _new_sacm _new_tcpka _new_ipqos _new_hka _new_paa
+    unset _new_ciphers _new_macs _cfg _tmp
 }
 
 # Insert a concrete Host before the first wildcard Host / Match (OpenSSH first-match).
@@ -4282,6 +4539,8 @@ sshd_dns_append() {
     _new_ipqos="${10-}"
     _new_hka="${11-}"
     _new_paa="${12-}"
+    _new_ciphers="${13-}"
+    _new_macs="${14-}"
     _cfg=$(sshd_dns_config_path)
     sshd_dns_ensure_file
     sshd_dns_backup "${_cfg}" "dns-add"
@@ -4291,7 +4550,8 @@ sshd_dns_append() {
         -v newidfile="${_new_idfile}" -v newidonly="${_new_idonly}" \
         -v newsai="${_new_sai}" -v newsacm="${_new_sacm}" \
         -v newtcpka="${_new_tcpka}" -v newipqos="${_new_ipqos}" \
-        -v newhka="${_new_hka}" -v newpaa="${_new_paa}" '
+        -v newhka="${_new_hka}" -v newpaa="${_new_paa}" \
+        -v newciphers="${_new_ciphers}" -v newmacs="${_new_macs}" '
         function parse_line(line,    s) {
             key=""; val=""; lk=""
             s=line
@@ -4315,6 +4575,8 @@ sshd_dns_append() {
             if (newport != "" && newport != "22") print "    Port " newport
             if (newidfile != "") print "    IdentityFile " newidfile
             if (newidonly != "") print "    IdentitiesOnly " newidonly
+            if (newciphers != "") print "    Ciphers " newciphers
+            if (newmacs != "") print "    MACs " newmacs
             if (newsai != "") print "    ServerAliveInterval " newsai
             if (newsacm != "") print "    ServerAliveCountMax " newsacm
             if (newtcpka != "") print "    TCPKeepAlive " newtcpka
@@ -4340,7 +4602,8 @@ sshd_dns_append() {
     }
     sshd_dns_commit_tmp "${_tmp}" "${_cfg}"
     unset _new_dns _new_ip _new_user _new_port _new_idfile _new_idonly
-    unset _new_sai _new_sacm _new_tcpka _new_ipqos _new_hka _new_paa _cfg _tmp
+    unset _new_sai _new_sacm _new_tcpka _new_ipqos _new_hka _new_paa
+    unset _new_ciphers _new_macs _cfg _tmp
 }
 
 # Drop concrete Host stanza number n (whole stanza, including extra aliases).
@@ -4528,6 +4791,8 @@ sshd_dns_apply_set() {
     _ipqos="${DNS_R_IPQOS}"
     _hka="${DNS_R_HKA}"
     _paa="${DNS_R_PAA}"
+    _ciphers="${DNS_R_CIPHERS}"
+    _macs="${DNS_R_MACS}"
     sshd_dns_parse_kv "$@"
     [ "${DNS_SET_DNS}" -eq 1 ] && _dns="${DNS_NEW_DNS}"
     [ "${DNS_SET_IP}" -eq 1 ] && _ip="${DNS_NEW_IP}"
@@ -4537,16 +4802,21 @@ sshd_dns_apply_set() {
     [ "${DNS_SET_IDONLY}" -eq 1 ] && _idonly="${DNS_NEW_IDONLY}"
     if [ "${DNS_SET_TERMUX}" -eq 1 ]; then
         if [ "${DNS_NEW_TERMUX}" = "yes" ]; then
-            _port="8022"
-            _sai="15"
-            _sacm="12"
-            _tcpka="yes"
-            _ipqos="none"
+            sshd_dns_termux_bundle_yes
+            _port="${DNS_TX_PORT}"
+            _sai="${DNS_TX_SAI}"
+            _sacm="${DNS_TX_SACM}"
+            _tcpka="${DNS_TX_TCPKA}"
+            _ipqos="${DNS_TX_IPQOS}"
+            _ciphers="${DNS_TX_CIPHERS}"
+            _macs="${DNS_TX_MACS}"
         else
             _sai=""
             _sacm=""
             _tcpka=""
             _ipqos=""
+            _ciphers=""
+            _macs=""
         fi
     fi
     if [ "${DNS_SET_OLD}" -eq 1 ]; then
@@ -4565,15 +4835,17 @@ sshd_dns_apply_set() {
         out_die "dns name '${_dns}' is already a Host entry. Next: ${APP_NAME} dns list"
     fi
     sshd_dns_rewrite "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
-        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}"
+        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}" \
+        "${_ciphers}" "${_macs}"
     if [ "${JSON}" -eq 1 ]; then
         out_json "out_success" "Host entry updated." "n" "${_n}" "dns" "${_dns}" "ip" "${_ip}" "user" "${_user}" "port" "${_port}"
     else
         out_success "Updated Host ${_dns} in $(sshd_dns_config_path)."
         sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
-            "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}"
+            "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}" \
+            "${_ciphers}" "${_macs}"
     fi
-    unset _sel _row _n _dns _ip _user _port _idfile _idonly _sai _sacm _tcpka _ipqos _hka _paa
+    unset _sel _row _n _dns _ip _user _port _idfile _idonly _sai _sacm _tcpka _ipqos _hka _paa _ciphers _macs
 }
 
 sshd_dns_walk_edit() {
@@ -4593,8 +4865,11 @@ sshd_dns_walk_edit() {
     _ipqos="${DNS_R_IPQOS}"
     _hka="${DNS_R_HKA}"
     _paa="${DNS_R_PAA}"
+    _ciphers="${DNS_R_CIPHERS}"
+    _macs="${DNS_R_MACS}"
     sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
-        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}"
+        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}" \
+        "${_ciphers}" "${_macs}"
     if ! sshd_dns_can_prompt; then
         out_die "dns edit needs a terminal. Next: ${APP_NAME} dns set ${_n} ip <addr> user \"\" port 22"
     fi
@@ -4605,20 +4880,25 @@ sshd_dns_walk_edit() {
     _ip="${DNS_FIELD_VALUE}"
     sshd_dns_prompt_field "user" "${_user}" "$(sshd_dns_disp_user "${_user}")"
     _user="${DNS_FIELD_VALUE}"
-    _termux_def=$(sshd_dns_disp_termux "${_port}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}")
-    out_info "as Termux writes Port 8022, ServerAliveInterval 15, ServerAliveCountMax 12, TCPKeepAlive yes, IPQoS none."
+    _termux_def=$(sshd_dns_disp_termux "${_port}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_ciphers}" "${_macs}")
+    out_info "as Termux writes Port 8022, Ciphers aes128-ctr,aes256-ctr, MACs hmac-sha2-256, ServerAliveInterval 15, ServerAliveCountMax 12, TCPKeepAlive yes, IPQoS none (slow Termux sshd can otherwise corrupt the session)."
     sshd_dns_prompt_yn "as Termux" "${_termux_def}"
     if [ "${DNS_YN_VALUE}" = "yes" ]; then
-        _port="8022"
-        _sai="15"
-        _sacm="12"
-        _tcpka="yes"
-        _ipqos="none"
+        sshd_dns_termux_bundle_yes
+        _port="${DNS_TX_PORT}"
+        _sai="${DNS_TX_SAI}"
+        _sacm="${DNS_TX_SACM}"
+        _tcpka="${DNS_TX_TCPKA}"
+        _ipqos="${DNS_TX_IPQOS}"
+        _ciphers="${DNS_TX_CIPHERS}"
+        _macs="${DNS_TX_MACS}"
     else
         _sai=""
         _sacm=""
         _tcpka=""
         _ipqos=""
+        _ciphers=""
+        _macs=""
         sshd_dns_prompt_field "port" "${_port}" "$(sshd_dns_disp_port "${_port}")"
         _port="${DNS_FIELD_VALUE}"
     fi
@@ -4643,11 +4923,13 @@ sshd_dns_walk_edit() {
         out_die "dns name '${_dns}' is already a Host entry. Next: ${APP_NAME} dns list"
     fi
     sshd_dns_rewrite "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
-        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}"
+        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}" \
+        "${_ciphers}" "${_macs}"
     out_success "Updated Host ${_dns} in $(sshd_dns_config_path)."
     sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
-        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}"
-    unset _sel _row _n _dns _ip _user _port _idfile _idonly _sai _sacm _tcpka _ipqos _hka _paa _termux_def _old_def
+        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}" \
+        "${_ciphers}" "${_macs}"
+    unset _sel _row _n _dns _ip _user _port _idfile _idonly _sai _sacm _tcpka _ipqos _hka _paa _ciphers _macs _termux_def _old_def
 }
 
 sshd_dns_walk_add() {
@@ -4663,6 +4945,8 @@ sshd_dns_walk_add() {
     _ipqos=""
     _hka=""
     _paa=""
+    _ciphers=""
+    _macs=""
     _idonly_def=""
     if sshd_dns_can_prompt && [ $# -eq 0 ]; then
         out_info "New Host in $(sshd_dns_config_path). Enter keeps empty. Type \"\" for empty."
@@ -4672,14 +4956,17 @@ sshd_dns_walk_add() {
         _ip="${DNS_FIELD_VALUE}"
         sshd_dns_prompt_field "user" "" "empty"
         _user="${DNS_FIELD_VALUE}"
-        out_info "as Termux writes Port 8022, ServerAliveInterval 15, ServerAliveCountMax 12, TCPKeepAlive yes, IPQoS none."
+        out_info "as Termux writes Port 8022, Ciphers aes128-ctr,aes256-ctr, MACs hmac-sha2-256, ServerAliveInterval 15, ServerAliveCountMax 12, TCPKeepAlive yes, IPQoS none (slow Termux sshd can otherwise corrupt the session)."
         sshd_dns_prompt_yn "as Termux" "yes"
         if [ "${DNS_YN_VALUE}" = "yes" ]; then
-            _port="8022"
-            _sai="15"
-            _sacm="12"
-            _tcpka="yes"
-            _ipqos="none"
+            sshd_dns_termux_bundle_yes
+            _port="${DNS_TX_PORT}"
+            _sai="${DNS_TX_SAI}"
+            _sacm="${DNS_TX_SACM}"
+            _tcpka="${DNS_TX_TCPKA}"
+            _ipqos="${DNS_TX_IPQOS}"
+            _ciphers="${DNS_TX_CIPHERS}"
+            _macs="${DNS_TX_MACS}"
         else
             sshd_dns_prompt_field "port" "" "22"
             _port="${DNS_FIELD_VALUE}"
@@ -4708,11 +4995,14 @@ sshd_dns_walk_add() {
         [ "${DNS_SET_IDFILE}" -eq 1 ] && _idfile="${DNS_NEW_IDFILE}"
         [ "${DNS_SET_IDONLY}" -eq 1 ] && _idonly="${DNS_NEW_IDONLY}"
         if [ "${DNS_SET_TERMUX}" -eq 1 ] && [ "${DNS_NEW_TERMUX}" = "yes" ]; then
-            _port="8022"
-            _sai="15"
-            _sacm="12"
-            _tcpka="yes"
-            _ipqos="none"
+            sshd_dns_termux_bundle_yes
+            _port="${DNS_TX_PORT}"
+            _sai="${DNS_TX_SAI}"
+            _sacm="${DNS_TX_SACM}"
+            _tcpka="${DNS_TX_TCPKA}"
+            _ipqos="${DNS_TX_IPQOS}"
+            _ciphers="${DNS_TX_CIPHERS}"
+            _macs="${DNS_TX_MACS}"
         fi
         if [ "${DNS_SET_OLD}" -eq 1 ] && [ "${DNS_NEW_OLD}" = "yes" ]; then
             _hka="+ssh-rsa,ssh-dss"
@@ -4726,16 +5016,18 @@ sshd_dns_walk_add() {
         out_die "dns name '${_dns}' is already a Host entry. Next: ${APP_NAME} dns list"
     fi
     sshd_dns_append "${_dns}" "${_ip}" "${_user}" "${_port}" \
-        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}"
+        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}" \
+        "${_ciphers}" "${_macs}"
     _n=$(sshd_dns_count)
     if [ "${JSON}" -eq 1 ]; then
         out_json "out_success" "Host entry added." "n" "${_n}" "dns" "${_dns}" "ip" "${_ip}" "user" "${_user}" "port" "${_port}"
     else
         out_success "Added Host ${_dns} in $(sshd_dns_config_path)."
         sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
-            "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}"
+            "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}" \
+            "${_ciphers}" "${_macs}"
     fi
-    unset _dns _ip _user _port _idfile _idonly _sai _sacm _tcpka _ipqos _hka _paa _n _idonly_def
+    unset _dns _ip _user _port _idfile _idonly _sai _sacm _tcpka _ipqos _hka _paa _ciphers _macs _n _idonly_def
 }
 
 sshd_dns_apply_delete() {
@@ -4750,7 +5042,8 @@ sshd_dns_apply_delete() {
     _port="${DNS_R_PORT}"
     if sshd_dns_can_prompt; then
         sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
-            "${DNS_R_IDFILE}" "${DNS_R_IDONLY}" "${DNS_R_SAI}" "${DNS_R_SACM}" "${DNS_R_TCPKA}" "${DNS_R_IPQOS}" "${DNS_R_HKA}" "${DNS_R_PAA}"
+            "${DNS_R_IDFILE}" "${DNS_R_IDONLY}" "${DNS_R_SAI}" "${DNS_R_SACM}" "${DNS_R_TCPKA}" "${DNS_R_IPQOS}" "${DNS_R_HKA}" "${DNS_R_PAA}" \
+            "${DNS_R_CIPHERS}" "${DNS_R_MACS}"
         if [ "${FORCE}" -eq 0 ]; then
             if ! prompt_yes_no "Delete Host ${_dns} from $(sshd_dns_config_path)"; then
                 out_info "Delete cancelled."
@@ -4852,7 +5145,8 @@ sshd_cmd_dns() {
             _row=$(sshd_dns_lookup "${_sel}") || out_die "No Host entry '${_sel}' in $(sshd_dns_config_path). Next: ${APP_NAME} dns list"
             sshd_dns_load_row "${_row}"
             sshd_dns_print_details "${DNS_R_N}" "${DNS_R_DNS}" "${DNS_R_IP}" "${DNS_R_USER}" "${DNS_R_PORT}" \
-                "${DNS_R_IDFILE}" "${DNS_R_IDONLY}" "${DNS_R_SAI}" "${DNS_R_SACM}" "${DNS_R_TCPKA}" "${DNS_R_IPQOS}" "${DNS_R_HKA}" "${DNS_R_PAA}"
+                "${DNS_R_IDFILE}" "${DNS_R_IDONLY}" "${DNS_R_SAI}" "${DNS_R_SACM}" "${DNS_R_TCPKA}" "${DNS_R_IPQOS}" "${DNS_R_HKA}" "${DNS_R_PAA}" \
+                "${DNS_R_CIPHERS}" "${DNS_R_MACS}"
             unset _sel _row
             ;;
         edit)
@@ -4944,7 +5238,7 @@ app_about() {
     : "${QUIET:=0}"
     : "${APP_NAME:=sshd-cli}"
     # Version comes from global SSOT (VERSION="…" hard-assign near top); default only if unset
-    : "${VERSION:=1.10.0}"
+    : "${VERSION:=1.11.0}"
     if [ -n "${PREFIX-}" ] && [ -d "${PREFIX}/bin" ]; then
     : "${GLOBAL_BIN:=${PREFIX}/bin}"
 else
@@ -5119,7 +5413,7 @@ fi
 
 app_version() {
     : "${APP_NAME:=sshd-cli}"
-    : "${VERSION:=1.10.0}"
+    : "${VERSION:=1.11.0}"
     : "${JSON:=0}"
     if [ "${JSON}" -eq 1 ]; then
         # Same machine contract as historical app_main inline path
@@ -5149,7 +5443,7 @@ app_help() {
     if [ "${JSON}" -eq 1 ]; then
         out_json "success" "Help text available in human-readable mode. Run without --json." \
             "command" "help" \
-            "note" "Use --json with version, about, version-check, install, self-update, self-uninstall."
+            "note" "Use --json with version, about, version-check, install, self-update, self-uninstall, rc-test."
         return 0
     fi
 
@@ -5194,6 +5488,10 @@ app_help() {
     out_empty_line
     # --- end DOMAIN_HELP_ROWS ---
 
+    out_info "Tests (local folder; not install):"
+    out_plain "  rc-test              Prove PATH/profile ensure in --root tmp (--file bashrc|profile --case create|modify|noop). Does not write this login's real ~/.bashrc"
+    out_empty_line
+
     out_info "Global Options:"
     out_plain "  --quiet, -q          Suppress info/success (errors and warnings still shown)"
     out_plain "  --json               Machine-readable JSON (implies --quiet)"
@@ -5206,6 +5504,8 @@ app_help() {
     : "${REPO_USER:=cloudgen}"
     : "${REPO_NAME:=sshd-cli}"
     : "${SCRIPT_URL:=}"
+    : "${HOME:=/tmp}"
+    : "${BASHRC:=${HOME}/.bashrc}"
 
     out_info "Environment:"
     out_plain "  REPO_USER            ${REPO_USER}"
@@ -5218,6 +5518,8 @@ app_help() {
         out_plain "  SCRIPT_URL           (not set)"
     fi
     out_plain "                       Canonical install channel (override via env; needed for version-check/self-update)"
+    out_plain "  BASHRC               ${BASHRC}"
+    out_plain "                       Interactive rc written by install PATH ensure (default \${HOME}/.bashrc; override for tests/CI)"
     out_empty_line
 }
 
@@ -5276,6 +5578,7 @@ app_main() {
     # --- Safe Variable Defaults ---
     : "${COMMAND:=help}"
     : "${DOMAIN_OPERANDS:=}"
+    : "${RC_TEST_OPERANDS:=}"
     : "${QUIET:=0}"
     : "${JSON:=0}"
     : "${DEBUG:=0}"
@@ -5326,7 +5629,7 @@ app_main() {
             # --- DOMAIN_DISPATCH_FLAGS (specializee injection) ---
             # Specialized products MAY parse domain-only flags here (e.g. --no-cloudflare).
             # --- end DOMAIN_DISPATCH_FLAGS ---
-            version|about|help|version-check|self-update|self-uninstall|install)
+            version|about|help|version-check|self-update|self-uninstall|install|rc-test)
                 COMMAND="$1"
                 ;;
             # --- DOMAIN_DISPATCH_COMMANDS (specializee injection) ---
@@ -5353,6 +5656,13 @@ app_main() {
             # --- end DOMAIN_DISPATCH_COMMANDS ---
             *)
                 case "${COMMAND}" in
+                    rc-test)
+                        if [ -n "${RC_TEST_OPERANDS}" ]; then
+                            RC_TEST_OPERANDS="${RC_TEST_OPERANDS} $1"
+                        else
+                            RC_TEST_OPERANDS="$1"
+                        fi
+                        ;;
                     port|host-keys|auth-keys|dns)
                         if [ "${COMMAND}" = "dns" ] && [ -z "$1" ]; then
                             _op='""'
@@ -5395,6 +5705,11 @@ app_main() {
             ;;
         install)
             inst_perform_install
+            ;;
+        rc-test)
+            # shellcheck disable=SC2086
+            set -- ${RC_TEST_OPERANDS}
+            path_rc_test "$@"
             ;;
         # --- DOMAIN_DISPATCH_ROUTES (specializee injection) ---
         # No systemd / systemctl / termux-services / sv-enable / add-crontab / enable-service.

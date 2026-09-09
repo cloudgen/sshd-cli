@@ -7,7 +7,7 @@
 This file is the single home for **where scratch and cache live** for a run of `sshd-cli`: one per-user folder, one resolver, wired from `app_main` and shown on `about`.
 
 **Scope:** Resolve priority chain; isolation; `util_resolve_storage` contract; `EFFECTIVE_STORAGE_DIR` / `TMPDIR` export; about human + JSON fields.  
-**Out of scope (cited, not re-owned):** Binary install paths (`USER_BIN` / `GLOBAL_BIN`); domain project trees (sshd-cli does not keep a separate project tree; only scratch/cache); companion checksum; PATH shell-rc.
+**Out of scope (cited, not re-owned):** Binary install paths (`USER_BIN` / `GLOBAL_BIN`); domain project trees (sshd-cli does not keep a separate project tree; only scratch/cache); companion checksum; PATH shell-rc (`requirement-shell-path-and-shell-support`).
 
 ### 1.1 Human-facing
 

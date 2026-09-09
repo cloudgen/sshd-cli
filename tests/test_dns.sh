@@ -367,6 +367,8 @@ EOF
     assert_contains "TP-DNS-27 ServerAliveCountMax 12" "$_cfg" "ServerAliveCountMax 12"
     assert_contains "TP-DNS-27 TCPKeepAlive yes" "$_cfg" "TCPKeepAlive yes"
     assert_contains "TP-DNS-27 IPQoS none" "$_cfg" "IPQoS none"
+    assert_contains "TP-DNS-27 Ciphers aes128-ctr,aes256-ctr" "$_cfg" "Ciphers aes128-ctr,aes256-ctr"
+    assert_contains "TP-DNS-27 MACs hmac-sha2-256" "$_cfg" "MACs hmac-sha2-256"
     _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show tphone 2>&1)
     assert_contains "TP-DNS-27 show termux yes" "$_out" "termux: yes"
 
@@ -405,6 +407,8 @@ EOF
     assert_contains "TP-DNS-30 walk Host" "$_cfg" "Host walktermux"
     assert_contains "TP-DNS-30 walk Port 8022" "$_cfg" "Port 8022"
     assert_contains "TP-DNS-30 walk ServerAliveInterval" "$_cfg" "ServerAliveInterval 15"
+    assert_contains "TP-DNS-30 walk Ciphers" "$_cfg" "Ciphers aes128-ctr,aes256-ctr"
+    assert_contains "TP-DNS-30 walk MACs" "$_cfg" "MACs hmac-sha2-256"
     assert_contains "TP-DNS-30 walk HostKeyAlgorithms" "$_cfg" "HostKeyAlgorithms +ssh-rsa,ssh-dss"
 
     # TP-DNS-31 INTERACTIVE add: Termux n prompts Port; Old OpenSSH n omits algorithms
@@ -426,6 +430,8 @@ EOF
     assert_contains "TP-DNS-31 Port 2200" "$_cfg" "Port 2200"
     _wl=$(awk 'BEGIN{p=0} /^Host walklinux/{p=1; next} /^Host /{p=0} p{print}' "${CI_HOME}/.ssh/config")
     assert_not_contains "TP-DNS-31 no ServerAlive on Termux n" "$_wl" "ServerAliveInterval"
+    assert_not_contains "TP-DNS-31 no Ciphers on Termux n" "$_wl" "Ciphers"
+    assert_not_contains "TP-DNS-31 no MACs on Termux n" "$_wl" "MACs"
     assert_not_contains "TP-DNS-31 no HostKeyAlgorithms on old n" "$_wl" "HostKeyAlgorithms"
 
     # TP-DNS-32 set termux no strips keep-alives; Port stays unless set
@@ -437,6 +443,8 @@ EOF
     assert_contains "TP-DNS-32 Port 8022 kept" "$_tp" "Port 8022"
     assert_not_contains "TP-DNS-32 ServerAlive stripped" "$_tp" "ServerAliveInterval"
     assert_not_contains "TP-DNS-32 TCPKeepAlive stripped" "$_tp" "TCPKeepAlive"
+    assert_not_contains "TP-DNS-32 Ciphers stripped" "$_tp" "Ciphers"
+    assert_not_contains "TP-DNS-32 MACs stripped" "$_tp" "MACs"
     _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show tphone 2>&1)
     assert_contains "TP-DNS-32 show termux no" "$_out" "termux: no"
 
@@ -464,6 +472,28 @@ EOF
     assert_contains "TP-DNS-35 names identity-file" "$_err" "identity-file"
     assert_contains "TP-DNS-35 names termux" "$_err" "termux"
     assert_contains "TP-DNS-35 names old-openssh" "$_err" "old-openssh"
+
+    # TP-DNS-36 keep-alive-only stanza (no simpler Ciphers/MACs) is not the Termux bundle
+    _dns_fixture
+    cat > "${CI_HOME}/.ssh/config" <<'EOF'
+Host oldtx
+    HostName 10.9.9.9
+    Port 8022
+    ServerAliveInterval 15
+    ServerAliveCountMax 12
+    TCPKeepAlive yes
+    IPQoS none
+EOF
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show oldtx 2>&1)
+    assert_contains "TP-DNS-36 old keep-alives termux no" "$_out" "termux: no"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns set oldtx termux yes 2>&1)
+    _ec=$?
+    assert_eq "TP-DNS-36 set termux yes exit 0" 0 "$_ec"
+    _ot=$(awk 'BEGIN{p=0} /^Host oldtx/{p=1; next} /^Host /{p=0} p{print}' "${CI_HOME}/.ssh/config")
+    assert_contains "TP-DNS-36 Ciphers written" "$_ot" "Ciphers aes128-ctr,aes256-ctr"
+    assert_contains "TP-DNS-36 MACs written" "$_ot" "MACs hmac-sha2-256"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show oldtx 2>&1)
+    assert_contains "TP-DNS-36 show termux yes after set" "$_out" "termux: yes"
 
     ci_cleanup_env
 }

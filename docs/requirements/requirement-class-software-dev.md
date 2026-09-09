@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-class-software-dev.md  
-**Status**: Active (Version 1.0.3 – sshd-cli class law + residual stack)  
+**Status**: Active (Version 1.0.4 – residual pointer: path-and-shell-support)  
 **Area**: class  
 **Key**: `requirement-class-software-dev`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -121,6 +121,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Type 0 CLI surface / flags / dispatch | `requirement-shell-cli-interface` | Do not duplicate |
 | Empty argv TTY menu / non-TTY install-ensure | `requirement-shell-cli-zero-arguments` | Do not duplicate |
 | Self-management lifecycle | `requirement-shell-self-management` | Do not duplicate |
+| PATH / profile / shell-rc sibling unify | `requirement-shell-path-and-shell-support` | Do not duplicate |
 | Automatic companion digest | `requirement-shell-automatic-checksum` | Do not duplicate |
 | Output SSOT (`out_*`) | `requirement-shell-output-requirements` | Do not duplicate |
 | Scratch/cache storage resolve | `requirement-shell-cli-storage` | Do not duplicate |
@@ -133,6 +134,8 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Coding-style related REQ | `requirement-shell-script-coding` | Specialize-in home; class residual **points** |
 | Actor / role / subject / approver | *none* (considered — **no dest approver**) | No dest review machine |
 | Dest fence conditions | *none* (considered — **no dest fence conditions**) | No dest inbound queue |
+| Login-review hook | *none* (considered — **no login-hook**) | Type 0 sshd helper; no dest review scrap |
+| Type 1 rc-owner heal | *none* (considered — **this-login writer**) | No elevated `setup` `chown` of another home |
 
 ---
 
@@ -210,6 +213,7 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 | `requirement-shell-cli-interface` | Command surface, flags, dispatch |
 | `requirement-shell-cli-zero-arguments` | Type O empty argv |
 | `requirement-shell-self-management` | Lifecycle |
+| `requirement-shell-path-and-shell-support` | PATH / profile / sibling unify |
 | `requirement-shell-automatic-checksum` | Companion integrity |
 | `requirement-shell-output-requirements` | `out_*` SSOT |
 | `requirement-shell-cli-storage` | Scratch/cache resolve |
@@ -230,6 +234,6 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 
 ---
 
-**Last Updated**: 2026-09-05  
+**Last Updated**: 2026-09-09 (residual: path-and-shell-support)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 4, 5, 20, 21 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

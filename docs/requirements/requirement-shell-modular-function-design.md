@@ -150,7 +150,7 @@ function_name() {
 | User-facing output | `out_*` | No raw user messages outside `out_*` |
 | Install + CLI lifecycle | `inst_*` | One install orchestrator; self-update reuses it |
 | Version compare / remote check | `ver_*` | Pure compare helpers stay portable |
-| PATH / shell profile | `path_*` | Duplicate-safe append; create `~/.bashrc` if missing; create `~/.profile` if absent (never overwrite) |
+| PATH / shell profile | `path_*` | Duplicate-safe append; create `~/.bashrc` if missing; create `~/.profile` if absent (never overwrite). **Bodies:** `requirement-shell-path-and-shell-support` |
 | CLI entry / dispatch | `app_*` | Single dispatcher; no second parallel main |
 | Interactive confirm | `prompt_*` | Single source for yes/no; non-interactive safe behavior |
 | Backup / storage resolve | `util_*` | Reusable; no domain-specific hardcodes as universal law |
@@ -181,7 +181,7 @@ function_name() {
 | `out_` | `out_text`, `out_success`, `out_info`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_msg_n`, `out_empty_line`, `out_double_line`, `out_json`, `out_json_error` |
 | `inst_` | `inst_perform_install`, `inst_ensure_companion`, `inst_perform_install_prepare_target`, `inst_perform_install_download_with_checksum`, `inst_perform_install_download_without_checksum`, `inst_perform_install_atomic_install`, `inst_maybe_install`, `inst_self_update`, `inst_self_uninstall` (+ determine_bin / confirm_and_remove / cleanup_path), `inst_is_installed`, `inst_get_version` |
 | `ver_` | `ver_gt`, `ver_check` |
-| `path_` | `path_add_bashrc`, `path_ensure_profile`, `path_add_zshrc`, `path_add_fish`, `path_add_shell` |
+| `path_` | `path_add_bashrc`, `path_ensure_profile`, `path_add_zshrc`, `path_add_fish`, `path_add_shell`, `path_rc_test` |
 | `util_` | `util_json_escape`, `util_sha256_file`, `util_fetch_remote_version`, `util_get_install_bin_path`, `util_backup`, `util_resolve_storage` (**wired** from `app_main` / `app_about`; SSOT: `requirement-shell-cli-storage.md`), `util_get_current_shell` |
 | `prompt_` | `prompt_ask`, `prompt_yes_no` |
 | `app_` | `app_about`, `app_version` (dispatcher routes `version` here), `app_help`, `app_main` |

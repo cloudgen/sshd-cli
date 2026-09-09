@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-interface.md  
-**Status**: Active (Version 1.10.0)  
+**Status**: Active (Version 1.13.0)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -93,9 +93,10 @@ Destructive Type 0 actions (e.g. uninstall) **MUST** confirm when interactive un
 `help` **MUST** list:
 
 - Usage line  
-- Every supported command with one-line purpose  
+- Every supported **operational** command with one-line purpose  
 - Privilege category (at least Type 0 vs elevated vs system-user when those exist)  
 - Global flags  
+- **Test-purpose** verbs (when any exist, including `rc-test`) under a heading **apart** from operational verbs  
 
 In JSON mode, help **MUST NOT** dump long human text; return a short structured success/note object instead.
 
@@ -133,9 +134,10 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | **Primary executable** | Repo root `./sshd-cli` (POSIX `/bin/sh`, single-file for `curl \| sh`) |
 | **Dispatcher** | `app_main` (always invoked at end of script: `app_main "$@"` — no `${0##*/}` / APP_NAME basename gate; required for `curl \| sh`) |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION` default `1.10.0` (script header / config block: `VERSION="1.10.0"`) |
+| **Version SSOT** | `VERSION` default `1.13.0` (script header / config block: `VERSION="1.13.0"`) |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`, or `${PREFIX}/bin` when Termux `PREFIX/bin` exists; User: `USER_BIN` default `${HOME}/.local/bin` |
-| **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`) |
+| **Interactive rc write path** | `BASHRC` default `${HOME}/.bashrc`. `install` PATH ensure creates/modifies this file. Tests/CI **MAY** set `BASHRC` to a file in a temp folder. Dual mention: `requirement-shell-path-and-shell-support`. |
+| **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`). **`help` Environment also lists `BASHRC`.** |
 | **Type 1 / Type 2 commands** | **None**. Domain sshd start/stop on Linux may **need a root login**; the CLI does **not** wrap `sudo`. Termux, Git Bash, and Windows cmd are a **command line for normal user only**: Type 1/2 stay unused; sshd on Termux runs as this login. |
 | **Dedicated system user** | **Not required**. **MUST NOT** enable on Termux, Git Bash, or Windows cmd. |
 | **Normal-user-only CLI detect** | `sshd_is_normal_user_only_cli` = Termux **or** Git Bash **or** Windows cmd |
@@ -145,13 +147,13 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | Command | Type | Handler (current) | Required behavior |
 |---------|------|-------------------|-------------------|
 | *(no args — empty argv)* | Type 0 | `app_main` → `sshd_cmd_menu` (TTY) or `inst_perform_install` / `inst_maybe_install` (non-TTY) | Interactive: domain menu. Non-interactive: **Type O install-ensure**. Never help. See `requirement-shell-cli-zero-arguments.md` |
-| `install` | Type 0 | `inst_perform_install` | Place binary; **always** `inst_ensure_companion` (rc + Termux pkg); then **start sshd** (`sshd_start_after_install`). Idempotent unless force reinstall of the binary. Dual mention: `requirement-shell-self-management` · `requirement-domain-sshd` |
+| `install` | Type 0 | `inst_perform_install` | Place binary; **always** `inst_ensure_companion` (rc + Termux pkg); then **start sshd** (`sshd_start_after_install`). Idempotent unless force reinstall of the binary. Dual mention: `requirement-shell-self-management` · `requirement-shell-path-and-shell-support` · `requirement-domain-sshd` |
 | `version` | Type 0 | `app_main` / `app_version` | Print local version; JSON object when `--json` |
 | `about` | Type 0 | `app_about` | Diagnostics: install presence, global/local paths, user, shell, TTY; JSON when `--json`; **no `CHECKSUM` field** |
 | `version-check` | Type 0 | `ver_check` | Compare local vs remote `VERSION` from `SCRIPT_URL`; fail clearly if URL unset/unreachable |
 | `self-update` | Type 0 | `inst_self_update` | Fetch remote version; reinstall when policy allows; reuse install primitives |
 | `self-uninstall` | Type 0 | `inst_self_uninstall` | Remove managed binary; PATH cleanup only if `~/.local/bin` empty (user installs) |
-| `help` | Type 0 | `app_help` | Full usage in human mode; short JSON note in JSON mode; Environment lists channel vars only — **not** `CHECKSUM` |
+| `help` | Type 0 | `app_help` | Full usage in human mode; short JSON note in JSON mode; Environment lists channel vars plus `BASHRC` — **not** `CHECKSUM` |
 | `status` | Type 0 domain | `sshd_cmd_status` | Show sshd running/port/paths and a live `ssh -p … user@lan` connect line. systemd host: unit name + active. Dual mention: `requirement-domain-sshd` |
 | `start` | Type 0 domain | `sshd_cmd_start` | Termux / no-unit Linux: OpenSSH `sshd -f` (no `-D`). POSIX Linux with a loaded distro unit: `systemctl start <unit>` as **root login**. Termux: auto-acquire Android wake lock. **No** routed `systemctl` verb; **no** in-tool `sudo`. Dual mention: `requirement-domain-sshd` · `requirement-shell-termux-ish` |
 | `stop` | Type 0 domain | `sshd_cmd_stop` | Same launch-path split (`systemctl stop <unit>` when a unit exists). Dual mention: `requirement-domain-sshd` |
@@ -164,6 +166,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | `menu` / `main` | Type 0 domain | `sshd_cmd_menu` | Numbered domain list on a terminal (`main` is an unlisted alias of `menu`). Same handler as interactive empty argv. POSIX Linux non-root omits start/stop/restart rows (2/3/4) and prints an INFO with the OS name. Dual mention: `requirement-domain-sshd` |
 | `wake-lock` | Type 0 | `sshd_cmd_wake_lock` | Acquire Android wake lock again (`termux-wake-lock`). Termux: fail closed if helper missing. Off Termux: success no-op. Dual mention: `requirement-shell-termux-ish` |
 | `wake-unlock` | Type 0 | `sshd_cmd_wake_unlock` | Release Android wake lock (`termux-wake-unlock`). Operator-owned. **MUST NOT** auto-run from `stop`. Dual mention: `requirement-shell-termux-ish` |
+| `rc-test` | Type 0 **test-purpose** | `path_rc_test` | Fixture create / modify / no-op against `--root` tmp/cache. **MUST NOT** write this login’s real `{{HOME}}/.bashrc`. Help lists this **apart** from operational verbs. Dual mention: `requirement-shell-path-and-shell-support`. Sample: `sshd-cli rc-test --root "$tmpdir" --file bashrc --case create` |
 
 #### Dual mention (CI-M1 — this project)
 
@@ -172,14 +175,16 @@ Every routed verb is named **here** and on a topic-owner. Help/`app_help` is **n
 | Verb | Topic-owner | Sample on owner |
 |------|-------------|-----------------|
 | empty argv | `requirement-shell-cli-zero-arguments` | `sshd-cli` (TTY menu / pipe install-ensure) |
-| `install` | `requirement-shell-self-management` · `requirement-domain-sshd` · `requirement-shell-termux-ish` | `sshd-cli install` |
+| `install` | `requirement-shell-self-management` · `requirement-shell-path-and-shell-support` · `requirement-domain-sshd` · `requirement-shell-termux-ish` | `sshd-cli install` |
 | `version` | `requirement-shell-output-requirements` | `sshd-cli version` |
 | `about` | `requirement-shell-self-management` · `requirement-shell-cli-storage` | `sshd-cli about` |
 | `help` | `requirement-shell-cli-zero-arguments` · `requirement-shell-automatic-checksum` | `sshd-cli help` |
-| `version-check` / `self-update` / `self-uninstall` | `requirement-shell-self-management` | `sshd-cli version-check` |
+| `version-check` / `self-update` | `requirement-shell-self-management` | `sshd-cli version-check` |
+| `self-uninstall` | `requirement-shell-self-management` · `requirement-shell-path-and-shell-support` | `sshd-cli --force self-uninstall` |
 | `status` / `start` / `stop` / `restart` / `port` / `config` / `host-keys` / `auth-keys` / `dns` / `menu` | `requirement-domain-sshd` | `sshd-cli status` · `sshd-cli dns list` |
 | `main` | `requirement-domain-sshd` | alias of `menu` (help names the alias; type `menu`) |
 | `wake-lock` / `wake-unlock` | `requirement-shell-termux-ish` | `sshd-cli wake-lock` · `sshd-cli wake-unlock` |
+| `rc-test` | `requirement-shell-path-and-shell-support` | `sshd-cli rc-test --root "$tmpdir" --file bashrc --case create` |
 
 #### Global flags (normative wiring for this project)
 
@@ -194,8 +199,8 @@ Every routed verb is named **here** and on a topic-owner. Help/`app_help` is **n
 
 1. Unknown token after flag parse → `out_die` with pointer to `sshd-cli help`.  
 2. Zero-arg → interactive menu **or** non-interactive install-ensure (not help); failures non-zero.  
-3. Command routing table in `app_main` **must** include every row in the command table above.  
-4. Help text **must** stay aligned with that table (no orphan commands, no listed-but-unrouted commands).  
+3. Command routing table in `app_main` **must** include every **operational** row in the command table above **and** `rc-test`.  
+4. Help text **must** stay aligned with that table (no orphan commands, no listed-but-unrouted commands). Help **MUST** list `rc-test` under a heading **apart** from operational verbs.  
 5. User-facing strings **must not** use raw `echo`/`printf` outside the `out_*` system (protected low-level helpers excepted only if already CIAO-marked and not for general messages).
 
 #### Explicitly out of scope until a new requirement
@@ -263,7 +268,8 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 10. Recommend `sudo curl | sh` or wrap `sudo` on that class.  
 11. Strip the **Under command line for normal user only** section.  
 12. Add routed verbs `systemctl` / `enable-service` / `termux-services` / `sv-enable` / `add-crontab`, or invoke `systemctl` on Termux / Git Bash / Windows cmd. POSIX Linux unit start/stop/restart stays on existing verbs (`requirement-domain-sshd` §2.2.1).  
-13. Drop `wake-lock` / `wake-unlock` from the command table without updating `requirement-shell-termux-ish`, or auto-unlock on `stop`.
+13. Drop `wake-lock` / `wake-unlock` from the command table without updating `requirement-shell-termux-ish`, or auto-unlock on `stop`.  
+14. Drop `rc-test` from the dual-mention table without updating `requirement-shell-path-and-shell-support`, mix it into operational help grouping, or treat it as install.
 
 **Violating this rule is a critical CLI interface regression.**
 
@@ -273,7 +279,7 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 
 This requirement is satisfied for the sshd-cli shell CLI when all of the following hold:
 
-1. Every command in §2.6 is routed and documented.  
+1. Every command in §2.6 is routed and documented, including test-purpose `rc-test`.  
 2. Global flags in §2.6 are parsed and honored.  
 3. Output modes match §2.4 (including JSON purity).  
 4. Install privilege paths remain invoker-based (root/global vs user/local).  
@@ -288,6 +294,7 @@ This requirement is satisfied for the sshd-cli shell CLI when all of the followi
 | Artifact | Role |
 |----------|------|
 | `docs/requirements/requirement-shell-self-management.md` | Lifecycle command semantics |
+| `docs/requirements/requirement-shell-path-and-shell-support.md` | PATH / profile; `BASHRC`; `rc-test` |
 | `docs/requirements/requirement-shell-output-requirements.md` | Output SSOT and channels |
 | `docs/requirements/requirement-shell-interactive-vs-noninteractive.md` | TTY / automation mode behavior |
 | `docs/requirements/requirement-shell-cli-zero-arguments.md` | Empty argv: TTY menu / non-TTY install-ensure |
@@ -299,6 +306,6 @@ This requirement is satisfied for the sshd-cli shell CLI when all of the followi
 
 ---
 
-**Last Updated**: 2026-09-08 (1.10.0: dual mention of systemd unit path on start/stop/restart/status)  
+**Last Updated**: 2026-09-09 (1.13.0: `rc-test` routed; testers heading)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 5, 6, 10, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

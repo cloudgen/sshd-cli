@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.10.0  
-**Last plan update:** 2026-09-08  
-**Last suite run:** PASS=365 FAIL=0 SKIP=0 (2026-09-08)
+**Product VERSION:** 1.13.0  
+**Last plan update:** 2026-09-09  
+**Last suite run:** PASS=394 FAIL=0 SKIP=0 (2026-09-09)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -26,7 +26,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | Android wake lock (auto on start + `wake-lock` verb) | have | TP-TX-08..16 |
 | sshd start is a background daemon (not a service manager) | have | TP-SSHD-01, TP-SSHD-02 |
 | POSIX Linux systemd unit path (`systemctl` start/stop/restart) | have | TP-SSHD-09..14 |
-| this-login `~/.ssh/config` dns-ip list / show / set / add / delete | have | TP-DNS-01..35 |
+| this-login `~/.ssh/config` dns-ip list / show / set / add / delete | have | TP-DNS-01..36 |
 | Automatic companion link on install (file://) | have | TP-CSUM-01 |
 | Backup / restore / sudoers emit | n/a | Absent by design (not a backup product) |
 | Online curl against public GitHub | n/a | Core suite stays offline; channel is `file://` in CI |
@@ -45,6 +45,7 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-CLI-02 | version human | test_cli | requirement-shell-cli-interface | **have** |
 | TP-CLI-03 | version JSON | test_cli | requirement-shell-output-requirements | **have** |
 | TP-CLI-04 | help lists this-login + domain verbs; no backup/restore/sudoers; no CHECKSUM | test_cli | requirement-shell-cli-interface · requirement-domain-sshd · requirement-shell-automatic-checksum | **have** |
+| TP-CLI-18 | help lists `rc-test` under testers heading apart from operational verbs | test_cli | requirement-shell-cli-interface · requirement-shell-path-and-shell-support | **have** |
 | TP-CLI-05 | help JSON short | test_cli | requirement-shell-output-requirements | **have** |
 | TP-CLI-06 | about JSON storage + `sshd_platform`; no CHECKSUM | test_cli | requirement-shell-cli-storage · requirement-domain-sshd | **have** |
 | TP-CLI-07 | empty argv non-interactive install-ensure | test_cli | requirement-shell-cli-zero-arguments · requirement-shell-interactive-vs-noninteractive | **have** |
@@ -106,15 +107,16 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-DNS-24 | TTY delete yes | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-25 | delete without n fail-closed | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-26 | JSON delete one object; other stanzas kept | test_dns | requirement-domain-sshd · requirement-shell-output-requirements | **have** |
-| TP-DNS-27 | non-interactive `add termux yes` writes Port 8022 + keep-alive / IPQoS bundle | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-27 | non-interactive `add termux yes` writes Port 8022 + keep-alive / IPQoS + Ciphers/MACs bundle | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-28 | `old-openssh yes` writes HostKeyAlgorithms / PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-29 | `identity-file` + `identities-only` written and shown | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-30 | INTERACTIVE add default as Termux (Y) + Old OpenSSH (Y) | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-DNS-31 | INTERACTIVE add Termux n prompts Port; Old OpenSSH n omits algorithms | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
-| TP-DNS-32 | `set termux no` strips keep-alives; Port kept | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-32 | `set termux no` strips keep-alives and Ciphers/MACs; Port kept | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-33 | `set old-openssh no` strips algorithm lines | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-34 | show names identity-file / termux / old-openssh | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-35 | unknown field fail-closed names identity-file / termux / old-openssh | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-36 | keep-alive-only stanza is termux no; `set termux yes` writes Ciphers/MACs | test_dns | requirement-domain-sshd | **have** |
 
 ### TP-LC (local lifecycle)
 
@@ -130,15 +132,23 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-LC-08 | about shows installed | test_local_lifecycle | requirement-shell-self-management | **have** |
 | TP-LC-09 | installed mode is `0755` | test_local_lifecycle | requirement-shell-self-management | **have** |
 | TP-LC-10 | `--force` reinstall heals `0711` → `0755` | test_local_lifecycle | requirement-shell-self-management | **have** |
-| TP-LC-11 | install creates `~/.bashrc` with USER_BIN PATH | test_local_lifecycle | requirement-shell-self-management | **have** |
-| TP-LC-12 | install creates `~/.profile` sourcing bashrc | test_local_lifecycle | requirement-shell-self-management | **have** |
-| TP-LC-13 | reinstall does not duplicate PATH | test_local_lifecycle | requirement-shell-idempotency | **have** |
-| TP-LC-14 | existing `~/.profile` body kept | test_local_lifecycle | requirement-shell-self-management | **have** |
+| TP-LC-11 | install creates `~/.bashrc` with USER_BIN PATH | test_local_lifecycle | requirement-shell-path-and-shell-support | **have** |
+| TP-LC-12 | install creates `~/.profile` sourcing bashrc | test_local_lifecycle | requirement-shell-path-and-shell-support | **have** |
+| TP-LC-13 | reinstall does not duplicate PATH | test_local_lifecycle | requirement-shell-path-and-shell-support · requirement-shell-idempotency | **have** |
+| TP-LC-14 | existing `~/.profile` body kept | test_local_lifecycle | requirement-shell-path-and-shell-support | **have** |
 | TP-LC-15 | not Termux: `pkg` not invoked | test_local_lifecycle | requirement-shell-termux-ish | **have** |
 | TP-LC-16 | Termux mock: `pkg install -y openssh termux-auth` | test_local_lifecycle | requirement-shell-termux-ish · requirement-domain-sshd | **have** |
 | TP-LC-17 | install ends by starting sshd (Termux stub) | test_local_lifecycle | requirement-domain-sshd | **have** |
 | TP-LC-18 | Git Bash mock: `pkg` not invoked (normal-user-only CLI) | test_local_lifecycle | requirement-shell-cli-interface · requirement-shell-termux-ish | **have** |
 | TP-LC-19 | Windows cmd mock: `pkg` not invoked (normal-user-only CLI) | test_local_lifecycle | requirement-shell-cli-interface · requirement-shell-termux-ish | **have** |
+| TP-LC-20 | `BASHRC` env: create rc in a random temp folder when missing | test_local_lifecycle | requirement-shell-path-and-shell-support · requirement-shell-idempotency | **have** |
+| TP-LC-21 | `BASHRC` env: modify a dongle `.bashrc` in that temp folder | test_local_lifecycle | requirement-shell-path-and-shell-support | **have** |
+| TP-LC-22 | `BASHRC` env: already-correct VERSION + exact `export PATH=` is a no-op | test_local_lifecycle | requirement-shell-path-and-shell-support · requirement-shell-idempotency | **have** |
+| TP-LC-27 | sibling exact PATH already present: no second export; sibling comment kept | test_local_lifecycle | requirement-shell-path-and-shell-support | **have** |
+| TP-LC-28 | uninstall keeps shared PATH while USER_BIN still has files | test_local_lifecycle | requirement-shell-path-and-shell-support | **have** |
+| TP-LC-29 | already installed + PATH missing: install heals exact export | test_local_lifecycle | requirement-shell-path-and-shell-support | **have** |
+| TP-LC-30 | uninstall does not delete `.profile` | test_local_lifecycle | requirement-shell-path-and-shell-support | **have** |
+| TP-LC-31 | `rc-test --root` create / modify / noop; real HOME bashrc untouched | test_local_lifecycle | requirement-shell-path-and-shell-support | **have** |
 
 ### TP-TX (Termux android-wake-lock)
 

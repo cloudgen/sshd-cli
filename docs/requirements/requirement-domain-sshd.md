@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.10.0)  
+**Status**: Active (Version 1.12.0)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -207,14 +207,14 @@ If (2) is true and (3) is false: **warn** once per command, then use the OpenSSH
 | Mode | MUST | MUST NOT |
 |------|------|----------|
 | **List** | Numbered **concrete** `Host` entries (`Host` first pattern has no `*` / `?`). Human row: `N. <dns>  <ip-or-(empty)>`. Missing file → empty list (success), not a crash. Skip `Host *`, `Match`, and `Include` (do not follow). | Treat `Host *` as a dns-ip row; rewrite `/etc/hosts` |
-| **Show** | Fields **dns**, **ip** (`HostName`), **user**, **port**, **identity-file**, **identities-only**, **termux** (yes/no), **old-openssh** (yes/no). Human: **user** empty → print `empty`. **port** empty → print `22`. **termux** is **yes** only when the Termux client bundle is present (Port **8022**, ServerAliveInterval **15**, ServerAliveCountMax **12**, TCPKeepAlive **yes**, IPQoS **none**). **old-openssh** is **yes** when HostKeyAlgorithms / PubkeyAcceptedAlgorithms are set. JSON: raw `user`/`port` may be `""`; also `user_display` / `port_display` / `identity_file` / `identities_only` / `termux` / `old_openssh`. | Invent a user or port; print a live Unix login as a sample; treat “as Termux” as this CLI’s platform detect (`sshd_is_termux`) |
+| **Show** | Fields **dns**, **ip** (`HostName`), **user**, **port**, **identity-file**, **identities-only**, **termux** (yes/no), **old-openssh** (yes/no). Human: **user** empty → print `empty`. **port** empty → print `22`. **termux** is **yes** only when the Termux client bundle is present (Port **8022**, Ciphers **aes128-ctr,aes256-ctr**, MACs **hmac-sha2-256**, ServerAliveInterval **15**, ServerAliveCountMax **12**, TCPKeepAlive **yes**, IPQoS **none**). Keep-alives without those Ciphers/MACs is **termux no**. **old-openssh** is **yes** when HostKeyAlgorithms / PubkeyAcceptedAlgorithms are set. JSON: raw `user`/`port` may be `""`; also `user_display` / `port_display` / `identity_file` / `identities_only` / `termux` / `old_openssh`. | Invent a user or port; print a live Unix login as a sample; treat “as Termux” as this CLI’s platform detect (`sshd_is_termux`) |
 | **Interactive** (`dns` with no subcommand, TTY or `INTERACTIVE=1`, not quiet/json) | Print the Host names as **context** (no choice numbers). Then an **action menu**: **1 Edit** · **2 Add** · **3 Delete** · **9 Exit**. `read` in the **current shell** (not `$()` of `prompt_ask`). Type `edit` / `add` / `delete` is the same as 1/2/3. **MUST NOT** treat the first number as a Host row (Host pick is the next screen). | Hang under `--json` / `--quiet` / no TTY (those paths **list** only); `$()` a `read` helper; jump straight to field-walk update |
 | **Edit path** | After **1 / edit**: numbered Host pick; leave with `0` / `q` / `exit` / empty — **not** `9` (row 9 is a Host when the list is long). Then **field-by-field** edit (dns, ip, user, **as Termux (Y/n)**, **port if Termux is no**, **identity-file**, **identities-only**, **Old OpenSSH (Y/n)**) with **current values as defaults**. Enter keeps current. Token `""` **or** an empty operand **means empty**. as Termux default is **yes** when the bundle is already on the stanza, else **no**. Old OpenSSH default is **yes** when algorithm lines are present. | Treat `9` as Exit on the Host pick; skip the action menu; prompt Port while as Termux is yes |
 | **Add path** | After **2 / add**: same field walk as `dns add` with no operands. TTY **as Termux** defaults **yes**; TTY **Old OpenSSH** defaults **yes**; **port** is skipped when as Termux is yes. | Require picking a Host first; apply those bundles on non-interactive add without operands |
 | **Delete path** | After **3 / delete**: numbered Host pick (`0` to leave). TTY: show details, then `prompt_yes_no` (y/N). No → success no-op (`Delete cancelled.`). Yes / `--force` / non-interactive `dns delete N` → drop that **whole** concrete Host stanza (extra aliases included). | Delete `Host *` / `Match`; skip backup; two JSON objects |
 | **edit N** | Same field walk as after the Edit pick. Non-interactive / quiet / json: **fail closed** with Next: `dns set …` | Hang waiting for fields in CI |
 | **delete N** / **rm N** | Non-interactive: no prompt; fail closed if n/name missing. JSON: one `out_success` object (`n`, `dns`). `rm` is an unlisted alias of `delete`. | Prompt; follow `Include`; remove other stanzas |
-| **set N** / **add** non-interactive | Operands `dns`/`ip`/`user`/`port`/`identity-file`/`identities-only`/`termux`/`old-openssh`, or the `--` forms. Omitted fields on **set** stay unchanged. **add** requires a dns name. `""` or empty value clears that field. Port empty or `22` → omit `Port` line (OpenSSH default 22). Empty user → omit `User`. Empty ip → omit `HostName`. Empty identity-file → omit `IdentityFile`. Empty identities-only → omit `IdentitiesOnly`. Empty dns name after normalize → `out_die`. Port if set must be 1–65535. **termux yes** (add or set) writes the Termux client bundle (Port **8022**, ServerAliveInterval **15**, ServerAliveCountMax **12**, TCPKeepAlive **yes**, IPQoS **none**) and **overrides** port. **termux no** on **set** strips those keep-alive / IPQoS lines (Port stays unless `port` is also set). **old-openssh yes** writes `HostKeyAlgorithms +ssh-rsa,ssh-dss` and `PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss`. **old-openssh no** on **set** omits those two lines. Non-interactive **add** without `termux yes` / `old-openssh yes` **MUST NOT** write those bundles. Unowned extra keys stay. | Prompt; follow `Include`; apply Termux/Old OpenSSH bundles on add without the operand; drop unowned extra keys |
+| **set N** / **add** non-interactive | Operands `dns`/`ip`/`user`/`port`/`identity-file`/`identities-only`/`termux`/`old-openssh`, or the `--` forms. Omitted fields on **set** stay unchanged. **add** requires a dns name. `""` or empty value clears that field. Port empty or `22` → omit `Port` line (OpenSSH default 22). Empty user → omit `User`. Empty ip → omit `HostName`. Empty identity-file → omit `IdentityFile`. Empty identities-only → omit `IdentitiesOnly`. Empty dns name after normalize → `out_die`. Port if set must be 1–65535. **termux yes** (add or set) writes the Termux client bundle (Port **8022**, Ciphers **aes128-ctr,aes256-ctr**, MACs **hmac-sha2-256**, ServerAliveInterval **15**, ServerAliveCountMax **12**, TCPKeepAlive **yes**, IPQoS **none**) and **overrides** port. Simpler Ciphers/MACs exist because some Termux OpenSSH `sshd` versions reply too slowly and the client then aborts with **Connection corrupted** / **Bad packet length**. **termux no** on **set** strips those keep-alive / IPQoS / Ciphers / MACs lines (Port stays unless `port` is also set). **old-openssh yes** writes `HostKeyAlgorithms +ssh-rsa,ssh-dss` and `PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss`. **old-openssh no** on **set** omits those two lines. Non-interactive **add** without `termux yes` / `old-openssh yes` **MUST NOT** write those bundles. Unowned extra keys stay. | Prompt; follow `Include`; apply Termux/Old OpenSSH bundles on add without the operand; drop unowned extra keys |
 | **Write** | Backup via `util_backup` then **atomic replace** (mktemp + `mv`) for **set, add, and delete**. Create `~/.ssh` mode `700` and `config` mode `600` when missing. Keep unrelated stanzas, extra keys, and extra Host aliases after the first pattern (delete drops only the chosen stanza). Read `Key value`, `Key=value`, and `Key = value`. **add** inserts the new Host **before** the first wildcard `Host` / `Match` (OpenSSH first-match). Duplicate dns name on rename/add → `out_die`. | Overwrite the whole file from a stub; print private keys; `>>` after trailing `Host *`; drop extra aliases on an IP-only set |
 
 **Guided-input field table (Choice C — TTY walk and operands):**
@@ -252,6 +252,8 @@ Host phone
     Port 8022
     IdentityFile ~/.ssh/phone
     IdentitiesOnly yes
+    Ciphers aes128-ctr,aes256-ctr
+    MACs hmac-sha2-256
     ServerAliveInterval 15
     ServerAliveCountMax 12
     TCPKeepAlive yes
@@ -280,10 +282,10 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExamplePublicKeyMaterialOnly laptop-user
 - `dns [list|show N|edit N|set N …|add …|delete N]` — This login `~/.ssh/config` Host list (numbered dns-ip; TTY as Termux / identity-file / Old OpenSSH; TTY edit/add/delete)  
 - `menu` — Numbered list: status, start, stop, restart, dns, Exit 9 (terminal only). POSIX Linux non-root omits rows 2/3/4 and prints the non-root INFO with the OS name
 
-`help` Type 0 `install` row **MUST** mention Termux `pkg install openssh termux-auth` and `~/.bashrc` / `~/.profile` ensure (dual mention with the CLI-interface file).
+`help` Type 0 `install` row **MUST** mention Termux `pkg install openssh termux-auth` and `~/.bashrc` / `~/.profile` ensure (dual mention: `requirement-shell-cli-interface` · `requirement-shell-path-and-shell-support` · `requirement-shell-termux-ish`).
 
 **MUST NOT** list install / self-update / version / about inside `menu`.  
-This product has **no test-purpose verbs**. Help has no tester heading.
+Help **MUST** list `rc-test` under a heading **apart** from operational verbs (`requirement-shell-path-and-shell-support` · `requirement-shell-cli-interface`).
 
 Interactive empty argv **MUST** show this same list (zero-arguments dual mention).
 
@@ -382,7 +384,8 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 28. Treat **as Termux** (per-Host SSH *client* profile for a phone that listens on 8022) as `sshd_is_termux` (this CLI’s runtime platform). They are different questions.  
 29. Show numbered start/stop/restart (rows **2** / **3** / **4**) to a **non-root** POSIX Linux login, skip the non-root INFO when those rows are hidden, wrap `sudo` to unhide them, or renumber `dns` off row **5** when hiding 2–4.  
 30. Print “use Termux” (or name another platform class) as a **next step** on POSIX Linux `start` / `stop` / not-writable errors (**INC-20260908-001**).  
-31. Tell a POSIX Linux operator that an **observed** sshd pid is “not a systemd” service or a “background daemon for this session” when this CLI has not established that it launched that pid (**INC-20260908-002**).
+31. Tell a POSIX Linux operator that an **observed** sshd pid is “not a systemd” service or a “background daemon for this session” when this CLI has not established that it launched that pid (**INC-20260908-002**).  
+32. Write the Termux client bundle **without** simpler Ciphers **aes128-ctr,aes256-ctr** and MACs **hmac-sha2-256**, or treat keep-alives-only as **termux yes**. Some Termux OpenSSH `sshd` versions reply too slowly; the client then aborts with **Connection corrupted** / **Bad packet length**.
 
 ## 5. Related artifacts (versioned surface only)
 
@@ -405,11 +408,11 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 | **TP-SSHD-01**, **TP-SSHD-03**, **TP-SSHD-04**, **TP-SSHD-05**, **TP-SSHD-06**, **TP-SSHD-07**, **TP-SSHD-08** | `tests/test_cli.sh` | have |
 | **TP-SSHD-09** .. **TP-SSHD-14** | `tests/test_cli.sh` | have |
 | **TP-LC-16**, **TP-LC-17**, **TP-SSHD-02**, **TP-TX-09**, **TP-TX-13**, **TP-TX-16** | `tests/test_local_lifecycle.sh` | have |
-| **TP-DNS-01** .. **TP-DNS-35** | `tests/test_dns.sh` | have |
+| **TP-DNS-01** .. **TP-DNS-36** | `tests/test_dns.sh` | have |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-09-08 (1.10.0: POSIX Linux systemd unit path implemented)  
+**Last Updated**: 2026-09-09 (install rc dual mention → `requirement-shell-path-and-shell-support`; `rc-test` routed)  
 **Owner**: Cloudgen Wong  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

@@ -20,6 +20,7 @@ Durable failure modes. **Always re-check on product review.**
 | L-DNS-03 | `Key=value` / extra Host aliases lost on set | Parse optional `=`; keep aliases after first pattern; TP-DNS-15/16 | open watch |
 | L-DNS-04 | TTY main menu omitted `dns` so an update-and-open looked like the Host list was never added | Number `dns` as row 5; TP-CLI-14 · TP-DNS-20 | open watch |
 | L-DNS-05 | TTY Host list treated a number as update-only; no add/delete | Action menu Edit/Add/Delete then Host pick; TP-DNS-20..24 | open watch |
+| L-RC-01 | Path-ensure claimed without routed `rc-test`; uninstall `sed` matched any installer comment | Dual-mention `rc-test`; help testers apart; strip only this `APP_NAME` comments; **INC-20260909-001**; TP-LC-27..31 · TP-CLI-18 | open watch |
 
 **Related-product only (do not re-apply as this origin’s law):** L-DEPOSIT-01, L-SUDOERS-01..05, L-OVERWRITE-01 stay on folder-backup. Type O empty-argv / online-channel lessons stay on products that own those surfaces. This product is hop 0.
 

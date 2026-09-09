@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-self-management.md  
-**Status**: Active (Version 1.1.1)  
+**Status**: Active (Version 1.1.2)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -8,8 +8,8 @@ This requirement is the **project Single Source of Truth** for **CLI self-manage
 
 It defines lifecycle capabilities and safety rules for this shell project’s self-management commands.
 
-**Scope:** Lifecycle capabilities and safety rules for `version-check`, `self-update`, `self-uninstall`, and `about` (plus reuse of install primitives).  
-**Out of scope (cited, not re-owned):** Full CLI dispatcher catalog (`requirement-shell-cli-interface.md`); pure re-run matrix (`requirement-shell-idempotency.md`); full online-install algorithm depth; Type 1 host bootstrap / Type 2 system-user app ops.
+**Scope:** Lifecycle capabilities and safety rules for `version-check`, `self-update`, `self-uninstall`, and `about` (plus reuse of install primitives). Companion **call site** (`inst_ensure_companion`) runs before the already-installed binary no-op.  
+**Out of scope (cited, not re-owned):** Full CLI dispatcher catalog (`requirement-shell-cli-interface.md`); PATH / profile / sibling-unify bodies (`requirement-shell-path-and-shell-support.md`); pure re-run matrix (`requirement-shell-idempotency.md`); full online-install algorithm depth; Type 1 host bootstrap / Type 2 system-user app ops.
 
 **Must not confuse with:** OS package managers, domain product start/stop ops, dedicated system-user policy, or non-CLI “self-management.”
 
@@ -85,7 +85,7 @@ Related Type 0 commands (`version`, `install`, `help`) are owned by `requirement
 |-------------|---------|
 | Locate binary | Resolve path from install type / Config (`GLOBAL_BIN` / `USER_BIN` / privilege), not scattered absolute path literals in business logic |
 | Remove binary | Delete only the managed CLI file(s) this tool owns |
-| PATH cleanup | Edit shell config PATH entries **only if** the managed bin directory is empty after removal (or equivalent safe policy) |
+| PATH cleanup | Call `inst_self_uninstall_cleanup_path` after binary remove. **What** may be edited in rc (this product’s comments only; shared PATH only if `USER_BIN` empty; never delete `.profile`) is `requirement-shell-path-and-shell-support` |
 | Confirmation | Interactive confirm unless `--force` / non-interactive policy applies |
 | No over-delete | **MUST NOT** wipe unrelated user data or arbitrary home trees |
 | Idempotent absence | Already uninstalled → success no-op (see idempotency requirement) |
@@ -136,8 +136,7 @@ Root may write global install path; non-root uses user path. Do not assume root 
 | **Companion digest** | Default `${SCRIPT_URL}.sha256` via `inst_perform_install_download_without_checksum` — law + transparency: `requirement-shell-automatic-checksum.md` |
 | **Force reinstall** | `FORCE_REINSTALL`; CLI `--force` required by CLI interface requirement |
 | **Uninstall steps** | `inst_self_uninstall_determine_bin` → `inst_self_uninstall_confirm_and_remove` → `inst_self_uninstall_cleanup_path` |
-| **PATH ensure** | `path_add_shell` / `path_add_bashrc` / zsh / fish — **create `~/.bashrc` if missing**, then append PATH if absent |
-| **Login rc** | `path_ensure_profile` — if `~/.profile` is **absent**, create a file that sources `~/.bashrc`; if **present**, **MUST NOT** overwrite the body |
+| **PATH / login rc** | **Call site only:** `inst_ensure_companion` → `path_add_shell`. Bodies, exact PATH line, sibling unify, scoped uninstall, `BASHRC` env, and `rc-test`: `requirement-shell-path-and-shell-support` |
 | **Companion orchestrator** | `inst_ensure_companion` then `sshd_start_after_install` on `install` / non-interactive empty-argv (including already-installed binary no-op) |
 | **Termux packages** | Invoke contract: `requirement-shell-termux-ish` (`sshd_pkg_ensure`); package names: `requirement-domain-sshd`; this file owns the call site |
 | **Privilege** | Type 0 only for self-management surface; no dedicated system user |
@@ -145,7 +144,7 @@ Root may write global install path; non-root uses user path. Do not assume root 
 
 #### Normative acceptance behaviors (this project)
 
-0. **`install` companion (always):** `inst_ensure_companion` runs **before** the already-installed binary no-op. Create/modify this login’s `~/.bashrc` (PATH). If `~/.profile` is missing, create it so a login shell sources `~/.bashrc`. Never replace an existing `.profile` body. Termux `pkg` invoke is `requirement-shell-termux-ish`; package names are `requirement-domain-sshd`.  
+0. **`install` companion (always):** `inst_ensure_companion` runs **before** the already-installed binary no-op. Rc PATH / profile bodies: `requirement-shell-path-and-shell-support`. Termux `pkg` invoke is `requirement-shell-termux-ish`; package names are `requirement-domain-sshd`.  
 1. **`version-check`:** Fetch remote `VERSION` from `SCRIPT_URL`; report local vs remote; JSON fields include local/remote and latest-status semantics; fail if channel missing/unreachable.  
 2. **`self-update`:**  
    - Fail if remote version cannot be fetched.  
@@ -220,9 +219,8 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 9. Require a dedicated system user solely for Type 0 CLI self-update without a specialized architecture requirement.  
 10. Invent a second update implementation path that bypasses `inst_perform_install*`.  
 11. Skip `inst_ensure_companion` on `install` / empty-argv because the CLI binary is already placed.  
-12. Overwrite an existing `~/.profile` body.  
-13. Leave `~/.bashrc` missing when `install` can create it.  
-14. Strip the **Under command line for normal user only** section, or recommend `sudo curl | sh` when that class is detected.
+12. Re-own PATH / profile bodies here instead of `requirement-shell-path-and-shell-support`.  
+13. Strip the **Under command line for normal user only** section, or recommend `sudo curl | sh` when that class is detected.
 
 **Self-management is critical for long-term maintainability of one-command shell CLIs. Violating this rule is a critical regression.**
 
@@ -240,7 +238,8 @@ Work claiming self-management support for sshd-cli is **not done** if any of the
 6. All messages go through output SSOT; `--json` stays machine-oriented when claimed.  
 7. Project channel/path facts live in Config/env / Implementation Notes—not scattered hardcodes.  
 8. Idempotent already-latest / already-uninstalled behaviors hold.  
-9. Implementation changes cite `requirement-shell-self-management`.
+9. Implementation changes cite `requirement-shell-self-management`.  
+10. Companion still runs on already-installed `install`. PATH / profile proof IDs (**TP-LC-11..14**, **TP-LC-20..22**) are owned by `requirement-shell-path-and-shell-support`.
 
 ---
 
@@ -249,6 +248,7 @@ Work claiming self-management support for sshd-cli is **not done** if any of the
 | Artifact | Role |
 |----------|------|
 | `docs/requirements/requirement-shell-cli-interface.md` | Command surface, flags, dispatcher |
+| `docs/requirements/requirement-shell-path-and-shell-support.md` | PATH / profile bodies; sibling unify; `rc-test` |
 | `docs/requirements/requirement-shell-idempotency.md` | Re-run safety for ensure ops |
 | `docs/requirements/requirement-shell-output-requirements.md` | Lifecycle messaging / quiet / JSON |
 | `docs/requirements/requirement-shell-modular-function-design.md` | `inst_*` / `out_*` ownership |
@@ -262,16 +262,13 @@ Work claiming self-management support for sshd-cli is **not done** if any of the
 | TP family / ID | Suite | Status |
 |----------------|-------|--------|
 | **TP-LC-01..10** | `tests/test_local_lifecycle.sh` | have |
-| **TP-LC-11** create `~/.bashrc` | `tests/test_local_lifecycle.sh` | have |
-| **TP-LC-12** create `~/.profile` | `tests/test_local_lifecycle.sh` | have |
-| **TP-LC-13** no duplicate PATH | `tests/test_local_lifecycle.sh` | have |
-| **TP-LC-14** keep existing `.profile` | `tests/test_local_lifecycle.sh` | have |
+| **TP-LC-11..14**, **TP-LC-20..22** rc / `BASHRC` | `tests/test_local_lifecycle.sh` | have — **primary owner:** `requirement-shell-path-and-shell-support` |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
 
 ---
 
-**Last Updated**: 2026-09-05  
+**Last Updated**: 2026-09-09 (PATH/profile bodies → `requirement-shell-path-and-shell-support`)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 5, 10, 11, 14, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

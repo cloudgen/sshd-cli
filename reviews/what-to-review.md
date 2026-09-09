@@ -4,8 +4,8 @@
 **Class:** software-development · domain SSOT `requirement-domain-sshd` · online-install channel + TTY menu / non-TTY install-ensure.  
 **Always load first:** `reviews/lessons.md`
 
-**Last plan update:** 2026-09-07  
-**Ship unit VERSION:** 1.10.0  
+**Last plan update:** 2026-09-09  
+**Ship unit VERSION:** 1.13.0  
 **Suite baseline:** see `reviews/test-plan.md`
 
 ---
@@ -14,8 +14,8 @@
 
 | # | Check | Notes |
 |---|--------|-------|
-| P1 | Read `docs/requirements/index.md` | Class + 11 shell + domain sshd (13 Active) |
-| P2 | Confirm ship unit `src/sshd-cli` / `./sshd-cli` | `APP_NAME` / `VERSION` hard-assign (**1.10.0**); same bytes |
+| P1 | Read `docs/requirements/index.md` | Class + 12 shell + domain sshd (14 Active) |
+| P2 | Confirm ship unit `src/sshd-cli` / `./sshd-cli` | `APP_NAME` / `VERSION` hard-assign (**1.13.0**); same bytes |
 | P3 | Load `reviews/lessons.md` and re-check open L-* that still apply | Skip L-SUDOERS / restore lessons as parent-only |
 | P4 | Run `./tests/run.sh` | Record PASS/FAIL/SKIP in report |
 | P5 | Confirm install **channel** is `cloudgen/sshd-cli` | `SCRIPT_URL` default raw GitHub |
@@ -33,10 +33,11 @@
 | Domain | `requirement-domain-sshd.md` | status/start/stop/port/keys/menu/dns; Termux daemonize; POSIX Linux systemd `systemctl` unit path (law 1.10.0; ship Gap); this-login ssh_config dns-ip; non-root menu hides 2/3/4 |
 | CLI interface | `requirement-shell-cli-interface.md` | This-login + domain commands, flags, dispatch; dual mention |
 | Empty argv | `requirement-shell-cli-zero-arguments.md` | TTY **menu** / non-TTY **install-ensure** |
-| Self-management | `requirement-shell-self-management.md` | install / self-update / self-uninstall |
+| Self-management | `requirement-shell-self-management.md` | install / self-update / self-uninstall; companion **call site** |
+| Path / shell-rc | `requirement-shell-path-and-shell-support.md` | PATH + profile; sibling unify; **TP-LC-20..22**; `rc-test` ship Gap |
 | Output SSOT | `requirement-shell-output-requirements.md` | `out_*`; JSON errors |
 | Modular design | `requirement-shell-modular-function-design.md` | domain prefix **`sshd_*`** |
-| Idempotency | `requirement-shell-idempotency.md` | Re-install / pipe re-run (not TTY empty argv) |
+| Idempotency | `requirement-shell-idempotency.md` | Re-install / pipe re-run (not TTY empty argv); bashrc exact-PATH no-op |
 | Storage | `requirement-shell-cli-storage.md` | Isolation |
 | Interactive vs non-interactive | `requirement-shell-interactive-vs-noninteractive.md` | TTY ask vs pipe never-wait |
 | Script coding | `requirement-shell-script-coding.md` | `set -u`; do-not-capture-read |

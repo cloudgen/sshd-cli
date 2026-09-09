@@ -1,12 +1,12 @@
 **file**: docs/requirements/requirement-shell-idempotency.md  
-**Status**: Active (Version 1.1.1)  
+**Status**: Active (Version 1.1.2)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
 
 This requirement is the **project Single Source of Truth** for **idempotency (re-run safety)** of state-changing operations in the **POSIX shell CLI** for sshd-cli.
 
-It defines re-run safety for ensure-style shell lifecycle commands (install, PATH integration, login rc create-if-absent, Termux package ensure, self-update, self-uninstall, and related helpers). Read-only commands remain outside the “ensure-X” contract except where they must stay safe under repeat invocation.
+It defines re-run safety for ensure-style shell lifecycle commands (install, PATH integration, login rc create-if-absent, Termux package ensure, self-update, self-uninstall, and related helpers). PATH / profile **bodies** live on `requirement-shell-path-and-shell-support`; this file keeps the re-run matrix. Read-only commands remain outside the “ensure-X” contract except where they must stay safe under repeat invocation.
 
 **Scope:** Detect → ensure → success-if-done semantics; force/reinstall overrides; partial-failure re-entry; PATH and shell-config re-entry; output behavior on no-op.  
 **Out of scope (cited, not re-owned):** Full CLI command table (`requirement-shell-cli-interface.md`); online-install digest algorithm detail; FSM continuous-tick design (no product FSM today).
@@ -96,11 +96,11 @@ Force **MUST NOT** be used as a silent way to skip integrity verification.
 | **Install ensure SSOT** | `inst_perform_install` (+ download/atomic helpers) |
 | **Force reinstall var** | `FORCE_REINSTALL` (default `0`); CLI `--force` must set this per `requirement-shell-cli-interface.md` |
 | **Remote channel** | `SCRIPT_URL` (required for version-check / self-update network steps) |
-| **User PATH integration** | `path_add_*` / `path_add_shell` — **create `~/.bashrc` if missing**; append PATH only if marker/line absent |
-| **Login rc** | `path_ensure_profile` — create `~/.profile` only when **absent**; second run leaves existing body |
+| **User PATH integration** | `path_add_*` / `path_add_shell` — **bodies:** `requirement-shell-path-and-shell-support`. Re-run: no second exact `export PATH=` |
+| **Login rc** | `path_ensure_profile` — **bodies:** `requirement-shell-path-and-shell-support`. Re-run: existing `.profile` body left |
 | **Termux packages** | `sshd_pkg_ensure` — `pkg install -y` is success if already installed; skip entirely off Termux |
 | **Companion** | `inst_ensure_companion` on every `install` (including already-installed binary no-op) |
-| **Uninstall PATH cleanup** | `inst_self_uninstall_cleanup_path` — only if `~/.local/bin` empty; **MUST NOT** delete `~/.profile` |
+| **Uninstall PATH cleanup** | `inst_self_uninstall_cleanup_path` — only if `~/.local/bin` empty; **MUST NOT** delete `~/.profile`. Comment-scope / shared-PATH rules: `requirement-shell-path-and-shell-support` |
 
 #### Command-level idempotency matrix (normative)
 
@@ -113,7 +113,7 @@ Force **MUST NOT** be used as a silent way to skip integrity verification.
 | `self-uninstall` | Binary absent | **Success no-op** “not installed / nothing to uninstall” | Force may skip interactive confirm only; still no over-delete |
 | `version-check` | N/A (read/compare) | Safe to re-run; network fetch each time is allowed; must not mutate install state | — |
 | `version`, `about`, `help` | N/A (read-only) | Safe to re-run; no install mutation | — |
-| PATH add (`path_add_bashrc` / zsh / fish) | PATH line already present | No second identical append | Create `~/.bashrc` when missing, then PATH |
+| PATH add (`path_add_bashrc` / zsh / fish) | Exact PATH export already present | No second identical append; file bytes unchanged when VERSION comment + exact `export PATH=` already match | Create `BASHRC` (default `~/.bashrc`) when missing, then PATH |
 | Login rc (`path_ensure_profile`) | `~/.profile` exists | Leave body; no second create | Create only when absent |
 | Termux packages (`sshd_pkg_ensure`) | `openssh` + `termux-auth` installed **or** not Termux | Success no-op / skip | `pkg install -y` may re-run; must not hang |
 | `wake-lock` | Android wake lock held **or** not Termux | Success no-op (helper may re-run) | Off-detect skip; must not hang |
@@ -125,7 +125,7 @@ Force **MUST NOT** be used as a silent way to skip integrity verification.
 1. **Install:** If `inst_is_installed` and `FORCE_REINSTALL=0` → return 0 without download/move.  
 2. **Self-update:** Fetch remote `VERSION` from `SCRIPT_URL`; if equal to local and force off → return 0 without reinstall; if remote unreadable → fail loud (not a silent “already ok”).  
 3. **Self-uninstall:** If no managed binary path resolved → return 0 (not installed).  
-4. **PATH ensure:** Create `~/.bashrc` if missing; grep/marker check before append; already present is success for the ensure intent.  
+4. **PATH ensure:** Create `BASHRC` (default `~/.bashrc`) if missing; grep the exact `export PATH=` line before append; already present is success for the ensure intent (no rewrite when VERSION comments and the exact export already match).  
 4b. **Profile ensure:** If `~/.profile` exists, keep it. If missing, create a source-bashrc sample once.  
 4c. **Companion:** Already-installed CLI binary **MUST NOT** skip rc/package ensure.  
 5. **Atomic install temps:** Failed download paths **MUST** remove temp files; re-run starts clean.  
@@ -202,11 +202,25 @@ A state-changing shell change for sshd-cli is **not done** if any of the followi
 1. Second `install` with healthy install and force off exits success without reinstall.  
 2. Second `self-update` when local equals remote and force off exits success without reinstall.  
 3. Second `self-uninstall` when not installed exits success.  
-4. PATH ensure does not duplicate lines when re-run.  
-5. PATH cleanup does not remove shared `~/.local/bin` entries while other files remain.  
+4. PATH ensure does not duplicate lines when re-run. Named cases **TP-LC-20** / **TP-LC-21** / **TP-LC-22** are owned by `requirement-shell-path-and-shell-support`.  
+5. PATH cleanup does not remove shared `~/.local/bin` entries while other files remain (`requirement-shell-path-and-shell-support`).  
 6. Force/reinstall paths remain explicit and do not skip integrity checks.  
 7. Messages for already-done paths use output SSOT and respect quiet/json.  
 8. Implementation changes cite this requirement key `requirement-shell-idempotency`.
+
+---
+
+## Design-time verification
+
+| TP family / ID | Suite | Status |
+|----------------|-------|--------|
+| **TP-LC-03** reinstall already-installed | `tests/test_local_lifecycle.sh` | have |
+| **TP-LC-07** uninstall absent no-op | `tests/test_local_lifecycle.sh` | have |
+| **TP-LC-13** no duplicate PATH | `tests/test_local_lifecycle.sh` | have — primary owner `requirement-shell-path-and-shell-support` |
+| **TP-LC-20..22** `BASHRC` create / modify / no-op | `tests/test_local_lifecycle.sh` | have — primary owner `requirement-shell-path-and-shell-support` |
+
+**Matrix:** `reviews/requirement-test-matrix.md`  
+**Map:** `reviews/test-plan.md`
 
 ---
 
@@ -217,12 +231,13 @@ A state-changing shell change for sshd-cli is **not done** if any of the followi
 | `docs/requirements/requirement-shell-cli-interface.md` | Command surface, flags, force wiring |
 | `docs/requirements/requirement-shell-cli-zero-arguments.md` | Empty argv ensure for not-installed / local / global |
 | `docs/requirements/requirement-shell-self-management.md` | Lifecycle commands; integrity + downgrade policy |
+| `docs/requirements/requirement-shell-path-and-shell-support.md` | PATH / profile bodies; sibling unify; fixture TP-IDs |
 | `docs/requirements/requirement-shell-output-requirements.md` | Messages on no-op / already-done paths |
 | `docs/requirements/index.md` | Registry SSOT |
 | `./sshd-cli` | Implementation under test |
 
 ---
 
-**Last Updated**: 2026-09-05  
+**Last Updated**: 2026-09-09 (PATH bodies → `requirement-shell-path-and-shell-support`)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; related `requirement-shell-cli-interface.md`; CIAO Principles 1, 2, 3, 11, 12, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

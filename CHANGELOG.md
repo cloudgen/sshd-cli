@@ -5,6 +5,48 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.13.0] - 2026-09-09
+
+### Added
+
+- Type 0 **`rc-test`**: prove PATH / profile ensure in `--root` tmp (`--file bashrc|profile --case create|modify|noop`). Help lists it under **Tests (local folder; not install)**. Product law: `requirement-shell-path-and-shell-support`.
+- Tests **TP-LC-27** (sibling PATH), **TP-LC-28** (uninstall keeps shared PATH), **TP-LC-29** (heal missing PATH), **TP-LC-30** (uninstall keeps `.profile`), **TP-LC-31** (`rc-test`), **TP-CLI-18** (help testers heading).
+- Incident **INC-20260909-001** (path-ensure without `rc-test`; uninstall `sed` too wide).
+
+### Changed
+
+- Uninstall strips only `# Added by sshd-cli installer` comments; shared PATH line only if `USER_BIN` is empty.
+- `path_add_bashrc` may add this product’s comment when a sibling already wrote the exact PATH line (no second export).
+- `path_ensure_profile` honors `PROFILE`; zsh/fish honor `ZSHRC` / `FISH_CONFIG` and the exact PATH line.
+
+### Fixed
+
+- Claiming PATH ensure without a routed tester (**PP-A-24**). Uninstall matching any installer comment (**PP-A-25**).
+
+## [1.12.0] - 2026-09-09
+
+### Added
+
+- TTY / `termux yes` **as Termux** Host bundle now writes simpler **Ciphers** `aes128-ctr,aes256-ctr` and **MACs** `hmac-sha2-256` (with Port **8022** and keep-alives). Some Termux OpenSSH `sshd` versions reply too slowly; the client then aborts with **Bad packet length** / **Connection corrupted**.
+- `dns show` treats a keep-alive-only stanza (no those Ciphers/MACs) as **termux: no**. `set termux no` strips Ciphers/MACs with the keep-alives.
+- Tests **TP-DNS-36**. Terms **termux-openssh** · **ssh-connection-corrupt**.
+
+### Changed
+
+- TTY **as Termux** info line names the simpler ciphers and the slow-sshd corrupt-session reason.
+
+## [1.11.0] - 2026-09-09
+
+### Added
+
+- `BASHRC` env: `install` PATH ensure writes that file (default `~/.bashrc`). Tests/CI can point it at a file in a random temp folder.
+- Tests **TP-LC-20** (create if missing), **TP-LC-21** (modify a dongle `.bashrc` in that folder), **TP-LC-22** (no-op when VERSION comments and the exact `export PATH=` line already match). Help Environment lists `BASHRC`.
+- Law/proof molds require those three bashrc PATH-ensure cases whenever the feature is claimed (`LM-PATH-AND-SHELL-SUPPORT`, `LM-SELF-MANAGEMENT`, `LM-IDEMPOTENCY`, `PM-INSTALL-LIFECYCLE-TEST-PLAN`).
+
+### Changed
+
+- `path_add_bashrc` treats the file as already good only when the exact `export PATH="<USER_BIN>:$PATH"` line is present (not merely a `USER_BIN` substring).
+
 ## [1.10.0] - 2026-09-08
 
 ### Added

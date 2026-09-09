@@ -60,6 +60,10 @@ run_test_cli() {
     assert_not_contains "TP-CLI-04 no restore verb" "$_out" "restore <"
     assert_not_contains "TP-CLI-04 no print-sudoers" "$_out" "print-sudoers"
     assert_not_contains "TP-CLI-04 no CHECKSUM" "$_out" "CHECKSUM"
+    assert_contains "TP-CLI-04 help lists BASHRC" "$_out" "BASHRC"
+    assert_contains "TP-CLI-18 help testers heading" "$_out" "Tests (local folder; not install):"
+    assert_contains "TP-CLI-18 help lists rc-test" "$_out" "rc-test"
+    assert_not_contains "TP-CLI-18 rc-test not under Self-management block only" "$_out" "  rc-test              Place"
 
     # TP-CLI-05 help json
     _out=$(sh "${SCRIPT}" --json help 2>/dev/null)
