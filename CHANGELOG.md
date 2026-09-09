@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.13.2] - 2026-09-09
+
+### Fixed
+
+- **dns tests mint Host names and IPv4 per run** (`t_rand_host` / `t_rand_ip`). Suite source no longer freezes this-login aliases or LAN addresses (**PP-A-26** / **PP-C-21**; term `synthetic-test-fixture`). Incident **INC-20260909-003**. Tests **TP-DNS-37** (last Host delete) · **TP-DNS-38** (no IPv4 literals in suite source).
+
 ## [1.13.1] - 2026-09-09
 
 ### Fixed

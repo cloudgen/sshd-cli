@@ -22,6 +22,7 @@ Durable failure modes. **Always re-check on product review.**
 | L-DNS-05 | TTY Host list treated a number as update-only; no add/delete | Action menu Edit/Add/Delete then Host pick; TP-DNS-20..24 | open watch |
 | L-RC-01 | Path-ensure claimed without routed `rc-test`; uninstall `sed` matched any installer comment | Dual-mention `rc-test`; help testers apart; strip only this `APP_NAME` comments; **INC-20260909-001**; TP-LC-27..31 · TP-CLI-18 | open watch |
 | L-SSHD-SELFUPD-01 | `self-update` (or CLI `install`) `out_die`s after a successful binary place because `sshd -t` of `/etc/ssh/sshd_config` fails (`/run/sshd` missing) | CLI lifecycle success ≠ host sshd config test; `SKIP_DOMAIN_START` on `self-update`; Linux install warn-not-die; **INC-20260909-002**; TP-SSHD-15 | watch |
+| L-DNS-06 | Suite copies this-login Host alias or LAN IPv4 into `tests/**` (exposes developer computer) | Mint `t_rand_host` / `t_rand_ip`; file-leaks C6; **PP-A-26** / **PP-C-21**; **INC-20260909-003**; TP-DNS-37 · TP-DNS-38 | open watch |
 
 **Related-product only (do not re-apply as this origin’s law):** L-DEPOSIT-01, L-SUDOERS-01..05, L-OVERWRITE-01 stay on folder-backup. Type O empty-argv / online-channel lessons stay on products that own those surfaces. This product is hop 0.
 

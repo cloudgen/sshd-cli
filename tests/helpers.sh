@@ -137,6 +137,110 @@ ci_cleanup_env() {
     unset GLOBAL_BIN 2>/dev/null || true
 }
 
+# Operator identity captured at source time (before ci_isolated_env).
+# Used only to reject minted collisions. MUST NOT print these in assert labels.
+: "${T_REAL_HOME:=${HOME}}"
+T_REAL_HOSTNAME=$(hostname 2>/dev/null || printf '')
+
+t_byte() {
+    _tb=$(od -An -N1 -tu1 /dev/urandom 2>/dev/null | awk '{print $1+0}')
+    case "${_tb}" in
+        ''|*[!0-9]*) _tb=$(( ($$ + $(date +%s 2>/dev/null || printf '1')) % 256 )) ;;
+    esac
+    printf '%s' "${_tb}"
+}
+
+t_rand_hex8() {
+    _hx=$(od -An -N4 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n')
+    if [ "${#_hx}" -lt 8 ]; then
+        _hx=$(printf '%08x' $(( $$ ^ $(date +%s 2>/dev/null || printf '1') )))
+    fi
+    printf '%s' "${_hx}" | cut -c1-8
+}
+
+t_live_ipv4_list() {
+    {
+        hostname -I 2>/dev/null || true
+        ip -4 -o addr show 2>/dev/null | awk '{print $4}' || true
+        ifconfig 2>/dev/null | awk '/inet / {print $2}' || true
+    } | tr ' ' '\n' | sed 's#/.*##' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | grep -v '^127\.' || true
+}
+
+t_live_ssh_hosts() {
+    if [ -n "${T_REAL_HOME}" ] && [ -f "${T_REAL_HOME}/.ssh/config" ]; then
+        awk '{
+            k=$1
+            gsub(/[[:space:]]/,"",k)
+            if (tolower(k)=="host") {
+                for (i=2; i<=NF; i++) {
+                    if ($i !~ /[?*]/) print $i
+                }
+            }
+        }' "${T_REAL_HOME}/.ssh/config" 2>/dev/null || true
+    fi
+}
+
+t_is_synthetic_host() {
+    _syn_h="$1"
+    [ -n "${_syn_h}" ] || return 1
+    if [ -n "${T_REAL_HOSTNAME}" ] && [ "${_syn_h}" = "${T_REAL_HOSTNAME}" ]; then
+        return 1
+    fi
+    if t_live_ssh_hosts | awk -v w="${_syn_h}" 'BEGIN{f=0} $0==w{f=1} END{exit f?0:1}'; then
+        return 1
+    fi
+    return 0
+}
+
+t_is_synthetic_ip() {
+    _syn_ip="$1"
+    [ -n "${_syn_ip}" ] || return 1
+    case "${_syn_ip}" in
+        127.*|0.*|255.*) return 1 ;;
+    esac
+    if t_live_ipv4_list | awk -v w="${_syn_ip}" 'BEGIN{f=0} $0==w{f=1} END{exit f?0:1}'; then
+        return 1
+    fi
+    return 0
+}
+
+# Mint a DNS-safe Host pattern (no * / ?). Never this-login hostname or live ssh Host.
+t_rand_host() {
+    _rh_n=0
+    while [ "${_rh_n}" -lt 32 ]; do
+        _rh_name="h$(t_rand_hex8)"
+        if t_is_synthetic_host "${_rh_name}"; then
+            printf '%s' "${_rh_name}"
+            return 0
+        fi
+        _rh_n=$((_rh_n + 1))
+    done
+    t_fail "t_rand_host could not mint a synthetic Host"
+    printf 'hsynth000'
+}
+
+# Mint RFC1918 10.a.b.c that is not a live address of this host.
+t_rand_ip() {
+    _ri_n=0
+    while [ "${_ri_n}" -lt 32 ]; do
+        _ri_a=$(t_byte); _ri_a=$((_ri_a % 254 + 1))
+        _ri_b=$(t_byte); _ri_b=$((_ri_b % 254 + 1))
+        _ri_c=$(t_byte); _ri_c=$((_ri_c % 254 + 1))
+        _ri_name="10.${_ri_a}.${_ri_b}.${_ri_c}"
+        if t_is_synthetic_ip "${_ri_name}"; then
+            printf '%s' "${_ri_name}"
+            return 0
+        fi
+        _ri_n=$((_ri_n + 1))
+    done
+    t_fail "t_rand_ip could not mint a synthetic IPv4"
+    printf '%s.%s.%s.%s' 10 254 253 252
+}
+
+t_rand_user() {
+    printf 'u%s' "$(t_rand_hex8 | cut -c1-6)"
+}
+
 ci_run() {
     sh "${SCRIPT}" "$@"
 }

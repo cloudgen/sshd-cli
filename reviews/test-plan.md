@@ -3,7 +3,7 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.13.1  
+**Product VERSION:** 1.13.2  
 **Last plan update:** 2026-09-09  
 **Last suite run:** PASS=439 FAIL=0 SKIP=0 (2026-09-09)
 
@@ -26,7 +26,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | Android wake lock (auto on start + `wake-lock` verb) | have | TP-TX-08..16 |
 | sshd start is a background daemon (not a service manager) | have | TP-SSHD-01, TP-SSHD-02 |
 | POSIX Linux systemd unit path (`systemctl` start/stop/restart) | have | TP-SSHD-09..14 |
-| this-login `~/.ssh/config` dns-ip list / show / set / add / delete | have | TP-DNS-01..36 |
+| this-login `~/.ssh/config` dns-ip list / show / set / add / delete | have | TP-DNS-01..38 |
 | Automatic companion link on install (file://) | have | TP-CSUM-01 |
 | Backup / restore / sudoers emit | n/a | Absent by design (not a backup product) |
 | Online curl against public GitHub | n/a | Core suite stays offline; channel is `file://` in CI |
@@ -118,6 +118,8 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-DNS-34 | show names identity-file / termux / old-openssh | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-35 | unknown field fail-closed names identity-file / termux / old-openssh | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-36 | keep-alive-only stanza is termux no; `set termux yes` writes Ciphers/MACs | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-37 | last concrete Host delete; stanza gone; `Host *` kept | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-38 | suite source has no dotted IPv4 (minted Host/IP; **PP-C-21**) | test_dns | requirement-domain-sshd | **have** |
 
 ### TP-LC (local lifecycle)
 
