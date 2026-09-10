@@ -1,6 +1,6 @@
 # sshd-cli - Simplify Termux to install sshd
 
-![Version](https://img.shields.io/badge/Version-1.13.2-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.13.3-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/sshd-cli?style=flat-square)](https://github.com/cloudgen/sshd-cli)
@@ -24,7 +24,7 @@
 | Start sshd | OpenSSH **forks itself** so a laptop can connect. Default Termux port is often **8022**. This is not a boot service. | `sshd-cli start` then `ssh -p 8022 user@host` |
 | After a reboot | The daemon is gone. Start again. Termux:Boot is **your** hook if you want listen-after-reboot. | `sshd-cli start` |
 
-Runtime version SSOT: `VERSION="1.13.2"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
+Runtime version SSOT: `VERSION="1.13.3"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
 
 ## Features
 
@@ -95,7 +95,7 @@ After install, on a terminal (no arguments opens the menu):
 
 ```text
 $ sshd-cli
-[INFO] **sshd-cli**(*1.13.2*)
+[INFO] **sshd-cli**(*1.13.3*)
 1. Show sshd status: running, port, and paths
 2. Start sshd: launch the OpenSSH daemon (background, not a boot service)
 3. Stop sshd: end the running daemon
@@ -109,7 +109,7 @@ On POSIX Linux as a **non-root** login, rows **2** / **3** / **4** are omitted (
 
 ```text
 $ sshd-cli
-[INFO] **sshd-cli**(*1.13.2*)
+[INFO] **sshd-cli**(*1.13.3*)
 [INFO] start/stop/restart sshd features are not available for non-root in Ubuntu
 1. Show sshd status: running, port, and paths
 5. SSH names (dns): this login ~/.ssh/config Host list
@@ -190,11 +190,40 @@ sshd-cli dns delete 1
 | Termux (Android, OpenSSH via `pkg install openssh`) | Primary target — this login only; no `sudo curl` |
 | POSIX Linux with OpenSSH server | Supported; system sshd start/stop/port/host-keys need a **root login** |
 | Git Bash / Windows cmd | Same “this login only” class as Termux: no `pkg`, no in-tool `sudo` |
+| Windows OpenSSH (host) | Companion script: install sshd and allow a **normal (non-admin) user** to SSH in, with Git Bash or PowerShell as the session shell |
 | Other UNIX with `/bin/sh`, `sha256sum`, `mktemp` | CLI install as this login should work; sshd paths follow POSIX defaults |
 
 On **Termux**, `sshd-cli start` is a **background daemon for this session** (OpenSSH forks itself). Leaving the shell is fine. A reboot, or Android killing Termux, ends the daemon — run `start` again. `start` also acquires an Android wake lock so the CPU can stay awake with the screen off; if Android dropped it, run `sshd-cli wake-lock`. Listen-after-reboot is **Termux:Boot** (operator hook).
 
 On a **Linux** server with a loaded distro unit (`ssh.service` or `sshd.service`), `sshd-cli start` / `stop` / `restart` as **root** call `systemctl` on that unit. Listen-after-reboot is the distro unit. There is no `sshd-cli systemctl` command and no in-tool `sudo`. Non-root logins fail closed: re-run as root.
+
+### Windows OpenSSH (normal user + Git Bash)
+
+Windows OpenSSH is **not** a `sshd-cli` verb. Use the companion script so a **non-admin** local user can SSH in (Administrators use a different authorized_keys file under ProgramData). The script is host setup: it self-elevates with UAC.
+
+**PowerShell:**
+
+```text
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\setup-windows-ssh-server.ps1
+```
+
+**Git Bash** (same folder):
+
+```sh
+./setup-windows-ssh-server.sh
+# or:
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w ./setup-windows-ssh-server.ps1)"
+```
+
+Named arguments (still UAC):
+
+```text
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\setup-windows-ssh-server.ps1 -User sshuser -Shell GitBash -PublicKeyFile %USERPROFILE%\.ssh\id_ed25519.pub -SkipPause
+```
+
+`-Shell` is `GitBash` (Git for Windows `bash.exe`, not `git-bash.exe`), `PowerShell`, `Pwsh`, `Cmd`, or `Ask`. After setup, from Linux or another Git Bash: `ssh <user>@<windows-lan-ip>`.
+
+On **Git Bash** (detect: `MSYSTEM` or `uname` MINGW/MSYS — not `$0=/bin/bash`, not `[ -d /c/ ]`), native Windows console programs need **winpty**: `winpty grok`, `winpty powershell.exe`. Do not wrap `git` or piped/`--json` runs. `HOME` looking like `/c/…` is typical after detect, not the check.
 
 ## Related Projects
 
@@ -212,4 +241,4 @@ MIT. See [`LICENSE.md`](./LICENSE.md). Copyright (c) 2026 Cloudgen Wong.
 
 ## Last Update
 
-2026-09-09 — 1.13.2: dns tests mint Host/IP (do not copy this-login LAN identity). 1.13.1: `self-update` is CLI-only (does not fail on `/etc/ssh/sshd_config` / `/run/sshd`). 1.13.0: `rc-test` proves PATH/profile ensure in a temp folder; uninstall keeps a shared PATH while other tools remain.
+2026-09-10 — 1.13.3: Windows companion `setup-windows-ssh-server.ps1` (+ Git Bash `.sh` launcher); Git Bash detect is `MSYSTEM`/`uname` (not `$0` or `/c/`); `winpty grok` for Windows consoles. 2026-09-09 — 1.13.2: dns tests mint Host/IP (do not copy this-login LAN identity). 1.13.1: `self-update` is CLI-only (does not fail on `/etc/ssh/sshd_config` / `/run/sshd`). 1.13.0: `rc-test` proves PATH/profile ensure in a temp folder; uninstall keeps a shared PATH while other tools remain.

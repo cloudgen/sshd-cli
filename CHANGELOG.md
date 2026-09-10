@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.13.3] - 2026-09-10
+
+### Added
+
+- Windows companion **`setup-windows-ssh-server.ps1`** (Git Bash launcher **`setup-windows-ssh-server.sh`**): OpenSSH Server for a **normal (non-admin) user**. SSH session shell: Git Bash / Windows PowerShell / pwsh / cmd. `-User`, `-Shell`, `-PublicKeyFile`, `-SkipPause`. Git Bash is found via the Git for Windows registry (`bin\bash.exe`, not mintty).
+- README: Git Bash detect is `MSYSTEM` or `uname` MINGW/MSYS (not `$0=/bin/bash`, not `[ -d /c/ ]`). Native Windows consoles from Git Bash use **winpty** (`winpty grok`). `HOME` looking like `/c/…` is typical after detect.
+
 ## [1.13.2] - 2026-09-09
 
 ### Fixed

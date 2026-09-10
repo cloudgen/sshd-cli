@@ -3,7 +3,7 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.13.2  
+**Product VERSION:** 1.13.3  
 **Last plan update:** 2026-09-09  
 **Last suite run:** PASS=439 FAIL=0 SKIP=0 (2026-09-09)
 

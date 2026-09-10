@@ -134,7 +134,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | **Primary executable** | Repo root `./sshd-cli` (POSIX `/bin/sh`, single-file for `curl \| sh`) |
 | **Dispatcher** | `app_main` (always invoked at end of script: `app_main "$@"` — no `${0##*/}` / APP_NAME basename gate; required for `curl \| sh`) |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION` default `1.13.2` (script header / config block: `VERSION="1.13.2"`) |
+| **Version SSOT** | `VERSION` default `1.13.3` (script header / config block: `VERSION="1.13.3"`) |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`, or `${PREFIX}/bin` when Termux `PREFIX/bin` exists; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Interactive rc write path** | `BASHRC` default `${HOME}/.bashrc`. `install` PATH ensure creates/modifies this file. Tests/CI **MAY** set `BASHRC` to a file in a temp folder. Dual mention: `requirement-shell-path-and-shell-support`. |
 | **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`). **`help` Environment also lists `BASHRC`.** |

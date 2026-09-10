@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.13.2)  
+**Status**: Active (Version 1.13.3)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -304,7 +304,7 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 
 | Item | Value |
 |------|--------|
-| Product | `sshd-cli` 1.13.2 |
+| Product | `sshd-cli` 1.13.3 |
 | Bootstrap origin | `selfmanaged` 1.2.3 (architecture + Type 0 only; A untouched) |
 | Domain prefix | `sshd_*` |
 | Channel | `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli` |
