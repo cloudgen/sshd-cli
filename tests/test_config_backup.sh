@@ -58,14 +58,16 @@ run_test_config_backup() {
     assert_contains "TP-CFG-04 Termux not available" "$_err" "not available for termux"
     _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 TERMUX_VERSION=1 sh "${SCRIPT}" </dev/null 2>&1)
     assert_contains "TP-CFG-04 Termux menu INFO" "$_out" "backup-config and sync-config not available for termux"
-    assert_not_contains "TP-CFG-04 Termux no row 6" "$_out" "6. backup-config"
+    assert_not_contains "TP-CFG-04 Termux no row 6 backup-config" "$_out" "6. backup-config"
+    assert_contains "TP-CFG-04 Termux sync-from-remote row 6" "$_out" "6. sync-from-remote"
     ci_cleanup_env
 
     # TP-CFG-05 Git Bash menu INFO
     ci_isolated_env
     _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 MSYSTEM=MINGW64 env -u TERMUX_VERSION sh "${SCRIPT}" </dev/null 2>&1)
     assert_contains "TP-CFG-05 Git Bash menu INFO" "$_out" "backup-config and sync-config not available for gitbash"
-    assert_not_contains "TP-CFG-05 Git Bash no row 6" "$_out" "6. backup-config"
+    assert_not_contains "TP-CFG-05 Git Bash no row 6 backup-config" "$_out" "6. backup-config"
+    assert_contains "TP-CFG-05 Git Bash sync-from-remote row 6" "$_out" "6. sync-from-remote"
     _err=$(HOME="${CI_HOME}" MSYSTEM=MINGW64 env -u TERMUX_VERSION sh "${SCRIPT}" sync-config 2>&1 >/dev/null)
     _ec=$?
     assert_eq "TP-CFG-05 Git Bash sync-config exit 1" 1 "$_ec"
@@ -104,10 +106,91 @@ run_test_config_backup() {
     ci_isolated_env
     _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 OS=Windows_NT COMSPEC='C:\\Windows\\system32\\cmd.exe' env -u TERMUX_VERSION -u MSYSTEM -u WSL_DISTRO_NAME sh "${SCRIPT}" </dev/null 2>&1)
     assert_contains "TP-CFG-09 Windows cmd menu INFO" "$_out" "backup-config and sync-config not available for windows-cmd"
+    assert_contains "TP-CFG-09 Windows cmd sync-from-remote row 6" "$_out" "6. sync-from-remote"
+    ci_cleanup_env
+
+    # TP-CFG-10..15 sync-from-remote (fake scp; never a real SSH session)
+    ci_isolated_env
+    mkdir -p "${CI_HOME}/bin" "${CI_HOME}/remote-store"
+    printf 'Host remotehost\n  HostName example.test\n' > "${CI_HOME}/remote-store/config"
+    _fake_scp="${CI_HOME}/bin/scp"
+    _scp_log="${CI_HOME}/scp.log"
+    : > "${_scp_log}"
+    cat > "${_fake_scp}" <<'FAKESCP'
+#!/bin/sh
+fix="${SSHD_CLI_REMOTE_FIXTURE:-}"
+log="${SSHD_CLI_SCP_LOG:-}"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -o) shift 2; continue ;;
+        -*) shift; continue ;;
+        *) break ;;
+    esac
+done
+src="${1:-}"
+dest="${2:-}"
+[ -n "${src}" ] && [ -n "${dest}" ] || exit 1
+if [ -n "${log}" ]; then
+    printf '%s\n' "${src}" >> "${log}"
+fi
+base="${src##*:}"
+base="${base##*/}"
+if [ -z "${fix}" ] || [ ! -f "${fix}/${base}" ]; then
+    exit 1
+fi
+cp "${fix}/${base}" "${dest}" || exit 1
+exit 0
+FAKESCP
+    chmod 0755 "${_fake_scp}"
+
+    _err=$(HOME="${CI_HOME}" SSHD_CLI_SCP="${_fake_scp}" SSHD_CLI_REMOTE_FIXTURE="${CI_HOME}/remote-store" \
+        sh "${SCRIPT}" sync-from-remote 2>&1 >/dev/null)
+    assert_eq "TP-CFG-10 missing spec exit 1" 1 "$?"
+    assert_contains "TP-CFG-10 Next USER@HOST" "${_err}" "sync-from-remote USER@HOST"
+
+    _err=$(HOME="${CI_HOME}" SSHD_CLI_SCP="${_fake_scp}" SSHD_CLI_REMOTE_FIXTURE="${CI_HOME}/remote-store" \
+        sh "${SCRIPT}" sync-from-remote 'bad;rm' 2>&1 >/dev/null)
+    assert_eq "TP-CFG-11 invalid spec exit 1" 1 "$?"
+    _err=$(HOME="${CI_HOME}" SSHD_CLI_SCP="${_fake_scp}" SSHD_CLI_REMOTE_FIXTURE="${CI_HOME}/remote-store" \
+        sh "${SCRIPT}" sync-from-remote 'a@b@c' 2>&1 >/dev/null)
+    assert_eq "TP-CFG-11 extra @ exit 1" 1 "$?"
+
+    : > "${_scp_log}"
+    _out=$(HOME="${CI_HOME}" SSHD_CLI_SCP="${_fake_scp}" SSHD_CLI_REMOTE_FIXTURE="${CI_HOME}/remote-store" \
+        SSHD_CLI_SCP_LOG="${_scp_log}" SSHD_CLI_REMOTE_ROOT="/var/sshd-cli" \
+        sh "${SCRIPT}" sync-from-remote operator@host.example.test 2>/dev/null)
+    assert_eq "TP-CFG-12 user@host exit 0" 0 "$?"
+    assert_contains "TP-CFG-12 complete" "${_out}" "sync-from-remote complete"
+    assert_file_exists "TP-CFG-12 dest config" "${CI_HOME}/.ssh/config"
+    assert_contains "TP-CFG-12 scp src" "$(cat "${_scp_log}")" "operator@host.example.test:/var/sshd-cli/config"
+    _mode=$(stat -c '%a' "${CI_HOME}/.ssh/config" 2>/dev/null || stat -f '%OLp' "${CI_HOME}/.ssh/config")
+    assert_eq "TP-CFG-13 dest mode 600" "600" "${_mode}"
+
+    _pref="${CI_HOME}/.local/sshd-cli/preferred-remote"
+    assert_file_exists "TP-CFG-14 preferred-remote leaf" "${_pref}"
+    assert_eq "TP-CFG-14 stored SPEC" "operator@host.example.test" "$(tr -d '\r\n' < "${_pref}")"
+    _pmode=$(stat -c '%a' "${_pref}" 2>/dev/null || stat -f '%OLp' "${_pref}")
+    assert_eq "TP-CFG-14 preferred-remote mode 600" "600" "${_pmode}"
+
+    rm -f "${CI_HOME}/.ssh/config"
+    : > "${_scp_log}"
+    _out=$(printf '\n' | HOME="${CI_HOME}" SSHD_CLI_SCP="${_fake_scp}" SSHD_CLI_REMOTE_FIXTURE="${CI_HOME}/remote-store" \
+        SSHD_CLI_SCP_LOG="${_scp_log}" SSHD_CLI_REMOTE_ROOT="/var/sshd-cli" \
+        TTY=1 INTERACTIVE=1 sh "${SCRIPT}" sync-from-remote 2>/dev/null)
+    assert_eq "TP-CFG-15 TTY empty uses stored default exit 0" 0 "$?"
+    assert_contains "TP-CFG-15 reused stored SPEC in scp" "$(cat "${_scp_log}")" "operator@host.example.test:/var/sshd-cli/config"
+    assert_file_exists "TP-CFG-15 dest config from default" "${CI_HOME}/.ssh/config"
+
+    _j=$(HOME="${CI_HOME}" SSHD_CLI_SCP="${_fake_scp}" SSHD_CLI_REMOTE_FIXTURE="${CI_HOME}/remote-store" \
+        SSHD_CLI_REMOTE_ROOT="/var/sshd-cli" \
+        sh "${SCRIPT}" --json sync-from-remote host.example.test 2>/dev/null)
+    assert_contains "TP-CFG-16 json type" "${_j}" '"type":"sync-from-remote"'
+    assert_contains "TP-CFG-16 json host" "${_j}" '"host":"host.example.test"'
+
     ci_cleanup_env
 
     if [ -n "${_store:-}" ] && [ -d "${_store}" ]; then
         rm -rf "${_store}"
     fi
-    unset _store _out _ec _err _mode _draft _jsonf
+    unset _store _out _ec _err _mode _draft _jsonf _fake_scp _scp_log _pref _pmode _j
 }

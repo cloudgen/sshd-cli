@@ -53,10 +53,10 @@ APP_NAME="sshd-cli"
 : "${APP_NAME:=sshd-cli}"
 : "${APP_DESC:=Simplify Termux to install sshd}"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
-: "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config).}"
+: "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config / sync-from-remote).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.14.0"
-: "${VERSION:=1.14.0}"
+VERSION="1.15.0"
+: "${VERSION:=1.15.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -108,6 +108,8 @@ fi
 : "${SCRIPT_URL:=https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}}"
 : "${CHECKSUM:=}"
 : "${SSHD_CLI_ROOT:=/var/sshd-cli}"
+: "${SSHD_CLI_REMOTE_ROOT:=/var/sshd-cli}"
+: "${SSHD_CLI_SCP:=}"
 : "${ALLOW_TEST_LOCAL_SUDOERS:=0}"
 : "${SUBMIT_ACTION:=add}"
 : "${SUBMIT_ACTION_EXPLICIT:=0}"
@@ -2655,6 +2657,40 @@ util_resolve_storage() {
 }
 
 # =============================================================================
+# util_resolve_persistent_storage() - Durable this-login folder (not /dev/shm)
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# preferred-remote and other leaves that must survive reboot live under
+# ${HOME}/.local/${APP_NAME}, not the volatile cache chain.
+#
+# ALIGNMENT: requirement-sshd-config-backup.md · requirement-shell-cli-storage.md
+# Last updated: 2026-09-11
+# =============================================================================
+util_persistent_storage_dir() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${HOME:=/tmp}"
+    printf '%s' "${HOME}/.local/${APP_NAME}"
+}
+
+util_resolve_persistent_storage() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${HOME:=/tmp}"
+    _persist=$(util_persistent_storage_dir)
+    case "${_persist}" in
+        */.local/bin|*/.local/bin/)
+            out_die "Persistence storage must not be the install bin directory ${_persist}"
+            ;;
+    esac
+    if ! mkdir -p "${_persist}" 2>/dev/null || [ ! -w "${_persist}" ]; then
+        out_die "Cannot create persistence storage ${_persist}"
+    fi
+    echo "${_persist}"
+    unset _persist
+    return 0
+}
+
+# =============================================================================
 # prompt_ask() - Defensive general-purpose interactive prompt with default
 # =============================================================================
 #
@@ -4450,6 +4486,259 @@ sshd_cmd_sync_config() {
     return 0
 }
 
+sshd_scp_cmd() {
+    : "${SSHD_CLI_SCP:=}"
+    if [ -n "${SSHD_CLI_SCP}" ]; then
+        printf '%s' "${SSHD_CLI_SCP}"
+        return 0
+    fi
+    command -v scp 2>/dev/null || true
+}
+
+sshd_host_is_ipv4() {
+    _h="${1-}"
+    [ -n "${_h}" ] || return 1
+    _n=0
+    _rest="${_h}."
+    while [ -n "${_rest}" ]; do
+        _oct="${_rest%%.*}"
+        _rest="${_rest#*.}"
+        case "${_oct}" in
+            ''|*[!0-9]*) return 1 ;;
+        esac
+        if [ "${_oct}" -lt 0 ] || [ "${_oct}" -gt 255 ]; then
+            return 1
+        fi
+        _n=$((_n + 1))
+        if [ "${_n}" -gt 4 ]; then
+            return 1
+        fi
+    done
+    [ "${_n}" -eq 4 ]
+}
+
+sshd_host_is_dns() {
+    _h="${1-}"
+    [ -n "${_h}" ] || return 1
+    case "${_h}" in
+        *[!A-Za-z0-9.-]*|.*|*..*|*.) return 1 ;;
+        -*|*-) return 1 ;;
+    esac
+    case "${_h}" in
+        *[A-Za-z]*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+sshd_parse_remote_spec() {
+    _spec="${1-}"
+    SSHD_REMOTE_USER=""
+    SSHD_REMOTE_HOST=""
+    if [ -z "${_spec}" ]; then
+        return 1
+    fi
+    case "${_spec}" in
+        *[';|&$`()<>\\/ '*]*|*'*'*|*\[*|*\]*)
+            return 1
+            ;;
+        -*)
+            return 1
+            ;;
+    esac
+    _atcount=0
+    _tmp="${_spec}"
+    while [ -n "${_tmp}" ]; do
+        case "${_tmp}" in
+            *@*)
+                _atcount=$((_atcount + 1))
+                _tmp="${_tmp#*@}"
+                ;;
+            *)
+                _tmp=""
+                ;;
+        esac
+    done
+    if [ "${_atcount}" -gt 1 ]; then
+        return 1
+    fi
+    if [ "${_atcount}" -eq 1 ]; then
+        SSHD_REMOTE_USER="${_spec%@*}"
+        SSHD_REMOTE_HOST="${_spec#*@}"
+        if [ -z "${SSHD_REMOTE_USER}" ] || [ -z "${SSHD_REMOTE_HOST}" ]; then
+            SSHD_REMOTE_USER=""
+            SSHD_REMOTE_HOST=""
+            return 1
+        fi
+        case "${SSHD_REMOTE_USER}" in
+            *[!A-Za-z0-9_.-]*)
+                SSHD_REMOTE_USER=""
+                SSHD_REMOTE_HOST=""
+                return 1
+                ;;
+        esac
+        case "${SSHD_REMOTE_USER}" in
+            [A-Za-z_]*|[0-9]*)
+                ;;
+            *)
+                SSHD_REMOTE_USER=""
+                SSHD_REMOTE_HOST=""
+                return 1
+                ;;
+        esac
+    else
+        SSHD_REMOTE_HOST="${_spec}"
+    fi
+    if sshd_host_is_ipv4 "${SSHD_REMOTE_HOST}"; then
+        return 0
+    fi
+    if sshd_host_is_dns "${SSHD_REMOTE_HOST}"; then
+        return 0
+    fi
+    SSHD_REMOTE_USER=""
+    SSHD_REMOTE_HOST=""
+    return 1
+}
+
+sshd_preferred_remote_path() {
+    : "${APP_NAME:=sshd-cli}"
+    if [ -z "${PERSISTENT_STORAGE_DIR:-}" ]; then
+        PERSISTENT_STORAGE_DIR=$(util_resolve_persistent_storage)
+        export PERSISTENT_STORAGE_DIR
+    fi
+    printf '%s' "${PERSISTENT_STORAGE_DIR}/preferred-remote"
+}
+
+sshd_preferred_remote_load() {
+    _pr_path=$(sshd_preferred_remote_path)
+    if [ ! -f "${_pr_path}" ]; then
+        printf '%s' ""
+        return 0
+    fi
+    _pr_line=$(head -n1 "${_pr_path}" 2>/dev/null || true)
+    _pr_line=$(printf '%s' "${_pr_line}" | tr -d '\r')
+    if [ -z "${_pr_line}" ]; then
+        printf '%s' ""
+        return 0
+    fi
+    if sshd_parse_remote_spec "${_pr_line}"; then
+        printf '%s' "${_pr_line}"
+        return 0
+    fi
+    printf '%s' ""
+    return 0
+}
+
+sshd_preferred_remote_save() {
+    _pr_spec="${1-}"
+    if ! sshd_parse_remote_spec "${_pr_spec}"; then
+        return 1
+    fi
+    _pr_path=$(sshd_preferred_remote_path)
+    printf '%s\n' "${_pr_spec}" > "${_pr_path}" || return 1
+    chmod 0600 "${_pr_path}" 2>/dev/null || true
+    return 0
+}
+
+# =============================================================================
+# sshd_cmd_sync_from_remote() - Type 0 scp of remote /var/sshd-cli/config
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Pull config from a remote host's SSHD_CLI_REMOTE_ROOT (default /var/sshd-cli)
+# into this login ~/.ssh/config (mode 600). SPEC is user@host, IPv4, domain,
+# or user@domain. scp BatchMode. MUST NOT sudo. Preferred SPEC is stored under
+# ${HOME}/.local/${APP_NAME}/preferred-remote (mode 0600) and used as the TTY
+# default next time.
+#
+# ALIGNMENT: requirement-sshd-config-backup.md
+# Last updated: 2026-09-11
+# =============================================================================
+sshd_cmd_sync_from_remote() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${JSON:=0}"
+    : "${TTY:=0}"
+    : "${QUIET:=0}"
+    : "${SSHD_CLI_REMOTE_ROOT:=/var/sshd-cli}"
+    : "${HOME:=/tmp}"
+
+    _spec="${1-}"
+    if [ -z "${_spec}" ] && [ "${TTY}" -eq 1 ] && [ "${JSON}" -ne 1 ] && [ "${QUIET}" -ne 1 ]; then
+        _pref=$(sshd_preferred_remote_load)
+        if [ -n "${_pref}" ]; then
+            out_msg_n "Remote (user@host, IPv4, domain, or user@domain) [${_pref}]: "
+        else
+            out_msg_n "Remote (user@host, IPv4, domain, or user@domain): "
+        fi
+        _spec=""
+        read -r _spec || true
+        if [ -z "${_spec}" ]; then
+            _spec="${_pref}"
+        fi
+        unset _pref
+    fi
+    if [ -z "${_spec}" ]; then
+        out_die "Cannot sync-from-remote: missing remote. Next: ${APP_NAME} sync-from-remote USER@HOST"
+    fi
+    if ! sshd_parse_remote_spec "${_spec}"; then
+        out_die "Cannot sync-from-remote: remote '${_spec}' is not user@host, IPv4, domain, or user@domain. Next: ${APP_NAME} sync-from-remote USER@HOST"
+    fi
+
+    _scp=$(sshd_scp_cmd)
+    if [ -z "${_scp}" ] || [ ! -x "${_scp}" ]; then
+        out_die "Cannot sync-from-remote: scp not found. Next: install openssh-client, then ${APP_NAME} sync-from-remote ${_spec}"
+    fi
+
+    _destdir="${HOME}/.ssh"
+    _dest="${_destdir}/config"
+    if [ ! -d "${_destdir}" ]; then
+        mkdir -p "${_destdir}" || out_die "Cannot create ${_destdir}."
+    fi
+    chmod 0700 "${_destdir}" 2>/dev/null || true
+
+    _cfg_src="${SSHD_CLI_REMOTE_ROOT}/config"
+    if [ -n "${SSHD_REMOTE_USER}" ]; then
+        _remote="${SSHD_REMOTE_USER}@${SSHD_REMOTE_HOST}:${_cfg_src}"
+        _label="${SSHD_REMOTE_USER}@${SSHD_REMOTE_HOST}"
+    else
+        _remote="${SSHD_REMOTE_HOST}:${_cfg_src}"
+        _label="${SSHD_REMOTE_HOST}"
+    fi
+
+    _tmp=$(mktemp -t "${APP_NAME}.remote.XXXXXX") || out_die "Could not create a temp file for sync-from-remote."
+    out_info "Fetching config from ${_label}"
+    if ! "${_scp}" -o BatchMode=yes -o ConnectTimeout=15 "${_remote}" "${_tmp}"; then
+        rm -f "${_tmp}"
+        out_die "Cannot sync-from-remote: scp from ${_label} failed. Next: ssh ${_label}, then ${APP_NAME} sync-from-remote ${_spec}"
+    fi
+    if [ ! -s "${_tmp}" ]; then
+        rm -f "${_tmp}"
+        out_die "Cannot sync-from-remote: remote ${_label} has no config under ${SSHD_CLI_REMOTE_ROOT}. Next: on that host run ${APP_NAME} backup-config, then ${APP_NAME} sync-from-remote ${_spec}"
+    fi
+
+    if command -v install >/dev/null 2>&1; then
+        install -m 0600 "${_tmp}" "${_dest}" || out_die "Failed to write ${_dest}."
+    else
+        cp "${_tmp}" "${_dest}" || out_die "Failed to write ${_dest}."
+        chmod 0600 "${_dest}" 2>/dev/null || true
+    fi
+    rm -f "${_tmp}"
+    chmod 0600 "${_dest}" 2>/dev/null || true
+
+    out_success "sync-from-remote complete: ${_label}:${SSHD_CLI_REMOTE_ROOT}/config → ${_dest} (mode 600)"
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "sync-from-remote" "ok" \
+            "app" "${APP_NAME}" \
+            "remote" "${_label}" \
+            "host" "${SSHD_REMOTE_HOST}" \
+            "user" "${SSHD_REMOTE_USER}" \
+            "source" "${SSHD_CLI_REMOTE_ROOT}/config" \
+            "destination" "${_dest}"
+    fi
+    sshd_preferred_remote_save "${_spec}" || true
+    unset _spec _scp _destdir _dest _cfg_src _remote _label _tmp
+    return 0
+}
+
 sshd_cmd_print_sudoers() {
     : "${APP_NAME:=sshd-cli}"
     : "${JSON:=0}"
@@ -6063,6 +6352,11 @@ sshd_cmd_menu() {
         out_plain "7. sync-config: copy /var/sshd-cli/config into this login ~/.ssh/config"
         out_plain "8. sudoers: grant and drafts for passwordless sudo backup-config"
     fi
+    if [ "${_show_cfg}" -eq 1 ]; then
+        out_plain "   (or type sync-from-remote [user@host]: copy /var/sshd-cli/config from another host)"
+    else
+        out_plain "6. sync-from-remote: copy /var/sshd-cli/config from user@host (or host)"
+    fi
     out_plain "9. Exit"
     out_msg_n "Choose a number, or type the command name: "
     _choice=""
@@ -6086,8 +6380,11 @@ sshd_cmd_menu() {
         restart) sshd_cmd_restart ;;
         5|dns) sshd_cmd_dns ;;
         6)
-            [ "${_show_cfg}" -eq 1 ] || out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help."
-            sshd_cmd_backup_config
+            if [ "${_show_cfg}" -eq 1 ]; then
+                sshd_cmd_backup_config
+            else
+                sshd_cmd_sync_from_remote
+            fi
             ;;
         backup-config) sshd_cmd_backup_config ;;
         7)
@@ -6100,6 +6397,7 @@ sshd_cmd_menu() {
             sshd_cmd_sudoers_menu
             ;;
         sudoers) sshd_cmd_sudoers_menu ;;
+        sync-from-remote) sshd_cmd_sync_from_remote ;;
         generate-sudoer-request) sshd_cmd_generate_sudoer_request ;;
         submit-sudoer-request) sshd_cmd_submit_sudoer_request ;;
         print-sudoers) sshd_cmd_print_sudoers ;;
@@ -6368,12 +6666,13 @@ app_help() {
     out_plain "  dns [list|show N|edit N|set N …|add …|delete N]  This login ~/.ssh/config Host list (dns-ip; as Termux / identity-file / Old OpenSSH)"
     out_plain "  backup-config        Copy this login ~/.ssh/config into /var/sshd-cli (passwordless sudo sshd-cli backup-config after sudoer-adm)"
     out_plain "  sync-config          Copy /var/sshd-cli/config into this login ~/.ssh/config (mode 600; no sudo)"
+    out_plain "  sync-from-remote [SPEC]  Copy a remote host's /var/sshd-cli/config into this login ~/.ssh/config (scp; remembers last user@host)"
     out_plain "  print-sudoers        Emit project-sudoers-file (draft) for admin install"
     out_plain "  print-sudoers-install-script  Write admin script for sudo install/uninstall/replace"
     out_plain "  generate-sudoer-request [path]  Independently write a JSON grant (backup-config verb)"
     out_plain "  submit-sudoer-request [file]  Queue a JSON sudoers-grant request via sudoer-cli"
     out_plain "  remove-project-sudoers [path]  Delete project-sudoers-file draft only"
-    out_plain "  menu                 Numbered list: status, start, stop, restart, dns, backup-config, sync-config, sudoers, Exit 9 (terminal only; alias: main). POSIX Linux non-root omits 2/3/4. Termux / Git Bash / Windows cmd omit backup-config / sync-config / sudoers"
+    out_plain "  menu                 Numbered list: status, start, stop, restart, dns, backup-config, sync-config, sudoers, Exit 9 (terminal only; alias: main). POSIX Linux non-root omits 2/3/4. Termux / Git Bash / Windows cmd omit backup-config / sync-config / sudoers and number sync-from-remote as 6"
     out_empty_line
     out_info "Termux (Android wake lock):"
     out_plain "  wake-lock            Acquire the Android wake lock so sshd can keep listening with the screen off (idempotent; acquire again if Android dropped it)"
@@ -6413,6 +6712,9 @@ app_help() {
     out_plain "                       Canonical install channel (override via env; needed for version-check/self-update)"
     out_plain "  BASHRC               ${BASHRC}"
     out_plain "                       Interactive rc written by install PATH ensure (default \${HOME}/.bashrc; override for tests/CI)"
+    out_plain "  SSHD_CLI_ROOT        durable store (default /var/sshd-cli)"
+    out_plain "  SSHD_CLI_REMOTE_ROOT remote store for sync-from-remote (default /var/sshd-cli)"
+    out_plain "  SSHD_CLI_SCP         scp binary override (tests inject a fake)"
     out_empty_line
 }
 
@@ -6549,9 +6851,9 @@ app_main() {
                 COMMAND="$1"
                 ;;
             # --- DOMAIN_DISPATCH_COMMANDS (specializee injection) ---
-            status|start|stop|restart|port|config|host-keys|auth-keys|dns|menu|main|wake-lock|wake-unlock|backup-config|sync-config|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
+            status|start|stop|restart|port|config|host-keys|auth-keys|dns|menu|main|wake-lock|wake-unlock|backup-config|sync-config|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
                 case "${COMMAND}" in
-                    port|host-keys|auth-keys|dns|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
+                    port|host-keys|auth-keys|dns|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
                         if [ "${COMMAND}" = "dns" ] && [ -z "$1" ]; then
                             _op='""'
                         else
@@ -6579,7 +6881,7 @@ app_main() {
                             RC_TEST_OPERANDS="$1"
                         fi
                         ;;
-                    port|host-keys|auth-keys|dns|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
+                    port|host-keys|auth-keys|dns|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
                         if [ "${COMMAND}" = "dns" ] && [ -z "$1" ]; then
                             _op='""'
                         else
@@ -6656,6 +6958,10 @@ app_main() {
         wake-unlock) sshd_cmd_wake_unlock ;;
         backup-config) sshd_cmd_backup_config ;;
         sync-config) sshd_cmd_sync_config ;;
+        sync-from-remote)
+            set -- ${DOMAIN_OPERANDS}
+            sshd_cmd_sync_from_remote "${1-}"
+            ;;
         print-sudoers)
             set -- ${DOMAIN_OPERANDS}
             sshd_cmd_print_sudoers "${1-}"

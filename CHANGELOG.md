@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.15.0] - 2026-09-11
+
+### Added
+
+- **`sync-from-remote [SPEC]`**: Type 0 `scp` of a remote `/var/sshd-cli/config` into this login `~/.ssh/config` (mode 600). SPEC is `user@host`, host, IPv4, or `user@domain`. Last successful SPEC is stored as `${HOME}/.local/sshd-cli/preferred-remote` (mode 600) and used as the TTY default. Available on Termux / Git Bash / Windows cmd (menu row 6). Tests **TP-CFG-10..16**. Fake `SSHD_CLI_SCP` in CI (no real SSH).
+
 ## [1.14.0] - 2026-09-11
 
 ### Added

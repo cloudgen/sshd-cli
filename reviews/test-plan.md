@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.14.0  
+**Product VERSION:** 1.15.0  
 **Last plan update:** 2026-09-11  
-**Last suite run:** PASS=485 FAIL=0 SKIP=0 (2026-09-11)
+**Last suite run:** PASS=507 FAIL=0 SKIP=0 (2026-09-11)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -21,7 +21,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | Unknown + quiet + set -u HOME | have | TP-CLI-08..11 |
 | Storage isolation | have | TP-CLI-12 |
 | Git Bash `/dev/shm` mkdir fail-soft → AppData Temp/`cache` | have | TP-CLI-19, TP-CLI-20 |
-| `backup-config` / `sync-config` / sudoers grant | have | TP-CFG-01..09 |
+| `backup-config` / `sync-config` / `sync-from-remote` / sudoers grant | have | TP-CFG-01..16 |
 | Channel verbs routed (`self-update`, `version-check`); no public network in CI | have | TP-CLI-04, TP-CLI-10 |
 | Trimmed parent verbs fail closed | have | TP-CLI-13 |
 | Local install / idempotent / uninstall / mode 0755 / login rc / Termux pkg | have | TP-LC-01..19 |
@@ -67,6 +67,13 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-CFG-07 | `generate-sudoer-request` JSON grant | test_config_backup | requirement-sudoer-json-file | **have** |
 | TP-CFG-08 | `restore-config` unknown | test_config_backup | requirement-sshd-config-backup | **have** |
 | TP-CFG-09 | Windows cmd menu INFO | test_config_backup | requirement-sshd-config-backup | **have** |
+| TP-CFG-10 | `sync-from-remote` missing SPEC fail-closed | test_config_backup | requirement-sshd-config-backup | **have** |
+| TP-CFG-11 | invalid SPEC / extra `@` fail-closed | test_config_backup | requirement-sshd-config-backup | **have** |
+| TP-CFG-12 | fake scp `user@host` copies config | test_config_backup | requirement-sshd-config-backup | **have** |
+| TP-CFG-13 | dest mode 600 | test_config_backup | requirement-sshd-config-backup | **have** |
+| TP-CFG-14 | preferred-remote saved mode 600 | test_config_backup | requirement-sshd-config-backup | **have** |
+| TP-CFG-15 | TTY empty Enter uses stored default | test_config_backup | requirement-sshd-config-backup | **have** |
+| TP-CFG-16 | `--json` type/host fields | test_config_backup | requirement-sshd-config-backup | **have** |
 | TP-CLI-13 | backup/restore/sudoers verbs unknown | test_cli | requirement-shell-cli-interface | **have** |
 | TP-CLI-14 | empty argv interactive → domain menu (no install); status + dns row 5 + Exit 9 | test_cli | requirement-shell-cli-zero-arguments · requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-CLI-15 | status Connect: live ssh -p user@ipv4; no `<this-host>` | test_cli | requirement-domain-sshd | **have** |

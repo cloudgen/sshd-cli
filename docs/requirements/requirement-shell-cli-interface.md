@@ -134,7 +134,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | **Primary executable** | Repo root `./sshd-cli` (POSIX `/bin/sh`, single-file for `curl \| sh`) |
 | **Dispatcher** | `app_main` (always invoked at end of script: `app_main "$@"` — no `${0##*/}` / APP_NAME basename gate; required for `curl \| sh`) |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION` default `1.14.0` (script header / config block: `VERSION="1.14.0"`) |
+| **Version SSOT** | `VERSION` default `1.15.0` (script header / config block: `VERSION="1.15.0"`) |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`, or `${PREFIX}/bin` when Termux `PREFIX/bin` exists; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Interactive rc write path** | `BASHRC` default `${HOME}/.bashrc`. `install` PATH ensure creates/modifies this file. Tests/CI **MAY** set `BASHRC` to a file in a temp folder. Dual mention: `requirement-shell-path-and-shell-support`. |
 | **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`). **`help` Environment also lists `BASHRC`.** |
@@ -168,6 +168,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | `wake-unlock` | Type 0 | `sshd_cmd_wake_unlock` | Release Android wake lock (`termux-wake-unlock`). Operator-owned. **MUST NOT** auto-run from `stop`. Dual mention: `requirement-shell-termux-ish` |
 | `backup-config` | Type 1 deposit (POSIX Linux) | `sshd_cmd_backup_config` | Copy this login `~/.ssh/config` to `/var/sshd-cli/config`. Dual mention: `requirement-sshd-config-backup` · `requirement-domain-sshd`. Sample: `sshd-cli backup-config` |
 | `sync-config` | Type 0 | `sshd_cmd_sync_config` | Copy `/var/sshd-cli/config` to `~/.ssh/config` mode 600. Dual mention: `requirement-sshd-config-backup`. Sample: `sshd-cli sync-config` |
+| `sync-from-remote` | Type 0 | `sshd_cmd_sync_from_remote` | `scp` a remote `/var/sshd-cli/config` into this login `~/.ssh/config` (mode 600). Remembers last SPEC as TTY default. Dual mention: `requirement-sshd-config-backup`. Sample: `sshd-cli sync-from-remote user@host` |
 | `print-sudoers` | Type 0 | `sshd_cmd_print_sudoers` | Emit fragment. Dual mention: `requirement-three-layer-privilege-model`. Sample: `sshd-cli print-sudoers` |
 | `print-sudoers-install-script` | Type 0 | `sshd_cmd_print_sudoers_install_script` | Admin script. Dual mention: `requirement-three-layer-privilege-model`. Sample: `sshd-cli print-sudoers-install-script` |
 | `generate-sudoer-request` | Type 0 | `sshd_cmd_generate_sudoer_request` | Local JSON grant. Dual mention: `requirement-three-layer-privilege-model` · `requirement-sudoer-json-file`. Sample: `sshd-cli generate-sudoer-request` |
@@ -189,7 +190,7 @@ Every routed verb is named **here** and on a topic-owner. Help/`app_help` is **n
 | `version-check` / `self-update` | `requirement-shell-self-management` | `sshd-cli version-check` |
 | `self-uninstall` | `requirement-shell-self-management` · `requirement-shell-path-and-shell-support` | `sshd-cli --force self-uninstall` |
 | `status` / `start` / `stop` / `restart` / `port` / `config` / `host-keys` / `auth-keys` / `dns` / `menu` | `requirement-domain-sshd` | `sshd-cli status` · `sshd-cli dns list` |
-| `backup-config` / `sync-config` | `requirement-sshd-config-backup` · `requirement-domain-sshd` | `sshd-cli backup-config` · `sshd-cli sync-config` |
+| `backup-config` / `sync-config` / `sync-from-remote` | `requirement-sshd-config-backup` · `requirement-domain-sshd` | `sshd-cli backup-config` · `sshd-cli sync-from-remote user@host` |
 | `print-sudoers` / `print-sudoers-install-script` / `generate-sudoer-request` / `submit-sudoer-request` / `remove-project-sudoers` | `requirement-three-layer-privilege-model` · `requirement-sudoer-json-file` | `sshd-cli generate-sudoer-request` |
 | `main` | `requirement-domain-sshd` | alias of `menu` (help names the alias; type `menu`) |
 | `wake-lock` / `wake-unlock` | `requirement-shell-termux-ish` | `sshd-cli wake-lock` · `sshd-cli wake-unlock` |

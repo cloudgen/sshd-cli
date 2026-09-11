@@ -54,6 +54,7 @@ run_test_cli() {
     assert_contains "TP-CLI-04 help dns" "$_out" "dns"
     assert_contains "TP-CLI-04 help backup-config" "$_out" "backup-config"
     assert_contains "TP-CLI-04 help sync-config" "$_out" "sync-config"
+    assert_contains "TP-CLI-04 help sync-from-remote" "$_out" "sync-from-remote"
     assert_contains "TP-CLI-04 help print-sudoers" "$_out" "print-sudoers"
     assert_contains "TP-CLI-04 help generate-sudoer-request" "$_out" "generate-sudoer-request"
     assert_contains "TP-CLI-04 help submit-sudoer-request" "$_out" "submit-sudoer-request"
@@ -290,6 +291,7 @@ run_test_cli() {
     assert_contains "TP-SSHD-04 dns row 5" "$_out" "5. SSH names (dns)"
     assert_contains "TP-SSHD-04 backup-config INFO" "$_out" "backup-config and sync-config not available for termux"
     assert_not_contains "TP-SSHD-04 no backup-config row" "$_out" "6. backup-config"
+    assert_contains "TP-SSHD-04 Termux sync-from-remote row 6" "$_out" "6. sync-from-remote"
     assert_not_contains "TP-SSHD-04 no non-root INFO" "$_out" "not available for non-root"
     ci_cleanup_env
     unset _out _ec

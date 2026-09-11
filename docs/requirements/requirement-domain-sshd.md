@@ -67,6 +67,7 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 | `menu` / `main` | none | `sshd_cmd_menu` | TTY only | `--json` / quiet / non-TTY → `out_die` with named-command hint |
 | `backup-config` | none | `sshd_cmd_backup_config` | POSIX Linux: this login then `sudo -n {{GLOBAL_BIN}}/sshd-cli backup-config`. Termux / Git Bash / Windows cmd unused | Missing `~/.ssh/config` / sudo refused / this-login-only host → `out_die` |
 | `sync-config` | none | `sshd_cmd_sync_config` | This login, no sudo | Store missing / this-login-only host → `out_die` |
+| `sync-from-remote` | optional SPEC | `sshd_cmd_sync_from_remote` | This login `scp`; all hosts | Missing/invalid SPEC / scp fail → `out_die` |
 | `print-sudoers` | optional path; `--allow-test-local` | `sshd_cmd_print_sudoers` | Type 0 draft | Non-production without allow → `out_die` |
 | `print-sudoers-install-script` | optional path | `sshd_cmd_print_sudoers_install_script` | Type 0 script; admin runs with sudo | Same trust gate |
 | `generate-sudoer-request` | optional path; `--add` / `--update` | `sshd_cmd_generate_sudoer_request` | Type 0 local JSON | Same trust gate |
@@ -296,6 +297,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExamplePublicKeyMaterialOnly laptop-user
 - `dns [list|show N|edit N|set N …|add …|delete N]` — This login `~/.ssh/config` Host list (numbered dns-ip; TTY as Termux / identity-file / Old OpenSSH; TTY edit/add/delete)  
 - `backup-config` — Copy this login `~/.ssh/config` to `/var/sshd-cli/config`  
 - `sync-config` — Copy `/var/sshd-cli/config` into this login `~/.ssh/config` (mode 600)  
+- `sync-from-remote [SPEC]` — `scp` a remote `/var/sshd-cli/config`; remembers last user@host  
 - `print-sudoers` / `generate-sudoer-request` / `submit-sudoer-request` — passwordless `sudo sshd-cli backup-config` grant  
 - `menu` — Numbered list: status, start, stop, restart, dns, backup-config, sync-config, sudoers, Exit 9 (terminal only). POSIX Linux non-root omits rows 2/3/4. Termux / Git Bash / Windows cmd omit backup-config / sync-config / sudoers and print INFO first
 

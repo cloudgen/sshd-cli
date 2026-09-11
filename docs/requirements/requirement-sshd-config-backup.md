@@ -1,26 +1,26 @@
 **file**: docs/requirements/requirement-sshd-config-backup.md  
-**Status**: Active (Version 1.0.0)  
+**Status**: Active (Version 1.1.0)  
 **Area**: backup  
 **Key**: `requirement-sshd-config-backup`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This requirement is the operations Single Source of Truth for depositing this login’s `~/.ssh/config` into `/var/sshd-cli` (`backup-config`) and copying that store back into this login’s `~/.ssh/config` (`sync-config`) with mode `600`. It is the sshd-cli analog of grok-cli auth deposit (`backup` / `sync-auth`), not folder-archive tar.gz.
+This requirement is the operations Single Source of Truth for depositing this login’s `~/.ssh/config` into `/var/sshd-cli` (`backup-config`), copying that store back (`sync-config`), and pulling the same file from another host (`sync-from-remote`) with mode `600`. It is not folder-archive tar.gz.
 
 ### 1.1 Human-facing
 
-**In one sentence:** on a POSIX Linux host, `sshd-cli backup-config` copies this login’s SSH client config into `/var/sshd-cli/config` as root after a passwordless grant; `sshd-cli sync-config` copies that file back into `~/.ssh/config` as you, mode 600, with no sudo.
+**In one sentence:** `backup-config` copies this login’s SSH client config into `/var/sshd-cli/config` as root after a passwordless grant; `sync-config` copies that file back as you, mode 600; `sync-from-remote` `scp`s the same file from another host and remembers the last `user@host` as the next default.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
-| You / this login | Push or pull the SSH client config | `sshd-cli backup-config` · `sshd-cli sync-config` |
+| You / this login | Push or pull the SSH client config | `sshd-cli backup-config` · `sshd-cli sync-config` · `sshd-cli sync-from-remote user@host` |
 | The other role | sudoer-adm approves passwordless `sudo sshd-cli backup-config` | JSON grant inbound |
 | Not this file | Host list edit; sudoers JSON schema | `requirement-domain-sshd` · `requirement-sudoer-json-file` |
 
 | Includes | Excludes |
 |----------|----------|
-| Source `~/.ssh/config`; dest `/var/sshd-cli/config`; SUDO_USER home when elevated; dest mode 600 on sync | Whole `~/.ssh` including private keys; folder-archive `backup`/`restore`; Termux / Git Bash / Windows cmd deposit |
+| Source `~/.ssh/config`; dest `/var/sshd-cli/config`; SUDO_USER home when elevated; dest mode 600 on sync; `sync-from-remote` SPEC + preferred-remote | Whole `~/.ssh` including private keys; folder-archive `backup`/`restore`; Termux / Git Bash / Windows cmd **deposit** (`backup-config` / local `sync-config`) |
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
@@ -32,6 +32,7 @@ This requirement is the operations Single Source of Truth for depositing this lo
 |---------|---------------|---------------|
 | Share this login’s SSH names | Copy `~/.ssh/config` into the host store as root | `sshd-cli backup-config` |
 | Use the shared names | Copy the store into this login’s `~/.ssh/config` as 600 | `sshd-cli sync-config` |
+| Pull from another host | `scp` that host’s `/var/sshd-cli/config`; last SPEC is the next default | `sshd-cli sync-from-remote user@host` |
 
 ## 2. Core Rules / Requirements (Mandatory)
 
@@ -60,26 +61,40 @@ This requirement is the operations Single Source of Truth for depositing this lo
 4. **MUST** create dest `~/.ssh` if needed (dir mode `700` when possible).  
 5. Dest `config` **MUST** be mode `600` after copy. Owner is this login.
 
-### 2.4 Invocation samples
+### 2.4 sync-from-remote (no sudo)
+
+1. **MUST** route **`sync-from-remote`**. Dual mention: this file **and** `requirement-shell-cli-interface`.  
+2. **MUST** be Type 0. **MUST NOT** call `sudo`. **MUST** be available on Termux / Git Bash / Windows cmd (unlike `backup-config` / local `sync-config`).  
+3. Operand **SPEC** **MUST** be exactly one of: `{{user}}@{{ipv4}}`, `{{ipv4}}`, `{{domain-name}}`, `{{user}}@{{domain-name}}`.  
+4. When SPEC has no `user@`, SSH **MUST** use the invoking login / ssh config (do not invent a Unix login).  
+5. **MUST** reject empty SPEC, extra `@`, paths, and shell metacharacters. Off-TTY missing SPEC **MUST** fail closed with Next: `sshd-cli sync-from-remote USER@HOST`. On TTY with no operand, **MUST** `read` in the current shell (**MUST NOT** `_spec=$(prompt_ask …)`).  
+6. Preferred SPEC **MUST** be stored in persistence storage (`${HOME}/.local/${APP_NAME}/preferred-remote`, mode **0600**). After a successful pull, **MUST** save the SPEC that worked. On TTY with no operand, **MUST** load that leaf first (if present and still a valid SPEC). When a preferred value is stored, the prompt **MUST** show it at the **end** as `[user@host]: `. Empty input (Enter) **MUST** use that default. No stored value → no default suffix; empty input still fail-closed. **MUST NOT** treat an invalid stored line as a default.  
+7. Transport **MUST** be `scp` in **BatchMode** (no password hang). Override `SSHD_CLI_SCP` for tests. Missing `scp` **MUST** fail closed.  
+8. Remote source **MUST** be `{{SSHD_CLI_REMOTE_ROOT}}/config` (default `/var/sshd-cli`). Dest is this login’s `~/.ssh/config` mode **600**. Dest dir mode **700** when created.  
+9. Core tests **MUST NOT** open a real SSH session.
+
+### 2.5 Invocation samples
 
 ```text
 sshd-cli backup-config
 sshd-cli sync-config
+sshd-cli sync-from-remote user@host.example.test
 sshd-cli generate-sudoer-request
 sshd-cli submit-sudoer-request
 ```
 
-### 2.5 Implementation Notes (this project)
+### 2.6 Implementation Notes (this project)
 
 | Item | Value |
 |------|--------|
 | Store | `/var/sshd-cli/config` (`SSHD_CLI_ROOT` default `/var/sshd-cli`) |
 | Source | `$(sshd_invoking_home)/.ssh/config` |
 | Elev argv | `sudo -n /usr/local/bin/sshd-cli backup-config` |
-| Handlers | `sshd_cmd_backup_config` · `sshd_cmd_sync_config` · `util_sudo` |
-| Tests | `tests/test_config_backup.sh` **TP-CFG-01..09** |
+| Handlers | `sshd_cmd_backup_config` · `sshd_cmd_sync_config` · `sshd_cmd_sync_from_remote` · `util_sudo` |
+| Persistence | `${HOME}/.local/sshd-cli/preferred-remote` |
+| Tests | `tests/test_config_backup.sh` **TP-CFG-01..16** |
 
-### 2.6 Why This Requirement Exists (Direct CIAO Alignment)
+### 2.7 Why This Requirement Exists (Direct CIAO Alignment)
 
 - **CIAO Principle 10 – Least privilege** (https://github.com/cloudgen/ciao): elev is the product command only.  
 - **CIAO Principle 12 – Right backup** (https://github.com/cloudgen/ciao): durable host store is not the dns pre-edit `.bak`.  
@@ -87,9 +102,9 @@ sshd-cli submit-sudoer-request
 
 ## Under command line for normal user only
 
-When the ship unit detects Termux, Git Bash, Windows cmd, or the same class: **MUST NOT** deposit into `/var/sshd-cli` or wrap `sudo`. Direct `backup-config` / `sync-config` **MUST** fail closed. TTY menu **MUST** print `[INFO] backup-config and sync-config not available for termux` / `gitbash` / `windows-cmd` **before** the numbered list and **MUST** omit those rows (and sudoers).
+When the ship unit detects Termux, Git Bash, Windows cmd, or the same class: **MUST NOT** deposit into `/var/sshd-cli` or wrap `sudo`. Direct `backup-config` / local `sync-config` **MUST** fail closed. TTY menu **MUST** print `[INFO] backup-config and sync-config not available for termux` / `gitbash` / `windows-cmd` **before** the numbered list and **MUST** omit those rows (and sudoers). **`sync-from-remote` remains available** (Type 0 `scp`) and **MUST** be numbered **6** on that class.
 
-**This requirement:** deposit and pull are POSIX Linux host features; this-login-only shells keep Type 1 unused.
+**This requirement:** host deposit is POSIX Linux; remote pull is this-login `scp` on every class.
 
 ## 3. Design Principles (CIAO / CIAO-Lite)
 
@@ -105,8 +120,11 @@ When the ship unit detects Termux, Git Bash, Windows cmd, or the same class: **M
 1. Tar the whole `~/.ssh` or copy private keys.  
 2. Name the pull verb `restore` / `restore-config` (folder-archive retired; pull is `sync-config`).  
 3. Grant `cp`/`mkdir`/`chmod` in sudoers.  
-4. Enable deposit on Termux / Git Bash / Windows cmd.  
-5. Use `/root/.ssh/config` when `SUDO_USER` is set.
+4. Enable **deposit** (`backup-config`) on Termux / Git Bash / Windows cmd.  
+5. Use `/root/.ssh/config` when `SUDO_USER` is set.  
+6. Hide or fail-closed `sync-from-remote` because Termux/Git Bash was detected.  
+7. `_spec=$(prompt_ask …)` for the remote SPEC (do-not-capture-read).  
+8. Store preferred-remote on `/dev/shm` (must survive reboot: `${HOME}/.local/${APP_NAME}/preferred-remote`).
 
 ## 5. Design-time verification
 
@@ -119,6 +137,13 @@ When the ship unit detects Termux, Git Bash, Windows cmd, or the same class: **M
 | **TP-CFG-05** | `tests/test_config_backup.sh` | have |
 | **TP-CFG-08** | `tests/test_config_backup.sh` | have |
 | **TP-CFG-09** | `tests/test_config_backup.sh` | have |
+| **TP-CFG-10** | `tests/test_config_backup.sh` | have |
+| **TP-CFG-11** | `tests/test_config_backup.sh` | have |
+| **TP-CFG-12** | `tests/test_config_backup.sh` | have |
+| **TP-CFG-13** | `tests/test_config_backup.sh` | have |
+| **TP-CFG-14** | `tests/test_config_backup.sh` | have |
+| **TP-CFG-15** | `tests/test_config_backup.sh` | have |
+| **TP-CFG-16** | `tests/test_config_backup.sh` | have |
 
 **Matrix:** `docs/reviews/requirement-test-matrix.md`  
 **Map:** `docs/reviews/test-plan.md`.
@@ -134,6 +159,6 @@ When the ship unit detects Termux, Git Bash, Windows cmd, or the same class: **M
 | `docs/requirements/requirement-shell-sudo-command.md` | `util_sudo` |
 | `./sshd-cli` | Ship unit |
 
-**Last Updated**: 2026-09-11  
+**Last Updated**: 2026-09-11 (sync-from-remote)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
