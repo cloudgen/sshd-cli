@@ -52,13 +52,17 @@ run_test_cli() {
     assert_contains "TP-CLI-04 help host-keys" "$_out" "host-keys"
     assert_contains "TP-CLI-04 help auth-keys" "$_out" "auth-keys"
     assert_contains "TP-CLI-04 help dns" "$_out" "dns"
+    assert_contains "TP-CLI-04 help backup-config" "$_out" "backup-config"
+    assert_contains "TP-CLI-04 help sync-config" "$_out" "sync-config"
+    assert_contains "TP-CLI-04 help print-sudoers" "$_out" "print-sudoers"
+    assert_contains "TP-CLI-04 help generate-sudoer-request" "$_out" "generate-sudoer-request"
+    assert_contains "TP-CLI-04 help submit-sudoer-request" "$_out" "submit-sudoer-request"
     assert_contains "TP-CLI-04 help menu" "$_out" "menu"
     assert_contains "TP-CLI-04 help wake-lock" "$_out" "wake-lock"
     assert_contains "TP-CLI-04 help wake-unlock" "$_out" "wake-unlock"
     assert_contains "TP-CLI-04 help --json" "$_out" "--json"
     assert_not_contains "TP-CLI-04 no backup verb" "$_out" "backup <"
     assert_not_contains "TP-CLI-04 no restore verb" "$_out" "restore <"
-    assert_not_contains "TP-CLI-04 no print-sudoers" "$_out" "print-sudoers"
     assert_not_contains "TP-CLI-04 no CHECKSUM" "$_out" "CHECKSUM"
     assert_contains "TP-CLI-04 help lists BASHRC" "$_out" "BASHRC"
     assert_contains "TP-CLI-18 help testers heading" "$_out" "Tests (local folder; not install):"
@@ -100,12 +104,13 @@ run_test_cli() {
     assert_contains "TP-CLI-14 interactive empty argv shows menu" "$_out" "Choose a number"
     assert_contains "TP-CLI-14 interactive empty argv status row" "$_out" "Show sshd status"
     assert_contains "TP-CLI-14 interactive empty argv dns row" "$_out" "5. SSH names (dns)"
+    assert_contains "TP-CLI-14 interactive empty argv backup-config row" "$_out" "6. backup-config"
+    assert_contains "TP-CLI-14 interactive empty argv sync-config row" "$_out" "7. sync-config"
     assert_contains "TP-CLI-14 interactive empty argv Exit 9" "$_out" "9. Exit"
     assert_not_contains "TP-CLI-14 no numbered port row" "$_out" "Show listen port"
     assert_not_contains "TP-CLI-14 no numbered config row" "$_out" "Show sshd config"
     assert_not_contains "TP-CLI-14 no numbered host-keys row" "$_out" "List host keys"
     assert_not_contains "TP-CLI-14 no numbered auth-keys row" "$_out" "List login keys"
-    assert_not_contains "TP-CLI-14 no numbered row 6" "$_out" "6. "
     assert_file_missing "TP-CLI-14 interactive empty argv does not install" "${CI_USER_BIN}/${APP_NAME}"
     assert_not_contains "TP-CLI-14 interactive empty argv is not help Usage" "$_out" "Usage:"
     ci_cleanup_env
@@ -180,8 +185,53 @@ run_test_cli() {
     fi
     ci_cleanup_env
 
-    # TP-CLI-13 trimmed parent domain / sudoers verbs fail closed
-    for _verb in backup restore print-sudoers print-sudoers-install-script remove-project-sudoers setup; do
+    # TP-CLI-19 Git Bash: /dev/shm mkdir fail-soft → AppData Local Temp/cache; no ERROR
+    # Remove this-login shm leaf so a leftover dir cannot satisfy -d after stub mkdir fails.
+    _shm_leaf="/dev/shm/${APP_NAME}-$(id -un 2>/dev/null || echo unknown)"
+    if [ -d "${_shm_leaf}" ]; then
+        rm -rf "${_shm_leaf}"
+    fi
+    ci_isolated_env
+    mkdir -p "${CI_HOME}/AppData/Local/Temp"
+    _stub="${CI_HOME}/stubbin"
+    mkdir -p "${_stub}"
+    _real_mkdir=$(command -v mkdir)
+    printf '%s\n' '#!/bin/sh' \
+        "REAL_MKDIR='${_real_mkdir}'" \
+        'for _a in "$@"; do' \
+        '  case "${_a}" in' \
+        '    /dev/shm/*) exit 1 ;;' \
+        '  esac' \
+        'done' \
+        'exec "${REAL_MKDIR}" "$@"' > "${_stub}/mkdir"
+    chmod +x "${_stub}/mkdir"
+    _combined=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" PATH="${_stub}:${PATH}" MSYSTEM=MINGW64 env -u TERMUX_VERSION sh "${SCRIPT}" --json about 2>&1)
+    _ec=$?
+    assert_eq "TP-CLI-19 git-bash shm fail-soft exit 0" 0 "$_ec"
+    assert_not_contains "TP-CLI-19 no storage ERROR" "${_combined}" "Cannot create storage"
+    assert_contains "TP-CLI-19 uses AppData Local Temp cache" "${_combined}" "AppData/Local/Temp/cache"
+    _eff=$(printf '%s' "${_combined}" | sed -n 's/.*"effective_storage":"\([^"]*\)".*/\1/p' | head -n1)
+    if [ -n "${_eff}" ] && [ -d "${_eff}" ]; then
+        t_pass "TP-CLI-19 git-bash effective_storage directory exists"
+    else
+        t_fail "TP-CLI-19 git-bash effective_storage missing: '${_eff:-empty}'"
+    fi
+    case "${_eff}" in
+        *"${APP_NAME}"*) t_pass "TP-CLI-19 git-bash storage isolates APP_NAME" ;;
+        *) t_fail "TP-CLI-19 git-bash storage isolates APP_NAME (got '${_eff:-empty}')" ;;
+    esac
+    unset _stub _real_mkdir _combined _ec _eff _shm_leaf
+    ci_cleanup_env
+
+    # TP-CLI-20 static: resolver names Git Bash Temp; no mid-chain mkdir die
+    _src=$(cat "${SCRIPT}")
+    assert_contains "TP-CLI-20 resolver names Git Bash Temp" "${_src}" 'AppData/Local/Temp'
+    assert_contains "TP-CLI-20 fail-soft helper present" "${_src}" 'util_try_mkdir_storage'
+    assert_not_contains "TP-CLI-20 no mid-chain mkdir die" "${_src}" 'out_die "Cannot create storage directory ${_storage_candidate}"'
+    unset _src
+
+    # TP-CLI-13 trimmed parent folder-archive / setup verbs fail closed
+    for _verb in backup restore setup; do
         _err=$(sh "${SCRIPT}" "${_verb}" 2>&1 >/dev/null)
         _ec=$?
         assert_eq "TP-CLI-13 ${_verb} exit 1" 1 "$_ec"
@@ -218,6 +268,8 @@ run_test_cli() {
         assert_not_contains "TP-SSHD-03 no stop row 3" "$_out" "3. Stop sshd"
         assert_not_contains "TP-SSHD-03 no restart row 4" "$_out" "4. Restart sshd"
         assert_contains "TP-SSHD-03 dns stays row 5" "$_out" "5. SSH names (dns)"
+        assert_contains "TP-SSHD-03 backup-config row 6" "$_out" "6. backup-config"
+        assert_contains "TP-SSHD-03 sync-config row 7" "$_out" "7. sync-config"
         assert_contains "TP-SSHD-03 Exit 9" "$_out" "9. Exit"
         _out=$(printf '%s\n' '2' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u TERMUX_VERSION -u MSYSTEM -u WSL_DISTRO_NAME sh "${SCRIPT}" 2>&1)
         _ec=$?
@@ -236,6 +288,8 @@ run_test_cli() {
     assert_contains "TP-SSHD-04 stop row 3" "$_out" "3. Stop sshd"
     assert_contains "TP-SSHD-04 restart row 4" "$_out" "4. Restart sshd"
     assert_contains "TP-SSHD-04 dns row 5" "$_out" "5. SSH names (dns)"
+    assert_contains "TP-SSHD-04 backup-config INFO" "$_out" "backup-config and sync-config not available for termux"
+    assert_not_contains "TP-SSHD-04 no backup-config row" "$_out" "6. backup-config"
     assert_not_contains "TP-SSHD-04 no non-root INFO" "$_out" "not available for non-root"
     ci_cleanup_env
     unset _out _ec

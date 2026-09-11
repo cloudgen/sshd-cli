@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-storage.md  
-**Status**: Active (Version 1.0.3)  
+**Status**: Active (Version 1.1.0)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
@@ -46,15 +46,20 @@ This file is the single home for **where scratch and cache live** for a run of `
 
 ### 2.2 Live resolve priority (normative for this product)
 
-First match that is available and writable:
+Walk the chain. Parent **must exist** before `mkdir` of a `cache` leaf (except Termux `$PREFIX/tmp`, which may be created). **`mkdir` of one leaf is a probe** — fail-soft: `mkdir -p` then re-test `-d` and `-w`. **MUST NOT** abort, `out_die`, or print `[ERROR]` / `[WARN]` because one leaf failed while later roots remain. Isolation (`${APP_NAME}-${USERNAME}`) lives **under** the chosen cache root.
 
 | Order | Condition | Path shape |
 |-------|-----------|------------|
-| 1 | `/dev/shm` exists and is writable | `/dev/shm/${APP_NAME}-${USERNAME}` |
-| 2 | `/tmp` is writable | `/tmp/${APP_NAME}-${USERNAME}` |
-| 3 | Fallback | `STORAGE_DIR` (`${XDG_CACHE_HOME}/${APP_NAME}-${USERNAME}`, env-overridable) |
+| 1 | `/dev/shm` exists | `/dev/shm/${APP_NAME}-${USERNAME}` (mkdir fail-soft) |
+| 2a | Termux (`sshd_is_termux`) | `${PREFIX}/tmp/${APP_NAME}-${USERNAME}` |
+| 2b | Git Bash (`sshd_is_git_bash`) | `${HOME}/AppData/Local/Temp/cache/${APP_NAME}-${USERNAME}` when that Temp parent exists; else `/c/Users/${USERNAME}/AppData/Local/Temp/cache/${APP_NAME}-${USERNAME}` |
+| 3 | `$TEMP` defined and exists | `${TEMP}/cache/${APP_NAME}-${USERNAME}` |
+| 4 | `/tmp` exists | `/tmp/cache/${APP_NAME}-${USERNAME}`; else `/tmp/${APP_NAME}-${USERNAME}` |
+| 5 | Fallback | `STORAGE_DIR` (`${XDG_CACHE_HOME}/${APP_NAME}-${USERNAME}`, env-overridable) |
 
-**Create before return:** for the **chosen** tier, the resolver **MUST** `mkdir -p` the root (all tiers), then print the path. If create fails → **MUST** fail closed via `out_die`. **MUST NOT** return a path without creating it.
+**MUST NOT** use `$HOME/.cache` as the Git Bash **volatile** root when `$HOME/AppData/Local/Temp` or `/c/Users/${USERNAME}/AppData/Local/Temp` exists.
+
+**Create before return:** only print a path after that root exists and is writable. Failure of **one** mkdir **MUST NOT** `out_die`. Failure to obtain **any** usable root **MUST** fail closed via `out_die` with an operator-readable Next (`set STORAGE_DIR` to a writable folder). **MUST NOT** return a path without creating it.
 
 ### 2.3 Isolation
 
@@ -79,13 +84,13 @@ First match that is available and writable:
 | **Config fallback** | `: "${STORAGE_DIR:=${XDG_CACHE_HOME}/${APP_NAME}-${USERNAME}}"` |
 | **Call sites** | `app_main` (resolve + TMPDIR); `app_about` (human + JSON) |
 | **Not used for** | Domain project trees (bootstrap has none) |
-| **Tests** | `tests/test_cli.sh` — about storage fields, isolation, dir exists, STORAGE_DIR override on fallback field |
+| **Tests** | `tests/test_cli.sh` — about storage fields, isolation, dir exists; Git Bash `/dev/shm` mkdir fail-soft → AppData Local Temp/cache (**TP-CLI-19** · **TP-CLI-20**) |
 
 ### 2.6 Why This Requirement Exists (CIAO)
 
 - **Caution:** Multi-user / sudo / containers — never mix users’ scratch.  
 - **Intentional:** One resolver; explicit tiers; wired from main.  
-- **Anti-fragile:** Missing `/dev/shm` still works via `/tmp` or cache.  
+- **Anti-fragile:** Missing or unusable `/dev/shm` (Git Bash fake shm) still works via AppData Temp / `/tmp` / cache with no extra error.  
 - **Over-protect:** Forbid “simplify” to shared dumps; create fail-closed.
 
 ---
@@ -111,7 +116,7 @@ When the ship unit detects a **command line for normal user only** (Termux, Git 
 
 Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface` · `requirement-shell-termux-ish`.
 
-**This requirement:** scratch/cache resolve stays this-login (`$PREFIX` / user cache); **MUST NOT** write `/etc` dests or Type 2 homes.
+**This requirement:** scratch/cache resolve stays this-login (`$PREFIX` / Git Bash AppData Temp / user cache); **MUST NOT** write `/etc` dests or Type 2 homes. **MUST NOT** die on `/dev/shm` mkdir when a later this-login cache still works.
 
 ---
 
@@ -123,10 +128,12 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 2. Replace the fallback chain with a single shared world-writable path.  
 3. Scatter new hard-coded `/tmp/${APP_NAME}` roots outside the resolver.  
 4. Leave the resolver as dead code with no call sites while claiming storage is product law.  
-5. Echo a tier path **without** creating it (or without fail-closed create).  
+5. Echo a tier path **without** creating it (or without fail-closed create of the **chosen** root).  
 6. Bypass Output SSOT for storage failure messages.  
 7. Put CHECKSUM in about storage diagnostics.  
 8. Strip the **Under command line for normal user only** section, or resolve scratch into `/etc` on that class.  
+9. `out_die` / print `[ERROR]` because `mkdir` of `/dev/shm/${APP_NAME}-${USERNAME}` (or any one cache leaf) failed while later roots remain untried.  
+10. Use `$HOME/.cache` as the Git Bash volatile root when `$HOME/AppData/Local/Temp` or `/c/Users/${USERNAME}/AppData/Local/Temp` exists.  
 
 **Violating this rule is a critical storage isolation regression.**
 
@@ -137,12 +144,12 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 Storage resolve work for sshd-cli is **not done** if any of the following fail:
 
 1. Exactly one authoritative resolver (`util_resolve_storage`) returns the chosen path on stdout after `mkdir -p` of that root.  
-2. Resolve priority matches this requirement (writable `/dev/shm` → `/tmp` → `STORAGE_DIR` fallback).  
+2. Resolve priority matches this requirement (`/dev/shm` fail-soft → Termux `$PREFIX/tmp` / Git Bash AppData Temp/`cache` → `$TEMP/cache` → `/tmp/cache` → `STORAGE_DIR`). Mid-chain mkdir failure does not abort.  
 3. Paths include `${APP_NAME}` and `${USERNAME}` isolation; no shared world-writable single dump for all users.  
 4. `app_main` sets `EFFECTIVE_STORAGE_DIR` / exports `TMPDIR` from the resolver once early.  
 5. `app_about` human + JSON expose effective storage fields and **omit** `CHECKSUM`.  
 6. User-visible storage failures use Output SSOT (`out_die` / structured error).  
-7. Tests cover about storage fields / isolation / override as designed (`tests/test_cli.sh`).  
+7. Tests cover about storage fields / isolation / Git Bash shm fail-soft (`tests/test_cli.sh` **TP-CLI-12** · **TP-CLI-19** · **TP-CLI-20**).  
 8. Implementation changes cite this requirement key `requirement-shell-cli-storage`.
 
 ---
@@ -160,6 +167,6 @@ Storage resolve work for sshd-cli is **not done** if any of the following fail:
 
 ---
 
-**Last Updated**: 2026-09-05  
+**Last Updated**: 2026-09-11  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 4, 5, 11, 19, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

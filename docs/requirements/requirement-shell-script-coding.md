@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-script-coding.md  
-**Status**: Active (Version 1.1.0)  
+**Status**: Active (Version 1.1.1)  
 **Area**: shell  
 **Key**: `requirement-shell-script-coding`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -46,7 +46,8 @@ This is the **coding-style related requirement** for sshd-cli (POSIX `/bin/sh`).
 7. **MUST** initialize variables used under `set -u` (`: "${VAR:=…}"` or a prior assign).  
 8. **MUST NOT** use this file as a second copy of install or checksum tables.  
 9. **SHOULD** keep `sh -n ./sshd-cli` passing in `tests/test_cli.sh`.  
-10. In-tool sudo wrappers: **none** on this product. If sudo is added later, a dedicated sudo-command requirement **MUST** own the wrap (class residual points).
+10. In-tool sudo wrappers: **`util_sudo`** for `backup-config` only. SSOT: `requirement-shell-sudo-command`.  
+11. **MUST NOT** `out_die` because `mkdir` of one cache/storage leaf failed while later roots remain untried. Chain SSOT: `requirement-shell-cli-storage`.
 
 ### 2.1 Implementation Notes (this project)
 
@@ -56,7 +57,7 @@ This is the **coding-style related requirement** for sshd-cli (POSIX `/bin/sh`).
 | Prefixes in use | `out_` `inst_` `path_` `ver_` `util_` `prompt_` `app_` `sshd_` |
 | `set -u` | yes (file top) |
 | Menu read | `sshd_cmd_menu` calls `read -r` in-function (not `$()` of `prompt_ask`) |
-| Sudo wrap | none |
+| Sudo wrap | `util_sudo` (`backup-config` only; `requirement-shell-sudo-command`) |
 
 ### 2.2 Why This Requirement Exists (Direct CIAO Alignment)
 
@@ -94,7 +95,8 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 2. Treat coding skills as product law because this file is missing.  
 3. `$()` a `prompt_*` helper for new TTY choice code.  
 4. Duplicate the full output or install tables here.  
-5. Strip the **Under command line for normal user only** section, or add in-tool `sudo` on that class.
+5. Strip the **Under command line for normal user only** section, or add in-tool `sudo` on that class.  
+6. Abort the CLI because `mkdir` of one cache leaf failed while later temp roots are untried (storage chain: `requirement-shell-cli-storage`).
 
 ## 5. Related artifacts (versioned surface only)
 
@@ -106,6 +108,6 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 | `docs/requirements/requirement-class-software-dev.md` | Residual points here |
 | `./sshd-cli` | Implementation |
 
-**Last Updated**: 2026-09-05  
+**Last Updated**: 2026-09-11  
 **Owner**: Cloudgen Wong  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

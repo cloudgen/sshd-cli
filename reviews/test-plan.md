@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.13.3  
-**Last plan update:** 2026-09-09  
-**Last suite run:** PASS=439 FAIL=0 SKIP=0 (2026-09-09)
+**Product VERSION:** 1.14.0  
+**Last plan update:** 2026-09-11  
+**Last suite run:** PASS=485 FAIL=0 SKIP=0 (2026-09-11)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -20,6 +20,8 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | Empty argv: non-TTY install-ensure / TTY menu | have | TP-CLI-07, TP-CLI-14, TP-SSHD-03..05 |
 | Unknown + quiet + set -u HOME | have | TP-CLI-08..11 |
 | Storage isolation | have | TP-CLI-12 |
+| Git Bash `/dev/shm` mkdir fail-soft → AppData Temp/`cache` | have | TP-CLI-19, TP-CLI-20 |
+| `backup-config` / `sync-config` / sudoers grant | have | TP-CFG-01..09 |
 | Channel verbs routed (`self-update`, `version-check`); no public network in CI | have | TP-CLI-04, TP-CLI-10 |
 | Trimmed parent verbs fail closed | have | TP-CLI-13 |
 | Local install / idempotent / uninstall / mode 0755 / login rc / Termux pkg | have | TP-LC-01..19 |
@@ -54,6 +56,17 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-CLI-10 | `self-update` / `version-check` are **known** commands (no network) | test_cli | requirement-shell-cli-interface · requirement-shell-self-management | **have** |
 | TP-CLI-11 | env -u HOME version | test_cli | class / requirement-shell-script-coding | **have** |
 | TP-CLI-12 | storage isolation | test_cli | requirement-shell-cli-storage | **have** |
+| TP-CLI-19 | Git Bash: `/dev/shm` mkdir fail-soft → AppData Local Temp/`cache`; no storage ERROR | test_cli | requirement-shell-cli-storage | **have** |
+| TP-CLI-20 | static: resolver names Git Bash Temp; no mid-chain mkdir `out_die` | test_cli | requirement-shell-cli-storage · requirement-shell-script-coding | **have** |
+| TP-CFG-01 | Type 0 `backup-config` into `SSHD_CLI_ROOT` | test_config_backup | requirement-sshd-config-backup | **have** |
+| TP-CFG-02 | `sync-config` dest mode 600 | test_config_backup | requirement-sshd-config-backup | **have** |
+| TP-CFG-03 | missing source fail-closed + Next | test_config_backup | requirement-sshd-config-backup | **have** |
+| TP-CFG-04 | Termux hide + INFO | test_config_backup | requirement-sshd-config-backup | **have** |
+| TP-CFG-05 | Git Bash hide + INFO | test_config_backup | requirement-sshd-config-backup | **have** |
+| TP-CFG-06 | `print-sudoers --allow-test-local` backup-config only | test_config_backup | requirement-sudoer-json-file · requirement-three-layer-privilege-model | **have** |
+| TP-CFG-07 | `generate-sudoer-request` JSON grant | test_config_backup | requirement-sudoer-json-file | **have** |
+| TP-CFG-08 | `restore-config` unknown | test_config_backup | requirement-sshd-config-backup | **have** |
+| TP-CFG-09 | Windows cmd menu INFO | test_config_backup | requirement-sshd-config-backup | **have** |
 | TP-CLI-13 | backup/restore/sudoers verbs unknown | test_cli | requirement-shell-cli-interface | **have** |
 | TP-CLI-14 | empty argv interactive → domain menu (no install); status + dns row 5 + Exit 9 | test_cli | requirement-shell-cli-zero-arguments · requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-CLI-15 | status Connect: live ssh -p user@ipv4; no `<this-host>` | test_cli | requirement-domain-sshd | **have** |

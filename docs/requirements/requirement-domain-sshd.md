@@ -65,9 +65,18 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 | `auth-keys` | `list` (default) or `add <pubkey-file>` | `sshd_cmd_auth_keys` | This login’s `~/.ssh` | Missing file / no key line → `out_die` |
 | `dns` | `list` (default non-TTY) · `show <n\|name>` · `edit <n\|name>` · `set <n\|name> …` · `add …` · `delete <n\|name>` · empty (TTY action menu) | `sshd_cmd_dns` | This login’s `~/.ssh/config` | Missing n / empty dns name / bad port → `out_die` |
 | `menu` / `main` | none | `sshd_cmd_menu` | TTY only | `--json` / quiet / non-TTY → `out_die` with named-command hint |
+| `backup-config` | none | `sshd_cmd_backup_config` | POSIX Linux: this login then `sudo -n {{GLOBAL_BIN}}/sshd-cli backup-config`. Termux / Git Bash / Windows cmd unused | Missing `~/.ssh/config` / sudo refused / this-login-only host → `out_die` |
+| `sync-config` | none | `sshd_cmd_sync_config` | This login, no sudo | Store missing / this-login-only host → `out_die` |
+| `print-sudoers` | optional path; `--allow-test-local` | `sshd_cmd_print_sudoers` | Type 0 draft | Non-production without allow → `out_die` |
+| `print-sudoers-install-script` | optional path | `sshd_cmd_print_sudoers_install_script` | Type 0 script; admin runs with sudo | Same trust gate |
+| `generate-sudoer-request` | optional path; `--add` / `--update` | `sshd_cmd_generate_sudoer_request` | Type 0 local JSON | Same trust gate |
+| `submit-sudoer-request` | optional file | `sshd_cmd_submit_sudoer_request` | Type 0 compose sudoer-cli | Missing sudoer-cli / inbound → `out_die` |
+| `remove-project-sudoers` | optional path | `sshd_cmd_remove_project_sudoers` | Type 0 draft only | `/etc` path → `out_die` |
 
 **Routing:** `app_main` parses these verbs in the same pass as Type 0. Operands after `port` / `host-keys` / `auth-keys` / **`dns`** are domain operands, not unknown flags. **MUST** number `dns` as main-menu row **5**. The dns **Host** pick is a **separate** list (leave with `0` / empty — not `9`). **MUST NOT** number `port` / `config` / `host-keys` / `auth-keys` as rows 6–8 (typed at the menu prompt).
 
+**MUST:** `backup-config` / `sync-config` ops SSOT is `requirement-sshd-config-backup`. Sudoers JSON body SSOT is `requirement-sudoer-json-file`. Sudoers workflow SSOT is `requirement-three-layer-privilege-model`.  
+**MUST:** TTY menu on Termux / Git Bash / Windows cmd **MUST** print `[INFO] backup-config and sync-config not available for termux` (or `gitbash` / `windows-cmd`) **before** the numbered list and omit rows 6–8. POSIX Linux **MUST** number `backup-config` 6, `sync-config` 7, `sudoers` 8.  
 **MUST:** Each verb above is also named on `requirement-shell-cli-interface` (dual mention).  
 **MUST:** Interactive empty argv (`TTY=1`, not quiet/json) **MUST** call `sshd_cmd_menu` (same handler as `menu`). Dual mention: `requirement-shell-cli-zero-arguments`.  
 **MUST NOT:** Open this menu on **non-interactive** empty argv (`curl \| sh`, quiet, json, no TTY) — that path stays install-ensure.
@@ -237,7 +246,7 @@ If (2) is true and (3) is false: **warn** once per command, then use the OpenSSH
 
 Intention: the operator is not forced to assemble a long flag list from memory. Dual mention: `requirement-shell-interactive-vs-noninteractive` · `requirement-shell-cli-interface`.
 
-**Non-goals:** SSH client `ProxyJump` recipes, ControlMaster session mux, Dropbear-only hosts, changing Linux firewall, wrapping `apt`/`dnf` on POSIX Linux, password-auth policy as a verb (shown on `config` only), auto-running `passwd`, **writing** systemd unit files, `systemctl enable` / `disable` / `mask` as CLI verbs, a routed `systemctl` command, `termux-services` / runit supervision, cron-as-service, a Termux:Boot installer, `/etc/hosts` editing. Termux `pkg install openssh termux-auth` **is** in scope as the install companion (§2.1.1). This login `~/.ssh/config` Host list **is** in scope as **dns**. POSIX Linux `systemctl start` / `stop` / `restart` of the distro ssh/sshd **unit** **is** in scope (§2.2.1).
+**Non-goals:** SSH client `ProxyJump` recipes, ControlMaster session mux, Dropbear-only hosts, changing Linux firewall, wrapping `apt`/`dnf` on POSIX Linux, password-auth policy as a verb (shown on `config` only), auto-running `passwd`, **writing** systemd unit files, `systemctl enable` / `disable` / `mask` as CLI verbs, a routed `systemctl` command, `termux-services` / runit supervision, cron-as-service, a Termux:Boot installer, `/etc/hosts` editing, folder-archive `backup`/`restore`, copying private keys. Termux `pkg install openssh termux-auth` **is** in scope as the install companion (§2.1.1). This login `~/.ssh/config` Host list **is** in scope as **dns**. POSIX Linux deposit of that file **is** in scope as **backup-config** / **sync-config**. POSIX Linux `systemctl start` / `stop` / `restart` of the distro ssh/sshd **unit** **is** in scope (§2.2.1).
 
 **Filename grammar (when this domain allocates files):** host keys use OpenSSH names, not a dated JSON grant.
 
@@ -285,7 +294,10 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExamplePublicKeyMaterialOnly laptop-user
 - `host-keys [list|generate]`  
 - `auth-keys [list|add <file>]`  
 - `dns [list|show N|edit N|set N …|add …|delete N]` — This login `~/.ssh/config` Host list (numbered dns-ip; TTY as Termux / identity-file / Old OpenSSH; TTY edit/add/delete)  
-- `menu` — Numbered list: status, start, stop, restart, dns, Exit 9 (terminal only). POSIX Linux non-root omits rows 2/3/4 and prints the non-root INFO with the OS name
+- `backup-config` — Copy this login `~/.ssh/config` to `/var/sshd-cli/config`  
+- `sync-config` — Copy `/var/sshd-cli/config` into this login `~/.ssh/config` (mode 600)  
+- `print-sudoers` / `generate-sudoer-request` / `submit-sudoer-request` — passwordless `sudo sshd-cli backup-config` grant  
+- `menu` — Numbered list: status, start, stop, restart, dns, backup-config, sync-config, sudoers, Exit 9 (terminal only). POSIX Linux non-root omits rows 2/3/4. Termux / Git Bash / Windows cmd omit backup-config / sync-config / sudoers and print INFO first
 
 `help` Type 0 `install` row **MUST** mention Termux `pkg install openssh termux-auth` and `~/.bashrc` / `~/.profile` ensure (dual mention: `requirement-shell-cli-interface` · `requirement-shell-path-and-shell-support` · `requirement-shell-termux-ish`).
 
@@ -357,7 +369,7 @@ read -r _choice || true
 
 - **CIAO Principle 2 – Intentional** (https://github.com/cloudgen/ciao): Termux vs Linux paths are named, not guessed per call.  
 - **CIAO Principle 9 – Type 0/1/2** (https://github.com/cloudgen/ciao): Domain start/stop stay invoker Type 0; Linux root is a **login**, not a hidden sudo wrap.  
-- **CIAO Principle 10 – Least privilege** (https://github.com/cloudgen/ciao): No dedicated system user; no sudoers fragment.  
+- **CIAO Principle 10 – Least privilege** (https://github.com/cloudgen/ciao): No dedicated system user. Sudoers grant is `sshd-cli backup-config` only (`requirement-sudoer-json-file`).  
 - **CIAO Principle 5 – SSOT of output** (https://github.com/cloudgen/ciao): Domain messages use `out_*`.  
 - **CIAO Principle 16 – Interactive vs non-interactive** (https://github.com/cloudgen/ciao): `dns` TTY field walk; `--json` / pipe **list** or **set** without hanging.  
 - **CIAO Principle 21 – Dual policies** (https://github.com/cloudgen/ciao): Portable core; filled notes.  

@@ -21,6 +21,10 @@
 # - requirement-shell-interactive-vs-noninteractive.md
 # - requirement-shell-automatic-checksum.md
 # - requirement-domain-sshd.md
+# - requirement-sshd-config-backup.md
+# - requirement-sudoer-json-file.md
+# - requirement-three-layer-privilege-model.md
+# - requirement-shell-sudo-command.md
 # - requirement-shell-script-coding.md
 # - requirement-shell-termux-ish.md
 # Plus CIAO Protection Zones and "DO NOT MODIFY" rules.
@@ -49,10 +53,10 @@ APP_NAME="sshd-cli"
 : "${APP_NAME:=sshd-cli}"
 : "${APP_DESC:=Simplify Termux to install sshd}"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
-: "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys) plus self-install.}"
+: "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.13.3"
-: "${VERSION:=1.13.3}"
+VERSION="1.14.0"
+: "${VERSION:=1.14.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -103,6 +107,13 @@ fi
 : "${REPO_NAME:=sshd-cli}"
 : "${SCRIPT_URL:=https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}}"
 : "${CHECKSUM:=}"
+: "${SSHD_CLI_ROOT:=/var/sshd-cli}"
+: "${ALLOW_TEST_LOCAL_SUDOERS:=0}"
+: "${SUBMIT_ACTION:=add}"
+: "${SUBMIT_ACTION_EXPLICIT:=0}"
+: "${SUBMIT_PURPOSE:=}"
+: "${SUDOER_ADM_USER:=sudoer-adm}"
+: "${SUDOER_CLI:=}"
 
 [ -t 0 ] && [ -t 1 ] && TTY=1
 USERNAME="$(id -un 2>/dev/null || echo "unknown")"
@@ -2475,26 +2486,63 @@ util_backup() {
 }
 
 # =============================================================================
+# util_try_mkdir_storage() - Fail-soft mkdir probe for one storage root
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# mkdir -p a candidate scratch/cache root, then re-test that it exists and is
+# writable. Used only by util_resolve_storage. A failed mkdir MUST NOT abort
+# the CLI — the resolver walks the next tier.
+#
+# ALIGNMENT (live requirements only):
+# - requirement-shell-cli-storage.md
+#
+# Last updated: 2026-09-11
+# =============================================================================
+util_try_mkdir_storage() {
+    _try_dir="${1:-}"
+    if [ -z "${_try_dir}" ]; then
+        unset _try_dir
+        return 1
+    fi
+    mkdir -p "${_try_dir}" 2>/dev/null || true
+    if [ -d "${_try_dir}" ] && [ -w "${_try_dir}" ]; then
+        unset _try_dir
+        return 0
+    fi
+    unset _try_dir
+    return 1
+}
+
+# =============================================================================
 # util_resolve_storage() - Storage resolver
 # =============================================================================
 #
 # GENERAL PURPOSE:
 # Returns the best available volatile storage directory for prompt files.
-# Prefers /dev/shm (fastest, in-memory) → /tmp → fallback to XDG_CACHE_HOME.
-# All paths include ${USERNAME} to isolate per-user storage.
+# Walks a documented chain. mkdir of each leaf is fail-soft (re-test -d/-w).
+# Isolation leaf is ${APP_NAME}-${USERNAME} under the chosen cache root.
 #
-# Safe Variable Defaults
+# Live chain (requirement-shell-cli-storage):
+#   1. /dev/shm/${APP_NAME}-${USERNAME}
+#   2a. Termux: ${PREFIX}/tmp/${APP_NAME}-${USERNAME}
+#   2b. Git Bash: $HOME/AppData/Local/Temp/cache/… else /c/Users/${USERNAME}/…
+#   3. $TEMP/cache/${APP_NAME}-${USERNAME}
+#   4. /tmp/cache/… else /tmp/${APP_NAME}-${USERNAME}
+#   5. STORAGE_DIR (XDG cache fallback)
+# Die only at the END if no root worked. Do not warn when leaving /dev/shm.
 #
 # CIAO PRINCIPLES APPLIED:
 # - Caution: Must work correctly when the same computer is used by multiple
 #   different users (normal user, sudo, root, shared servers, containers).
 # - Intentionality: Never allow one user's files to be readable/writable by
 #   another user. Every directory creation must be ownership-aware.
-# - Anti-fragile: Survive permission conflicts and multi-user environments.
+# - Anti-fragile: Survive permission conflicts, Git Bash fake /dev/shm, and
+#   multi-user environments. mkdir fail-soft; next root.
 #
 # CRITICAL WARNING - MULTI-USER PROBLEM AI FREQUENTLY OVERLOOKS:
 # Many good applications on a computer are run by different users over time
-# (e.g. normal user → sudo → another login account). 
+# (e.g. normal user → sudo → another login account).
 #
 # AI assistants often simply "add mkdir -p" when solving a storage task without
 # considering ownership and cross-user write privilege. This approach is
@@ -2511,7 +2559,7 @@ util_backup() {
 #
 # ECHO EXCEPTION (class B – function return-via-stdout):
 # echo of storage paths is a data return for $(util_resolve_storage) capture,
-# not a product user message. Failures use out_die.
+# not a product user message. Failures use out_die only after the full chain.
 # See requirement-shell-output-requirements.md §2.1.1.
 #
 # Lessons Learned (CIAO Reflection):
@@ -2520,8 +2568,11 @@ util_backup() {
 #             per-user ${APP_NAME}-${USERNAME} isolation under set -u.
 # 2026-07-16: Create chosen tier root before echo (fail-closed) for all tiers;
 #             wire from app_main (EFFECTIVE_STORAGE_DIR + TMPDIR). SM-STOR-01.
+# 2026-09-11: Git Bash /dev/shm can look writable then mkdir fails; dying on
+#             that one leaf printed [ERROR] and skipped AppData Local Temp.
+#             mkdir is a probe (INC-20260911-001).
 #
-# Last reviewed: 2026-07-16
+# Last updated: 2026-09-11
 # SSOT: requirement-shell-cli-storage.md
 # =============================================================================
 util_resolve_storage() {
@@ -2531,23 +2582,75 @@ util_resolve_storage() {
     : "${APP_NAME:=app}"
     : "${HOME:=/tmp}"
     : "${XDG_CACHE_HOME:=${HOME}/.cache}"
+    : "${PREFIX:=}"
+    : "${TEMP:=}"
 
-    # Pick first available tier, then create root (all tiers fail-closed)
+    _leaf="${APP_NAME}-${USERNAME}"
     _storage_candidate=""
-    if [ -d "/dev/shm" ] && [ -w "/dev/shm" ]; then
-        _storage_candidate="/dev/shm/${APP_NAME}-${USERNAME}"
-    elif [ -w "/tmp" ]; then
-        _storage_candidate="/tmp/${APP_NAME}-${USERNAME}"
-    else
-        : "${STORAGE_DIR:=${XDG_CACHE_HOME}/${APP_NAME}-${USERNAME}}"
-        _storage_candidate="${STORAGE_DIR}"
+
+    # 1. RAM disk isolated child (fail-soft — Git Bash /dev/shm is often fake)
+    if [ -z "${_storage_candidate}" ] && [ -d "/dev/shm" ]; then
+        if util_try_mkdir_storage "/dev/shm/${_leaf}"; then
+            _storage_candidate="/dev/shm/${_leaf}"
+        fi
     fi
 
-    if ! mkdir -p "${_storage_candidate}" 2>/dev/null; then
-        out_die "Cannot create storage directory ${_storage_candidate}"
+    # 2a. Termux this-login prefix tmp
+    if [ -z "${_storage_candidate}" ]; then
+        if sshd_is_termux; then
+            if util_try_mkdir_storage "${PREFIX}/tmp/${_leaf}"; then
+                _storage_candidate="${PREFIX}/tmp/${_leaf}"
+            fi
+        fi
+    fi
+
+    # 2b. Git Bash Windows user temp (parent must already exist)
+    if [ -z "${_storage_candidate}" ]; then
+        if sshd_is_git_bash; then
+            _gb_parent=""
+            if [ -d "${HOME}/AppData/Local/Temp" ]; then
+                _gb_parent="${HOME}/AppData/Local/Temp"
+            elif [ -d "/c/Users/${USERNAME}/AppData/Local/Temp" ]; then
+                _gb_parent="/c/Users/${USERNAME}/AppData/Local/Temp"
+            fi
+            if [ -n "${_gb_parent}" ]; then
+                if util_try_mkdir_storage "${_gb_parent}/cache/${_leaf}"; then
+                    _storage_candidate="${_gb_parent}/cache/${_leaf}"
+                fi
+            fi
+            unset _gb_parent
+        fi
+    fi
+
+    # 3. $TEMP/cache
+    if [ -z "${_storage_candidate}" ] && [ -n "${TEMP}" ] && [ -d "${TEMP}" ]; then
+        if util_try_mkdir_storage "${TEMP}/cache/${_leaf}"; then
+            _storage_candidate="${TEMP}/cache/${_leaf}"
+        fi
+    fi
+
+    # 4. /tmp/cache else /tmp isolated child
+    if [ -z "${_storage_candidate}" ] && [ -d "/tmp" ]; then
+        if util_try_mkdir_storage "/tmp/cache/${_leaf}"; then
+            _storage_candidate="/tmp/cache/${_leaf}"
+        elif util_try_mkdir_storage "/tmp/${_leaf}"; then
+            _storage_candidate="/tmp/${_leaf}"
+        fi
+    fi
+
+    # 5. Config / XDG cache (not the Git Bash volatile root when AppData exists)
+    if [ -z "${_storage_candidate}" ]; then
+        : "${STORAGE_DIR:=${XDG_CACHE_HOME}/${_leaf}}"
+        if util_try_mkdir_storage "${STORAGE_DIR}"; then
+            _storage_candidate="${STORAGE_DIR}"
+        fi
+    fi
+
+    if [ -z "${_storage_candidate}" ]; then
+        out_die "Cannot create a writable storage folder for ${APP_NAME}. Next: set STORAGE_DIR to a writable folder and retry."
     fi
     echo "${_storage_candidate}"
-    unset _storage_candidate
+    unset _storage_candidate _leaf
     return 0
 }
 
@@ -2806,13 +2909,16 @@ sshd_is_windows_cmd() {
     fi
     _uname=$(uname -s 2>/dev/null || true)
     case "${_uname}" in
-        CYGWIN*|Linux) return 1 ;;
+        CYGWIN*) return 1 ;;
     esac
     case "${OS-}" in
         Windows_NT) return 0 ;;
     esac
     case "${ComSpec-}${COMSPEC-}" in
         *[Cc][Mm][Dd].[Ee][Xx][Ee]*) return 0 ;;
+    esac
+    case "${_uname}" in
+        Linux) return 1 ;;
     esac
     return 1
 }
@@ -3934,6 +4040,688 @@ sshd_cmd_auth_keys() {
 
 sshd_dns_config_path() {
     printf '%s' "${HOME}/.ssh/config"
+}
+
+# =============================================================================
+# util_sudo() - Only in-tool sudo call site (NOPASSWD backup-config argv)
+# =============================================================================
+#
+# ALIGNMENT: requirement-shell-sudo-command.md
+# Last updated: 2026-09-11
+# =============================================================================
+util_sudo() {
+    if [ "$(id -u 2>/dev/null || echo 1)" -eq 0 ]; then
+        "$@"
+        return $?
+    fi
+    command -v sudo >/dev/null 2>&1 || return 1
+    sudo -n "$@"
+}
+
+sshd_invoking_login() {
+    if [ "$(id -u 2>/dev/null || echo 1)" -eq 0 ] && [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
+        printf '%s' "${SUDO_USER}"
+        return 0
+    fi
+    id -un 2>/dev/null || echo "unknown"
+}
+
+sshd_invoking_home() {
+    if [ "$(id -u 2>/dev/null || echo 1)" -eq 0 ] && [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
+        _h=""
+        if command -v getent >/dev/null 2>&1; then
+            _h=$(getent passwd "${SUDO_USER}" 2>/dev/null | cut -d: -f6)
+        fi
+        if [ -z "${_h}" ] && [ -r /etc/passwd ]; then
+            _h=$(awk -F: -v u="${SUDO_USER}" '$1==u {print $6; exit}' /etc/passwd 2>/dev/null)
+        fi
+        if [ -n "${_h}" ] && [ -d "${_h}" ]; then
+            printf '%s' "${_h}"
+            unset _h
+            return 0
+        fi
+        unset _h
+    fi
+    printf '%s' "${HOME:-/tmp}"
+}
+
+sshd_cli_root() {
+    : "${SSHD_CLI_ROOT:=/var/sshd-cli}"
+    printf '%s' "${SSHD_CLI_ROOT}"
+}
+
+sshd_ssh_config_src() {
+    printf '%s' "$(sshd_invoking_home)/.ssh/config"
+}
+
+sshd_host_normal_user_only_label() {
+    if sshd_is_termux; then
+        printf '%s' "termux"
+        return 0
+    fi
+    if sshd_is_git_bash; then
+        printf '%s' "gitbash"
+        return 0
+    fi
+    if sshd_is_windows_cmd; then
+        printf '%s' "windows-cmd"
+        return 0
+    fi
+    printf '%s' ""
+}
+
+sshd_refuse_config_backup_on_nuser() {
+    : "${APP_NAME:=sshd-cli}"
+    _lab=$(sshd_host_normal_user_only_label)
+    if [ -z "${_lab}" ]; then
+        unset _lab
+        return 0
+    fi
+    out_die "backup-config and sync-config are not available for ${_lab}. Next: use a POSIX Linux host, or copy ~/.ssh/config by hand."
+}
+
+sshd_dest_needs_elev() {
+    _d="${1:-}"
+    : "${_d:=/var/sshd-cli}"
+    if [ "$(id -u 2>/dev/null || echo 1)" -eq 0 ]; then
+        unset _d
+        return 1
+    fi
+    case "${_d}" in
+        /var/sshd-cli|/var/sshd-cli/*)
+            unset _d
+            return 0
+            ;;
+    esac
+    if [ -d "${_d}" ] && [ -w "${_d}" ]; then
+        unset _d
+        return 1
+    fi
+    if mkdir -p "${_d}" 2>/dev/null && [ -w "${_d}" ]; then
+        unset _d
+        return 1
+    fi
+    unset _d
+    return 0
+}
+
+sshd_sudoers_trust_tier() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${HOME:=/tmp}"
+    : "${GLOBAL_BIN:=/usr/local/bin}"
+    : "${USER_BIN:=${HOME}/.local/bin}"
+    if [ -r "${GLOBAL_BIN}/${APP_NAME}" ] && [ -x "${GLOBAL_BIN}/${APP_NAME}" ]; then
+        printf '%s' "production"
+        return 0
+    fi
+    if [ -r "${USER_BIN}/${APP_NAME}" ] && [ -x "${USER_BIN}/${APP_NAME}" ]; then
+        printf '%s' "test_local"
+        return 0
+    fi
+    printf '%s' "unmanaged"
+    return 0
+}
+
+sshd_current_login_user() {
+    id -un 2>/dev/null || echo "unknown"
+}
+
+sshd_sudoers_d_dir() {
+    : "${SUDOERS_D_DIR:=/etc/sudoers.d}"
+    printf '%s' "${SUDOERS_D_DIR}"
+}
+
+sshd_default_installed_sudoers_path() {
+    : "${APP_NAME:=sshd-cli}"
+    printf '%s' "$(sshd_sudoers_d_dir)/${APP_NAME}-$(sshd_current_login_user)"
+}
+
+sshd_default_project_sudoers_path() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${HOME:=/tmp}"
+    printf '%s' "${HOME}/.config/${APP_NAME}/sudoers.fragment-$(sshd_current_login_user)"
+}
+
+sshd_default_sudoer_request_path() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${HOME:=/tmp}"
+    printf '%s' "${HOME}/.config/${APP_NAME}/sudoer-request-$(sshd_current_login_user).json"
+}
+
+sshd_sudoers_fragment_text() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${GLOBAL_BIN:=/usr/local/bin}"
+    : "${USER_BIN:=${HOME:-/tmp}/.local/bin}"
+    _user=$(sshd_current_login_user)
+    _tier=$(sshd_sudoers_trust_tier)
+    _global_path="${GLOBAL_BIN}/${APP_NAME}"
+    _installed=$(sshd_default_installed_sudoers_path)
+    _purpose="Allow ${_user} to run ${APP_NAME} backup-config as root."
+    cat <<EOF
+# Purpose: ${_purpose}
+# ${APP_NAME} — ${APP_NAME} backup-config only (review before install)
+# Target user: ${_user}
+# Install: sudo install -m 0440 <this-file> ${_installed}
+# Validate: sudo visudo -c -f ${_installed}
+# Trust tier: ${_tier}
+# Grant is the project command only. Does NOT allowlist mkdir/cp/chmod/chown.
+# After elev, the ship unit copies ~/.ssh/config and chown/chmod internally.
+${_user} ALL=(root) NOPASSWD: ${_global_path} backup-config
+EOF
+    unset _user _tier _global_path _installed _purpose
+}
+
+sshd_sudoers_json_text_compact() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${GLOBAL_BIN:=/usr/local/bin}"
+    : "${SUBMIT_ACTION:=add}"
+    _user=$(sshd_current_login_user)
+    _global_path="${GLOBAL_BIN}/${APP_NAME}"
+    _action="${SUBMIT_ACTION}"
+    case "${_action}" in
+        add|update) ;;
+        *) _action="add" ;;
+    esac
+    printf '%s' "{\"schema_version\":1,\"purpose\":\"Allow ${_user} to run ${APP_NAME} backup-config as root.\",\"username\":\"${_user}\",\"service\":\"${APP_NAME}\",\"action\":\"${_action}\",\"commands\":[{\"runas\":\"root\",\"tags\":[\"NOPASSWD\"],\"path\":\"${_global_path}\",\"args\":[\"backup-config\"]}]}"
+    printf '\n'
+    unset _user _global_path _action
+}
+
+sshd_sudoers_refuse_forbidden_grant() {
+    _gf="${1:-}"
+    : "${APP_NAME:=sshd-cli}"
+    : "${GLOBAL_BIN:=/usr/local/bin}"
+    if [ -z "${_gf}" ] || [ ! -f "${_gf}" ]; then
+        out_die "sudoer grant file missing"
+    fi
+    _gb=$(cat "${_gf}" 2>/dev/null || true)
+    case "${_gb}" in
+        *"/usr/bin/mkdir"*|*"/bin/mkdir"*|*"/usr/bin/cp"*|*"/bin/cp"*|*"/usr/bin/chmod"*|*"/bin/chmod"*|*"/usr/bin/chown"*|*"/bin/chown"*)
+            out_die "refusing sudoer grant with OS-tool commands (need ${GLOBAL_BIN}/${APP_NAME} backup-config only)"
+            ;;
+    esac
+    unset _gf _gb
+    return 0
+}
+
+sshd_sudoers_verify_grant_verbs() {
+    _gf="${1:-}"
+    if [ -z "${_gf}" ] || [ ! -f "${_gf}" ]; then
+        out_die "sudoer file missing (cannot verify backup-config)"
+    fi
+    _gb=$(cat "${_gf}" 2>/dev/null || true)
+    case "${_gb}" in
+        *'"backup-config"'*) ;;
+        *) out_die "Sudoer file is incomplete: it does not allow backup-config. Path: ${_gf}" ;;
+    esac
+    unset _gf _gb
+    return 0
+}
+
+sshd_sudoers_require_emit_trust() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${GLOBAL_BIN:=/usr/local/bin}"
+    : "${ALLOW_TEST_LOCAL_SUDOERS:=0}"
+    _cmd="${1:-submit-sudoer-request}"
+    _tier=$(sshd_sudoers_trust_tier)
+    if [ "${_tier}" != "production" ]; then
+        if [ "${ALLOW_TEST_LOCAL_SUDOERS}" -ne 1 ]; then
+            out_die "${_cmd} trust tier is ${_tier} (not production). Prefer: sudo ${APP_NAME} install (global ${GLOBAL_BIN}/${APP_NAME}). To emit a test file: ${APP_NAME} ${_cmd} --allow-test-local  or ALLOW_TEST_LOCAL_SUDOERS=1"
+        fi
+    fi
+    unset _cmd _tier
+}
+
+sshd_detect_sudoer_cli() {
+    : "${HOME:=/tmp}"
+    : "${GLOBAL_BIN:=/usr/local/bin}"
+    : "${USER_BIN:=${HOME}/.local/bin}"
+    : "${SUDOER_CLI:=}"
+    if [ -n "${SUDOER_CLI}" ] && [ -x "${SUDOER_CLI}" ]; then
+        printf '%s' "${SUDOER_CLI}"
+        return 0
+    fi
+    if [ -x "${GLOBAL_BIN}/sudoer-cli" ]; then
+        printf '%s' "${GLOBAL_BIN}/sudoer-cli"
+        return 0
+    fi
+    if [ -x "${USER_BIN}/sudoer-cli" ]; then
+        printf '%s' "${USER_BIN}/sudoer-cli"
+        return 0
+    fi
+    _found=$(command -v sudoer-cli 2>/dev/null || true)
+    if [ -n "${_found}" ] && [ -x "${_found}" ]; then
+        printf '%s' "${_found}"
+        unset _found
+        return 0
+    fi
+    unset _found
+    return 1
+}
+
+sshd_detect_sudoer_adm() {
+    : "${SUDOER_ADM_USER:=sudoer-adm}"
+    if id "${SUDOER_ADM_USER}" >/dev/null 2>&1; then
+        printf '%s' "${SUDOER_ADM_USER}"
+        return 0
+    fi
+    return 1
+}
+
+sshd_detect_sudoer_inbound() {
+    : "${SUDOER_ADM_USER:=sudoer-adm}"
+    : "${SUDOER_QUEUE_INBOUND:=}"
+    : "${SUDOER_PUBLIC_ROOT:=/var/sudoer-cli}"
+    if [ -n "${SUDOER_QUEUE_INBOUND}" ] && [ -d "${SUDOER_QUEUE_INBOUND}" ]; then
+        printf '%s' "${SUDOER_QUEUE_INBOUND}"
+        return 0
+    fi
+    if [ -d "${SUDOER_PUBLIC_ROOT}/sudoer-request" ]; then
+        printf '%s' "${SUDOER_PUBLIC_ROOT}/sudoer-request"
+        return 0
+    fi
+    return 1
+}
+
+# =============================================================================
+# sshd_cmd_backup_config() - elevated deposit of ~/.ssh/config → /var/sshd-cli
+# =============================================================================
+#
+# ALIGNMENT: requirement-sshd-config-backup.md · requirement-shell-sudo-command.md
+# Last updated: 2026-09-11
+# =============================================================================
+sshd_cmd_backup_config() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${JSON:=0}"
+    : "${GLOBAL_BIN:=/usr/local/bin}"
+    sshd_refuse_config_backup_on_nuser
+    _src=$(sshd_ssh_config_src)
+    _dest=$(sshd_cli_root)
+    if [ ! -f "${_src}" ]; then
+        out_die "Cannot backup-config: missing ${_src}. Next: create this login's SSH config (for example ${APP_NAME} dns add), then ${APP_NAME} backup-config."
+    fi
+    if [ "$(id -u 2>/dev/null || echo 1)" -ne 0 ] && sshd_dest_needs_elev "${_dest}"; then
+        _bin="${GLOBAL_BIN}/${APP_NAME}"
+        if [ ! -x "${_bin}" ]; then
+            out_die "Cannot push to ${_dest}: need the global binary ${_bin} (sudo ${APP_NAME} backup-config). Next: sudo sh src/${APP_NAME} install, then ${APP_NAME} generate-sudoer-request and ${APP_NAME} submit-sudoer-request so sudoer-adm can approve passwordless sudo ${APP_NAME} backup-config."
+        fi
+        if ! command -v sudo >/dev/null 2>&1; then
+            out_die "sudo not found. Pushing into ${_dest} needs passwordless sudo ${APP_NAME} backup-config after sudoer-adm approval."
+        fi
+        out_info "Elevating: sudo -n ${_bin} backup-config"
+        _sudo_ec=0
+        if [ "${JSON}" -eq 1 ]; then
+            util_sudo "${_bin}" backup-config >/dev/null
+            _sudo_ec=$?
+        else
+            util_sudo "${_bin}" backup-config
+            _sudo_ec=$?
+        fi
+        if [ "${_sudo_ec}" -ne 0 ]; then
+            out_die "sudo ${APP_NAME} backup-config was refused. Next: ${APP_NAME} generate-sudoer-request && ${APP_NAME} submit-sudoer-request, then ask sudoer-adm to approve the JSON grant (NOPASSWD ${_bin} backup-config)."
+        fi
+        if [ "${JSON}" -eq 1 ]; then
+            out_json "backup-config" "ok" \
+                "app" "${APP_NAME}" \
+                "source" "${_src}" \
+                "destination" "${_dest}/config" \
+                "elevated" "true"
+        fi
+        unset _src _dest _bin _sudo_ec
+        return 0
+    fi
+    if [ ! -d "${_dest}" ]; then
+        mkdir -p "${_dest}" || out_die "Cannot create ${_dest} (need allowlisted sudo ${APP_NAME} backup-config). Next: ${APP_NAME} generate-sudoer-request && ${APP_NAME} submit-sudoer-request."
+    fi
+    if [ ! -w "${_dest}" ]; then
+        out_die "Cannot write ${_dest}. Only an approved passwordless sudo ${APP_NAME} backup-config may push files there."
+    fi
+    _outp="${_dest}/config"
+    if command -v install >/dev/null 2>&1; then
+        install -m 0644 "${_src}" "${_outp}" || out_die "Failed to copy ${_src} into ${_dest}."
+    else
+        cp "${_src}" "${_outp}" || out_die "Failed to copy ${_src} into ${_dest}."
+        chmod 0644 "${_outp}" 2>/dev/null || true
+    fi
+    if [ "$(id -u 2>/dev/null || echo 1)" -eq 0 ]; then
+        chown root:root "${_outp}" 2>/dev/null || true
+        chmod 0644 "${_outp}" 2>/dev/null || true
+        chown root:root "${_dest}" 2>/dev/null || true
+        chmod 0755 "${_dest}" 2>/dev/null || true
+    fi
+    _owner="invoking-user"
+    if [ "$(id -u 2>/dev/null || echo 1)" -eq 0 ]; then
+        _owner="root:root"
+    fi
+    out_success "backup-config complete: ${_src} → ${_outp}"
+    out_info "Store owner/mode: ${_owner}; file 0644 so a normal login can ${APP_NAME} sync-config without sudo."
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "backup-config" "ok" \
+            "app" "${APP_NAME}" \
+            "source" "${_src}" \
+            "destination" "${_outp}" \
+            "owner" "${_owner}" \
+            "elevated" "$([ "$(id -u 2>/dev/null || echo 1)" -eq 0 ] && echo true || echo false)"
+    fi
+    unset _src _dest _outp _owner
+    return 0
+}
+
+# =============================================================================
+# sshd_cmd_sync_config() - Type 0 copy /var/sshd-cli/config → ~/.ssh/config
+# =============================================================================
+#
+# ALIGNMENT: requirement-sshd-config-backup.md
+# Last updated: 2026-09-11
+# =============================================================================
+sshd_cmd_sync_config() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${JSON:=0}"
+    : "${HOME:=/tmp}"
+    sshd_refuse_config_backup_on_nuser
+    _src="$(sshd_cli_root)/config"
+    _destdir="${HOME}/.ssh"
+    _dest="${_destdir}/config"
+    if [ ! -f "${_src}" ]; then
+        out_die "Cannot sync-config: store missing (${_src}). Next: someone with an approved sudo ${APP_NAME} backup-config must push ~/.ssh/config first."
+    fi
+    if [ ! -r "${_src}" ]; then
+        out_die "Cannot read ${_src} without sudo. The store file must be world-readable (backup-config chmod 0644)."
+    fi
+    if [ ! -d "${_destdir}" ]; then
+        mkdir -p "${_destdir}" || out_die "Cannot create ${_destdir}."
+    fi
+    chmod 0700 "${_destdir}" 2>/dev/null || true
+    if command -v install >/dev/null 2>&1; then
+        install -m 0600 "${_src}" "${_dest}" || out_die "Failed to write ${_dest}."
+    else
+        cp "${_src}" "${_dest}" || out_die "Failed to write ${_dest}."
+        chmod 0600 "${_dest}" 2>/dev/null || true
+    fi
+    chmod 0600 "${_dest}" 2>/dev/null || true
+    out_success "sync-config complete: ${_src} → ${_dest} (mode 600)"
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "sync-config" "ok" \
+            "app" "${APP_NAME}" \
+            "source" "${_src}" \
+            "destination" "${_dest}"
+    fi
+    unset _src _destdir _dest
+    return 0
+}
+
+sshd_cmd_print_sudoers() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${JSON:=0}"
+    : "${ALLOW_TEST_LOCAL_SUDOERS:=0}"
+    sshd_refuse_config_backup_on_nuser
+    _out_path="${1:-}"
+    _tier=$(sshd_sudoers_trust_tier)
+    _global_path="${GLOBAL_BIN:-/usr/local/bin}/${APP_NAME}"
+    if [ "${_tier}" != "production" ]; then
+        if [ "${ALLOW_TEST_LOCAL_SUDOERS}" -ne 1 ]; then
+            out_die "print-sudoers trust tier is ${_tier} (not production). Prefer: sudo ${APP_NAME} install (global ${_global_path}). To emit a test fragment anyway: ${APP_NAME} print-sudoers --allow-test-local [path] or ALLOW_TEST_LOCAL_SUDOERS=1"
+        fi
+        if [ "${JSON}" -eq 0 ]; then
+            out_warn "TEST MODE ONLY: trust tier=${_tier}. Prefer global install for production."
+        fi
+    fi
+    _installed=$(sshd_default_installed_sudoers_path)
+    _fragment=$(sshd_sudoers_fragment_text)
+    if [ -n "${_out_path}" ]; then
+        _dir=$(dirname -- "${_out_path}")
+        if [ ! -d "${_dir}" ]; then
+            mkdir -p "${_dir}" || out_die "Cannot create ${_dir}"
+        fi
+        printf '%s\n' "${_fragment}" > "${_out_path}" || out_die "Cannot write ${_out_path}"
+        out_success "Wrote sudoers fragment to ${_out_path}"
+        out_info "Admin: sudo visudo -c -f ${_out_path}"
+        out_info "Admin: sudo install -m 0440 ${_out_path} ${_installed}"
+        if [ "${JSON}" -eq 1 ]; then
+            out_json "print-sudoers" "written" \
+                "path" "${_out_path}" \
+                "installed_path" "${_installed}" \
+                "trust_tier" "${_tier}"
+        fi
+        unset _out_path _tier _global_path _installed _fragment _dir
+        return 0
+    fi
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "print-sudoers" "use human mode or path arg to capture fragment" \
+            "installed_path" "${_installed}" \
+            "trust_tier" "${_tier}"
+        unset _out_path _tier _global_path _installed _fragment
+        return 0
+    fi
+    out_info "Sudoers fragment for $(sshd_current_login_user) → ${_global_path} backup-config (trust_tier=${_tier})"
+    out_plain "${_fragment}"
+    out_info "Tip: ${APP_NAME} print-sudoers $(sshd_default_project_sudoers_path)"
+    unset _out_path _tier _global_path _installed _fragment
+    return 0
+}
+
+sshd_cmd_generate_sudoer_request() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${JSON:=0}"
+    : "${HOME:=/tmp}"
+    : "${SUBMIT_ACTION:=add}"
+    sshd_refuse_config_backup_on_nuser
+    sshd_sudoers_require_emit_trust "generate-sudoer-request"
+    _out_path="${1:-}"
+    if [ -z "${_out_path}" ]; then
+        _out_path=$(sshd_default_sudoer_request_path)
+    fi
+    case "${_out_path}" in
+        /etc|/etc/*)
+            out_die "generate-sudoer-request refuses to write under /etc (Type 0). Use a path under \$HOME or /dev/shm."
+            ;;
+        /var/sudoer-cli|/var/sudoer-cli/*)
+            out_die "generate-sudoer-request does not write inbound. Write a local file, then: ${APP_NAME} submit-sudoer-request <path>"
+            ;;
+    esac
+    _dir=$(dirname -- "${_out_path}")
+    if [ ! -d "${_dir}" ]; then
+        mkdir -p "${_dir}" || out_die "Cannot create ${_dir}"
+    fi
+    sshd_sudoers_json_text_compact >"${_out_path}" || out_die "Cannot write ${_out_path}"
+    chmod 0644 "${_out_path}" 2>/dev/null || true
+    sshd_sudoers_refuse_forbidden_grant "${_out_path}"
+    sshd_sudoers_verify_grant_verbs "${_out_path}"
+    out_success "Wrote verified sudoer file to ${_out_path}"
+    out_info "Grant allows: ${APP_NAME} backup-config (action=${SUBMIT_ACTION})"
+    out_info "Review the file, then: ${APP_NAME} submit-sudoer-request ${_out_path}"
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "generate-sudoer-request" "written" \
+            "path" "${_out_path}" \
+            "action" "${SUBMIT_ACTION}" \
+            "user" "$(sshd_current_login_user)"
+    fi
+    unset _out_path _dir
+    return 0
+}
+
+sshd_cmd_submit_sudoer_request() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${JSON:=0}"
+    sshd_refuse_config_backup_on_nuser
+    _src_file="${1:-}"
+    _cli=""
+    if _cli=$(sshd_detect_sudoer_cli); then
+        :
+    else
+        out_die "sudoer-cli not found (set SUDOER_CLI or install sudoer-cli). Submit is Type 0 compose — this CLI does not write /etc. Next: ${APP_NAME} generate-sudoer-request, then install sudoer-cli, then ${APP_NAME} submit-sudoer-request."
+    fi
+    _adm=""
+    if _adm=$(sshd_detect_sudoer_adm); then
+        :
+    else
+        out_die "sudoer-adm not found (id ${SUDOER_ADM_USER:-sudoer-adm} failed). Ask an admin to run: sudo sudoer-cli setup"
+    fi
+    _inbound=""
+    if _inbound=$(sshd_detect_sudoer_inbound); then
+        :
+    else
+        out_die "sudoer inbound queue not found (preferred /var/sudoer-cli/sudoer-request). Ask an admin to run: sudo sudoer-cli setup"
+    fi
+    if [ ! -w "${_inbound}" ]; then
+        out_die "sudoer inbound not writable: ${_inbound}."
+    fi
+    _tmp=""
+    _cleanup_tmp=0
+    if [ -n "${_src_file}" ]; then
+        if [ ! -f "${_src_file}" ]; then
+            out_die "sudoers file not found: ${_src_file}"
+        fi
+        _tmp="${_src_file}"
+    else
+        sshd_sudoers_require_emit_trust "submit-sudoer-request"
+        _tmp=$(mktemp -t "${APP_NAME}.sudoer.XXXXXX") || out_die "Could not create a temp sudoer file."
+        sshd_sudoers_json_text_compact >"${_tmp}" || out_die "cannot write temp sudoer JSON ${_tmp}"
+        _cleanup_tmp=1
+    fi
+    sshd_sudoers_refuse_forbidden_grant "${_tmp}"
+    sshd_sudoers_verify_grant_verbs "${_tmp}"
+    _purpose="${SUBMIT_PURPOSE:-Allow $(sshd_current_login_user) to run ${APP_NAME} backup-config as root.}"
+    _verb="add-sudoer-request"
+    if [ "${SUBMIT_ACTION}" = "update" ]; then
+        _verb="update-sudoer-request"
+    fi
+    _errf=$(mktemp -t "${APP_NAME}.sudoer-err.XXXXXX") || _errf="/dev/null"
+    _out=""
+    _rc=0
+    if [ "${JSON}" -eq 1 ]; then
+        _out=$("${_cli}" --json "${_verb}" --file "${_tmp}" --purpose "${_purpose}" --service "${APP_NAME}" 2>"${_errf}")
+        _rc=$?
+    else
+        _out=$("${_cli}" "${_verb}" --file "${_tmp}" --purpose "${_purpose}" --service "${APP_NAME}" 2>"${_errf}")
+        _rc=$?
+    fi
+    _err=$(cat "${_errf}" 2>/dev/null || true)
+    if [ "${_errf}" != "/dev/null" ]; then
+        rm -f "${_errf}"
+    fi
+    if [ "${_cleanup_tmp}" -eq 1 ]; then
+        rm -f "${_tmp}"
+    fi
+    if [ "${_rc}" -ne 0 ]; then
+        if [ -n "${_err}" ]; then
+            out_die "sudoer-cli ${_verb} failed: ${_err}"
+        fi
+        out_die "sudoer-cli ${_verb} failed (exit ${_rc})"
+    fi
+    out_success "Submitted sudoer request via ${_cli} (${_verb})"
+    if [ -n "${_out}" ] && [ "${JSON}" -eq 0 ]; then
+        out_plain "${_out}"
+    fi
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "submit-sudoer-request" "submitted" \
+            "action" "${SUBMIT_ACTION}" \
+            "service" "${APP_NAME}" \
+            "sudoer_cli" "${_cli}" \
+            "sudoer_adm" "${_adm}"
+    fi
+    unset _src_file _cli _adm _inbound _tmp _cleanup_tmp _purpose _verb _errf _out _rc _err
+    return 0
+}
+
+sshd_cmd_print_sudoers_install_script() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${JSON:=0}"
+    sshd_refuse_config_backup_on_nuser
+    sshd_sudoers_require_emit_trust "print-sudoers-install-script"
+    _out="${1:-}"
+    if [ -z "${_out}" ]; then
+        _out="${TMPDIR:-/tmp}/${APP_NAME}-$(sshd_current_login_user)-sudoers-admin.sh"
+    fi
+    _installed=$(sshd_default_installed_sudoers_path)
+    _draft=$(sshd_default_project_sudoers_path)
+    sshd_cmd_print_sudoers "${_draft}"
+    cat > "${_out}" <<EOF
+#!/bin/sh
+# Generated by: ${APP_NAME} print-sudoers-install-script
+set -u
+PROJECT_SUDOERS_FILE="${_draft}"
+INSTALLED="${_installed}"
+die() { printf '%s\\n' "\$*" >&2; exit 1; }
+info() { printf '%s\\n' "\$*"; }
+[ "\$(id -u)" -eq 0 ] || die "run as root: sudo sh \$0 install|uninstall|replace"
+[ -f "\${PROJECT_SUDOERS_FILE}" ] || die "Missing project sudoers file: \${PROJECT_SUDOERS_FILE} — regenerate with: ${APP_NAME} print-sudoers --allow-test-local \${PROJECT_SUDOERS_FILE}"
+cmd="\${1:-install}"
+case "\${cmd}" in
+    install|replace)
+        visudo -c -f "\${PROJECT_SUDOERS_FILE}" || die "visudo -c failed"
+        install -m 0440 "\${PROJECT_SUDOERS_FILE}" "\${INSTALLED}" || die "install failed"
+        visudo -c -f "\${INSTALLED}" || die "installed fragment failed visudo -c"
+        info "Installed \${INSTALLED}"
+        ;;
+    uninstall)
+        rm -f "\${INSTALLED}"
+        info "Removed \${INSTALLED}"
+        ;;
+    *) die "use install|uninstall|replace" ;;
+esac
+EOF
+    chmod 0755 "${_out}" 2>/dev/null || true
+    out_success "Wrote admin script ${_out}"
+    out_info "Admin: sudo sh ${_out} install"
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "print-sudoers-install-script" "written" \
+            "path" "${_out}" \
+            "installed_path" "${_installed}"
+    fi
+    unset _out _installed _draft
+    return 0
+}
+
+sshd_cmd_remove_project_sudoers() {
+    : "${APP_NAME:=sshd-cli}"
+    : "${JSON:=0}"
+    sshd_refuse_config_backup_on_nuser
+    _path="${1:-}"
+    if [ -z "${_path}" ]; then
+        _path=$(sshd_default_project_sudoers_path)
+    fi
+    case "${_path}" in
+        /etc|/etc/*)
+            out_die "Refusing to remove paths under /etc as Type 0. This command only deletes the user draft. Host elev is admin-only: ${APP_NAME} print-sudoers-install-script && sudo sh <script> uninstall"
+            ;;
+    esac
+    if [ ! -f "${_path}" ]; then
+        out_die "No project-sudoers draft at ${_path}."
+    fi
+    rm -f "${_path}" || out_die "Could not remove ${_path}."
+    out_success "Removed project-sudoers draft ${_path}"
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "remove-project-sudoers" "removed" "path" "${_path}"
+    fi
+    unset _path
+    return 0
+}
+
+sshd_cmd_sudoers_menu() {
+    if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ] || [ "${TTY}" -ne 1 ]; then
+        out_die "sudoers menu needs a terminal. Next: ${APP_NAME} generate-sudoer-request"
+    fi
+    out_info "$(printf '%s' "${APP_NAME}") — sudoers (grant and drafts)"
+    out_plain "1. generate-sudoer-request: Write a JSON grant you can read"
+    out_plain "2. submit-sudoer-request: Queue the JSON grant inbound"
+    out_plain "3. print-sudoers: Emit sudoers draft"
+    out_plain "4. print-sudoers-install-script: Write admin install script"
+    out_plain "5. remove-project-sudoers: Remove sudoers draft only"
+    out_plain "9. Exit"
+    out_msg_n "Choose a number, or type the command name: "
+    _sc=""
+    read -r _sc || true
+    case "${_sc}" in
+        1|generate-sudoer-request) sshd_cmd_generate_sudoer_request ;;
+        2|submit-sudoer-request) sshd_cmd_submit_sudoer_request ;;
+        3|print-sudoers) sshd_cmd_print_sudoers ;;
+        4|print-sudoers-install-script) sshd_cmd_print_sudoers_install_script ;;
+        5|remove-project-sudoers) sshd_cmd_remove_project_sudoers ;;
+        9|0|q|exit|"") ;;
+        *) out_die "Unknown sudoers choice '${_sc}'." ;;
+    esac
+    unset _sc
 }
 
 sshd_dns_can_prompt() {
@@ -5252,7 +6040,14 @@ sshd_cmd_menu() {
     if sshd_menu_show_daemon_rows; then
         _show_daemon=1
     fi
+    _show_cfg=1
+    if sshd_is_normal_user_only_cli; then
+        _show_cfg=0
+    fi
     out_info "**${APP_NAME}**(*${VERSION}*)"
+    if [ "${_show_cfg}" -eq 0 ]; then
+        out_info "backup-config and sync-config not available for $(sshd_host_normal_user_only_label)"
+    fi
     if [ "${_show_daemon}" -eq 0 ]; then
         out_info "start/stop/restart sshd features are not available for non-root in $(sshd_os_name)"
     fi
@@ -5263,6 +6058,11 @@ sshd_cmd_menu() {
         out_plain "4. Restart sshd: stop then start"
     fi
     out_plain "5. SSH names (dns): this login ~/.ssh/config Host list"
+    if [ "${_show_cfg}" -eq 1 ]; then
+        out_plain "6. backup-config: copy this login ~/.ssh/config to /var/sshd-cli"
+        out_plain "7. sync-config: copy /var/sshd-cli/config into this login ~/.ssh/config"
+        out_plain "8. sudoers: grant and drafts for passwordless sudo backup-config"
+    fi
     out_plain "9. Exit"
     out_msg_n "Choose a number, or type the command name: "
     _choice=""
@@ -5285,6 +6085,26 @@ sshd_cmd_menu() {
             ;;
         restart) sshd_cmd_restart ;;
         5|dns) sshd_cmd_dns ;;
+        6)
+            [ "${_show_cfg}" -eq 1 ] || out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help."
+            sshd_cmd_backup_config
+            ;;
+        backup-config) sshd_cmd_backup_config ;;
+        7)
+            [ "${_show_cfg}" -eq 1 ] || out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help."
+            sshd_cmd_sync_config
+            ;;
+        sync-config) sshd_cmd_sync_config ;;
+        8)
+            [ "${_show_cfg}" -eq 1 ] || out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help."
+            sshd_cmd_sudoers_menu
+            ;;
+        sudoers) sshd_cmd_sudoers_menu ;;
+        generate-sudoer-request) sshd_cmd_generate_sudoer_request ;;
+        submit-sudoer-request) sshd_cmd_submit_sudoer_request ;;
+        print-sudoers) sshd_cmd_print_sudoers ;;
+        print-sudoers-install-script) sshd_cmd_print_sudoers_install_script ;;
+        remove-project-sudoers) sshd_cmd_remove_project_sudoers ;;
         port) sshd_cmd_port ;;
         config) sshd_cmd_config ;;
         host-keys) sshd_cmd_host_keys list ;;
@@ -5294,7 +6114,7 @@ sshd_cmd_menu() {
         9|99|999|exit|"") return 0 ;;
         *) out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help." ;;
     esac
-    unset _choice _show_daemon
+    unset _choice _show_daemon _show_cfg
 }
 
 
@@ -5546,7 +6366,14 @@ app_help() {
     out_plain "  host-keys [list|generate]  List or create host keys"
     out_plain "  auth-keys [list|add <file>]  This login authorized_keys"
     out_plain "  dns [list|show N|edit N|set N …|add …|delete N]  This login ~/.ssh/config Host list (dns-ip; as Termux / identity-file / Old OpenSSH)"
-    out_plain "  menu                 Numbered list: status, start, stop, restart, dns, Exit 9 (terminal only; alias: main). POSIX Linux non-root omits 2/3/4"
+    out_plain "  backup-config        Copy this login ~/.ssh/config into /var/sshd-cli (passwordless sudo sshd-cli backup-config after sudoer-adm)"
+    out_plain "  sync-config          Copy /var/sshd-cli/config into this login ~/.ssh/config (mode 600; no sudo)"
+    out_plain "  print-sudoers        Emit project-sudoers-file (draft) for admin install"
+    out_plain "  print-sudoers-install-script  Write admin script for sudo install/uninstall/replace"
+    out_plain "  generate-sudoer-request [path]  Independently write a JSON grant (backup-config verb)"
+    out_plain "  submit-sudoer-request [file]  Queue a JSON sudoers-grant request via sudoer-cli"
+    out_plain "  remove-project-sudoers [path]  Delete project-sudoers-file draft only"
+    out_plain "  menu                 Numbered list: status, start, stop, restart, dns, backup-config, sync-config, sudoers, Exit 9 (terminal only; alias: main). POSIX Linux non-root omits 2/3/4. Termux / Git Bash / Windows cmd omit backup-config / sync-config / sudoers"
     out_empty_line
     out_info "Termux (Android wake lock):"
     out_plain "  wake-lock            Acquire the Android wake lock so sshd can keep listening with the screen off (idempotent; acquire again if Android dropped it)"
@@ -5652,9 +6479,10 @@ app_main() {
     : "${FORCE_REINSTALL:=0}"
 
     # Effective scratch/cache root for this run (requirement-shell-cli-storage).
-    # Priority: /dev/shm → /tmp → STORAGE_DIR (persistent cache fallback).
-    # Resolver creates root fail-closed. Export TMPDIR so mktemp -t (install
-    # download stage) lands under the isolated product root.
+    # Chain: /dev/shm → Termux PREFIX/tmp / Git Bash AppData Temp/cache →
+    # $TEMP/cache → /tmp/cache → STORAGE_DIR. mkdir of each leaf is fail-soft;
+    # die only if no root worked. Export TMPDIR so mktemp -t (install download
+    # stage) lands under the isolated product root.
     : "${USERNAME:=unknown}"
     : "${HOME:=/tmp}"
     : "${XDG_CACHE_HOME:=${HOME}/.cache}"
@@ -5692,6 +6520,28 @@ app_main() {
             --json)     JSON=1; QUIET=1 ;;
             --debug)    DEBUG=1 ;;
             --force)    FORCE=1; FORCE_REINSTALL=1 ;;
+            --allow-test-local)
+                ALLOW_TEST_LOCAL_SUDOERS=1
+                export ALLOW_TEST_LOCAL_SUDOERS
+                ;;
+            --update)
+                SUBMIT_ACTION="update"
+                SUBMIT_ACTION_EXPLICIT=1
+                export SUBMIT_ACTION SUBMIT_ACTION_EXPLICIT
+                ;;
+            --add)
+                SUBMIT_ACTION="add"
+                SUBMIT_ACTION_EXPLICIT=1
+                export SUBMIT_ACTION SUBMIT_ACTION_EXPLICIT
+                ;;
+            --purpose)
+                if [ $# -lt 2 ]; then
+                    out_die "--purpose requires TEXT"
+                fi
+                SUBMIT_PURPOSE="$2"
+                export SUBMIT_PURPOSE
+                shift
+                ;;
             # --- DOMAIN_DISPATCH_FLAGS (specializee injection) ---
             # Specialized products MAY parse domain-only flags here (e.g. --no-cloudflare).
             # --- end DOMAIN_DISPATCH_FLAGS ---
@@ -5699,9 +6549,9 @@ app_main() {
                 COMMAND="$1"
                 ;;
             # --- DOMAIN_DISPATCH_COMMANDS (specializee injection) ---
-            status|start|stop|restart|port|config|host-keys|auth-keys|dns|menu|main|wake-lock|wake-unlock)
+            status|start|stop|restart|port|config|host-keys|auth-keys|dns|menu|main|wake-lock|wake-unlock|backup-config|sync-config|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
                 case "${COMMAND}" in
-                    port|host-keys|auth-keys|dns)
+                    port|host-keys|auth-keys|dns|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
                         if [ "${COMMAND}" = "dns" ] && [ -z "$1" ]; then
                             _op='""'
                         else
@@ -5729,7 +6579,7 @@ app_main() {
                             RC_TEST_OPERANDS="$1"
                         fi
                         ;;
-                    port|host-keys|auth-keys|dns)
+                    port|host-keys|auth-keys|dns|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
                         if [ "${COMMAND}" = "dns" ] && [ -z "$1" ]; then
                             _op='""'
                         else
@@ -5804,6 +6654,28 @@ app_main() {
         menu|main) sshd_cmd_menu ;;
         wake-lock) sshd_cmd_wake_lock ;;
         wake-unlock) sshd_cmd_wake_unlock ;;
+        backup-config) sshd_cmd_backup_config ;;
+        sync-config) sshd_cmd_sync_config ;;
+        print-sudoers)
+            set -- ${DOMAIN_OPERANDS}
+            sshd_cmd_print_sudoers "${1-}"
+            ;;
+        print-sudoers-install-script)
+            set -- ${DOMAIN_OPERANDS}
+            sshd_cmd_print_sudoers_install_script "${1-}"
+            ;;
+        generate-sudoer-request)
+            set -- ${DOMAIN_OPERANDS}
+            sshd_cmd_generate_sudoer_request "${1-}"
+            ;;
+        submit-sudoer-request)
+            set -- ${DOMAIN_OPERANDS}
+            sshd_cmd_submit_sudoer_request "${1-}"
+            ;;
+        remove-project-sudoers)
+            set -- ${DOMAIN_OPERANDS}
+            sshd_cmd_remove_project_sudoers "${1-}"
+            ;;
         # --- end DOMAIN_DISPATCH_ROUTES ---
         help|*)
             app_help

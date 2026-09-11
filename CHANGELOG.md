@@ -5,6 +5,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.14.0] - 2026-09-11
+
+### Added
+
+- **`backup-config`** copies this login `~/.ssh/config` into `/var/sshd-cli/config` (`sudo -n /usr/local/bin/sshd-cli backup-config` when dest needs root). **`sync-config`** copies that store back to `~/.ssh/config` as this login, mode **600**, no sudo.
+- Sudoers workflow: `print-sudoers`, `print-sudoers-install-script`, `generate-sudoer-request`, `submit-sudoer-request`, `remove-project-sudoers`. Grant is **`sshd-cli backup-config` only** (NOPASSWD). JSON body + fragment dual.
+- TTY menu on Termux / Git Bash / Windows cmd prints `[INFO] backup-config and sync-config not available for …` **before** the numbered list and omits those rows. POSIX Linux numbers them 6 / 7 / 8 (sudoers).
+- Tests **TP-CFG-01..09**. Law: `requirement-sshd-config-backup`, `requirement-sudoer-json-file`, `requirement-three-layer-privilege-model`, `requirement-shell-sudo-command`.
+
+## [1.13.4] - 2026-09-11
+
+### Fixed
+
+- **Git Bash storage:** `/dev/shm` mkdir is fail-soft. When that child cannot be created, the resolver uses `$HOME/AppData/Local/Temp/cache/${APP_NAME}-${USERNAME}` (else `/c/Users/${USERNAME}/AppData/Local/Temp/cache/…`) with no extra `[ERROR]`. Die only if every root fails. Incident **INC-20260911-001**. Tests **TP-CLI-19** · **TP-CLI-20**.
+
 ## [1.13.3] - 2026-09-10
 
 ### Added

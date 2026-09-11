@@ -14,7 +14,7 @@
 
 | # | Check | Notes |
 |---|--------|-------|
-| P1 | Read `docs/requirements/index.md` | Class + 12 shell + domain sshd (14 Active) |
+| P1 | Read `docs/requirements/index.md` | Class + shell + domain sshd + config deposit + sudoers (18 Active) |
 | P2 | Confirm ship unit `src/sshd-cli` / `./sshd-cli` | `APP_NAME` / `VERSION` hard-assign (**1.13.0**); same bytes |
 | P3 | Load `reviews/lessons.md` and re-check open L-* that still apply | Skip L-SUDOERS / restore lessons as parent-only |
 | P4 | Run `./tests/run.sh` | Record PASS/FAIL/SKIP in report |
@@ -38,7 +38,7 @@
 | Output SSOT | `requirement-shell-output-requirements.md` | `out_*`; JSON errors |
 | Modular design | `requirement-shell-modular-function-design.md` | domain prefix **`sshd_*`** |
 | Idempotency | `requirement-shell-idempotency.md` | Re-install / pipe re-run (not TTY empty argv); bashrc exact-PATH no-op |
-| Storage | `requirement-shell-cli-storage.md` | Isolation |
+| Storage | `requirement-shell-cli-storage.md` | Isolation; Git Bash `/dev/shm` mkdir fail-soft → AppData Temp/`cache` |
 | Interactive vs non-interactive | `requirement-shell-interactive-vs-noninteractive.md` | TTY ask vs pipe never-wait |
 | Script coding | `requirement-shell-script-coding.md` | `set -u`; do-not-capture-read |
 | Automatic checksum | `requirement-shell-automatic-checksum.md` | Companion link/value/result; CHECKSUM not on help |

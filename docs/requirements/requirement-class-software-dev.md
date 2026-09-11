@@ -222,6 +222,10 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 | `requirement-shell-modular-function-design` | Prefixes / single-file modularity |
 | `requirement-shell-script-coding` | Coding-style home (this file points) |
 | `requirement-domain-sshd` | OpenSSH sshd domain SSOT |
+| `requirement-sshd-config-backup` | `~/.ssh/config` host deposit |
+| `requirement-sudoer-json-file` | JSON grant body |
+| `requirement-three-layer-privilege-model` | Sudoers workflow |
+| `requirement-shell-sudo-command` | `util_sudo` |
 | `docs/requirements/index.md` | Registry SSOT |
 
 ---
