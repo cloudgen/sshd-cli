@@ -6,7 +6,7 @@
 
 ## 1. Purpose
 
-This requirement owns sudoers **workflow** for sshd-cli: print draft, generate JSON, Type 0 submit into sudoer-cli inbound, admin install script, remove draft only. Type 2 is unused. Type 1 is the approved `sudo sshd-cli backup-config` grant (not a dedicated system user).
+This requirement owns the **Type 0 / Type 1 / Type 2 map** for sshd-cli. Type 2 is unused. Type 1 is the approved `sudo sshd-cli backup-config` grant (not a dedicated system user). **Sudoer verbs, JSON body, and `util_sudo` SSOT:** `requirement-shell-sudoer`. Do **not** duplicate those handlers here.
 
 ### 1.1 Human-facing
 
@@ -16,7 +16,7 @@ This requirement owns sudoers **workflow** for sshd-cli: print draft, generate J
 |-----|---------|---------|
 | You / this login | Generate and submit | `sshd-cli generate-sudoer-request` then `sshd-cli submit-sudoer-request` |
 | The other role | sudoer-adm or a root login | approve inbound, or `sudo sh …-sudoers-admin.sh install` |
-| Not this file | JSON field table; copy ops | `requirement-sudoer-json-file` · `requirement-sshd-config-backup` |
+| Not this file | JSON field table; copy ops | `requirement-shell-sudoer` · `requirement-shell-config-backup` |
 
 | Includes | Excludes |
 |----------|----------|
@@ -34,7 +34,7 @@ This requirement owns sudoers **workflow** for sshd-cli: print draft, generate J
 
 ## 2. Core Rules / Requirements (Mandatory)
 
-### 2.1 Verbs (dual mention with CLI-interface)
+### 2.1 Verbs (dual mention — **SSOT is `requirement-shell-sudoer`**)
 
 | Verb | Behavior |
 |------|----------|
@@ -72,7 +72,7 @@ Type 0 **MUST NOT** write `/etc`. **MUST NOT** mkdir inbound.
 
 ### 2.4 Implementation Notes (this project)
 
-Handlers: `sshd_cmd_print_sudoers` · `sshd_cmd_generate_sudoer_request` · `sshd_cmd_submit_sudoer_request` · `sshd_cmd_print_sudoers_install_script` · `sshd_cmd_remove_project_sudoers` · `sshd_cmd_sudoers_menu`. Tests **TP-CFG-06** · **TP-CFG-07**.
+**SSOT:** `requirement-shell-sudoer`. Handlers listed there. Tests **TP-CFG-06** · **TP-CFG-07**.
 
 ## Under command line for normal user only
 
@@ -108,7 +108,7 @@ On Termux / Git Bash / Windows cmd these verbs **MUST** fail closed and the TTY 
 | Artifact | Role |
 |----------|------|
 | `docs/requirements/index.md` | Registry |
-| `docs/requirements/requirement-sudoer-json-file.md` | JSON body |
+| `docs/requirements/requirement-shell-sudoer.md` | **SSOT** — sudoer verbs / JSON / wrap |
 | `docs/requirements/requirement-shell-cli-interface.md` | Dual mention |
 | `./sshd-cli` | Ship unit |
 

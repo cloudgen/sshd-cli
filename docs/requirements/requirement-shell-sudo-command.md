@@ -6,7 +6,7 @@
 
 ## 1. Purpose
 
-This requirement owns in-tool sudo for sshd-cli: one wrapping function `util_sudo`, check before sudo, and the studied allow table for `backup-config`.
+This requirement **points** at `requirement-shell-sudoer` for in-tool sudo: one wrapping function `util_sudo`, check before sudo, and the studied allow table for `backup-config`. Do **not** duplicate the wrap body here.
 
 ### 1.1 Human-facing
 
@@ -16,7 +16,7 @@ This requirement owns in-tool sudo for sshd-cli: one wrapping function `util_sud
 |-----|---------|---------|
 | You / this login | Run backup-config | `sshd-cli backup-config` |
 | The other role | sudoer-adm already approved the grant | `/etc/sudoers.d/sshd-cli-<id -un>` |
-| Not this file | JSON body; copy semantics | `requirement-sudoer-json-file` · `requirement-sshd-config-backup` |
+| Not this file | JSON body; copy semantics | `requirement-shell-sudoer` · `requirement-shell-config-backup` |
 
 | Includes | Excludes |
 |----------|----------|
@@ -47,7 +47,7 @@ This requirement owns in-tool sudo for sshd-cli: one wrapping function `util_sud
 
 ### 2.2 Implementation Notes (this project)
 
-`util_sudo` in `./sshd-cli`. Call site: `sshd_cmd_backup_config`. Dual mention: `requirement-sshd-config-backup`.
+**SSOT:** `requirement-shell-sudoer` §2.4. `util_sudo` in `./sshd-cli`. Call site: `sshd_cmd_backup_config`. Dual mention: `requirement-shell-config-backup`.
 
 ## Under command line for normal user only
 
@@ -83,8 +83,9 @@ On Termux / Git Bash / Windows cmd, `util_sudo` **MUST NOT** run: those verbs fa
 | Artifact | Role |
 |----------|------|
 | `docs/requirements/index.md` | Registry |
-| `docs/requirements/requirement-sshd-config-backup.md` | Ops |
-| `docs/requirements/requirement-shell-script-coding.md` | Points here |
+| `docs/requirements/requirement-shell-sudoer.md` | **SSOT** — wrap + allow table + JSON |
+| `docs/requirements/requirement-shell-config-backup.md` | Ops (depends on sudoer) |
+| `docs/requirements/requirement-shell-script-coding.md` | Points at sudoer SSOT |
 | `./sshd-cli` | Ship unit |
 
 **Last Updated**: 2026-09-11  

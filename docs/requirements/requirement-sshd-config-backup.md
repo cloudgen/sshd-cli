@@ -6,7 +6,7 @@
 
 ## 1. Purpose
 
-This requirement is the operations Single Source of Truth for depositing this login’s `~/.ssh/config` into `/var/sshd-cli` (`backup-config`), copying that store back (`sync-config`), and pulling the same file from another host (`sync-from-remote`) with mode `600`. It is not folder-archive tar.gz.
+This requirement **points** at `requirement-shell-config-backup` for depositing this login’s `~/.ssh/config` into `/var/sshd-cli` (`backup-config`), `sync-config`, and `sync-from-remote`. Elev wrap and JSON grant: `requirement-shell-sudoer`. Do **not** duplicate copy semantics here. It is not folder-archive tar.gz.
 
 ### 1.1 Human-facing
 
@@ -16,7 +16,7 @@ This requirement is the operations Single Source of Truth for depositing this lo
 |-----|---------|---------|
 | You / this login | Push or pull the SSH client config | `sshd-cli backup-config` · `sshd-cli sync-config` · `sshd-cli sync-from-remote user@host` |
 | The other role | sudoer-adm approves passwordless `sudo sshd-cli backup-config` | JSON grant inbound |
-| Not this file | Host list edit; sudoers JSON schema | `requirement-domain-sshd` · `requirement-sudoer-json-file` |
+| Not this file | Host list edit; sudoers JSON schema | `requirement-domain-sshd` · `requirement-shell-sudoer` |
 
 | Includes | Excludes |
 |----------|----------|
@@ -84,6 +84,8 @@ sshd-cli submit-sudoer-request
 ```
 
 ### 2.6 Implementation Notes (this project)
+
+**SSOT:** `requirement-shell-config-backup` (ops) · `requirement-shell-sudoer` (elev). Product store names stay:
 
 | Item | Value |
 |------|--------|
@@ -153,10 +155,9 @@ When the ship unit detects Termux, Git Bash, Windows cmd, or the same class: **M
 | Artifact | Role |
 |----------|------|
 | `docs/requirements/index.md` | Registry |
+| `docs/requirements/requirement-shell-config-backup.md` | **SSOT** — deposit / sync / remote pull |
+| `docs/requirements/requirement-shell-sudoer.md` | **Required peer** — wrap + JSON + print/generate/submit |
 | `docs/requirements/requirement-domain-sshd.md` | Dual mention catalog |
-| `docs/requirements/requirement-sudoer-json-file.md` | JSON grant body |
-| `docs/requirements/requirement-three-layer-privilege-model.md` | sudoers workflow |
-| `docs/requirements/requirement-shell-sudo-command.md` | `util_sudo` |
 | `./sshd-cli` | Ship unit |
 
 **Last Updated**: 2026-09-11 (sync-from-remote)  

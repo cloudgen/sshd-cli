@@ -52,6 +52,8 @@ run_test_cli() {
     assert_contains "TP-CLI-04 help host-keys" "$_out" "host-keys"
     assert_contains "TP-CLI-04 help auth-keys" "$_out" "auth-keys"
     assert_contains "TP-CLI-04 help dns" "$_out" "dns"
+    assert_contains "TP-CLI-04 help ssh" "$_out" "ssh ["
+    assert_contains "TP-CLI-04 help download" "$_out" "download ["
     assert_contains "TP-CLI-04 help backup-config" "$_out" "backup-config"
     assert_contains "TP-CLI-04 help sync-config" "$_out" "sync-config"
     assert_contains "TP-CLI-04 help sync-from-remote" "$_out" "sync-from-remote"

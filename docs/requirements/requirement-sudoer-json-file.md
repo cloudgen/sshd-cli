@@ -6,7 +6,7 @@
 
 ## 1. Purpose
 
-This requirement is the JSON sudoer file body for sshd-cli: one grant, project command only, verb `backup-config`. It is the text dual of the sudoers(5) line. Workflow (print/generate/submit) lives on `requirement-three-layer-privilege-model`.
+This requirement **points** at `requirement-shell-sudoer` for the JSON sudoer file body (one grant, verb `backup-config`) and the text dual. Workflow (print/generate/submit) also lives there. Do **not** duplicate emit samples here.
 
 ### 1.1 Human-facing
 
@@ -16,7 +16,7 @@ This requirement is the JSON sudoer file body for sshd-cli: one grant, project c
 |-----|---------|---------|
 | You / this login | Write a grant you can read | `sshd-cli generate-sudoer-request` |
 | The other role | sudoer-adm approves the queued JSON | inbound `/var/sudoer-cli/sudoer-request` |
-| Not this file | How backup-config copies the file | `requirement-sshd-config-backup` |
+| Not this file | How backup-config copies the file | `requirement-shell-config-backup` |
 
 | Includes | Excludes |
 |----------|----------|
@@ -74,7 +74,7 @@ sudoer-{{YYYYMMDD}}-sshd-cli-{{username}}-{{action}}-{{n}}.json
 
 ### 2.1 Implementation Notes (this project)
 
-Emit: `sshd_sudoers_json_text_compact` / `sshd_sudoers_fragment_text`. Tests **TP-CFG-06** · **TP-CFG-07**.
+**SSOT:** `requirement-shell-sudoer` §2.2–2.6. Emit: `sshd_sudoers_json_text_compact` / `sshd_sudoers_fragment_text`. Tests **TP-CFG-06** · **TP-CFG-07**.
 
 ## Under command line for normal user only
 
@@ -110,8 +110,8 @@ On Termux / Git Bash / Windows cmd, generate/submit/print-sudoers **MUST** fail 
 | Artifact | Role |
 |----------|------|
 | `docs/requirements/index.md` | Registry |
-| `docs/requirements/requirement-sshd-config-backup.md` | Ops |
-| `docs/requirements/requirement-three-layer-privilege-model.md` | Workflow |
+| `docs/requirements/requirement-shell-sudoer.md` | **SSOT** — JSON + workflow + wrap |
+| `docs/requirements/requirement-shell-config-backup.md` | Ops (depends on sudoer) |
 | `./sshd-cli` | Ship unit |
 
 **Last Updated**: 2026-09-11  

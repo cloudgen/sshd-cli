@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.15.0  
-**Last plan update:** 2026-09-11  
-**Last suite run:** PASS=507 FAIL=0 SKIP=0 (2026-09-11)
+**Product VERSION:** 1.17.0  
+**Last plan update:** 2026-09-12  
+**Last suite run:** PASS=591 FAIL=0 SKIP=0 (2026-09-12)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -28,7 +28,9 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | Android wake lock (auto on start + `wake-lock` verb) | have | TP-TX-08..16 |
 | sshd start is a background daemon (not a service manager) | have | TP-SSHD-01, TP-SSHD-02 |
 | POSIX Linux systemd unit path (`systemctl` start/stop/restart) | have | TP-SSHD-09..14 |
-| this-login `~/.ssh/config` dns-ip list / show / set / add / delete | have | TP-DNS-01..38 |
+| this-login `~/.ssh/config` dns-ip list / show / set / add / delete / unset | have | TP-DNS-01..46 |
+| OpenSSH client `ssh` Host pick | have | TP-SSH-01..07 |
+| remote folder `download` tar.gz into cwd | have | TP-DL-01..09 |
 | Automatic companion link on install (file://) | have | TP-CSUM-01 |
 | Backup / restore / sudoers emit | n/a | Absent by design (not a backup product) |
 | Online curl against public GitHub | n/a | Core suite stays offline; channel is `file://` in CI |
@@ -58,22 +60,22 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-CLI-12 | storage isolation | test_cli | requirement-shell-cli-storage | **have** |
 | TP-CLI-19 | Git Bash: `/dev/shm` mkdir fail-soft → AppData Local Temp/`cache`; no storage ERROR | test_cli | requirement-shell-cli-storage | **have** |
 | TP-CLI-20 | static: resolver names Git Bash Temp; no mid-chain mkdir `out_die` | test_cli | requirement-shell-cli-storage · requirement-shell-script-coding | **have** |
-| TP-CFG-01 | Type 0 `backup-config` into `SSHD_CLI_ROOT` | test_config_backup | requirement-sshd-config-backup | **have** |
-| TP-CFG-02 | `sync-config` dest mode 600 | test_config_backup | requirement-sshd-config-backup | **have** |
-| TP-CFG-03 | missing source fail-closed + Next | test_config_backup | requirement-sshd-config-backup | **have** |
-| TP-CFG-04 | Termux hide + INFO | test_config_backup | requirement-sshd-config-backup | **have** |
-| TP-CFG-05 | Git Bash hide + INFO | test_config_backup | requirement-sshd-config-backup | **have** |
-| TP-CFG-06 | `print-sudoers --allow-test-local` backup-config only | test_config_backup | requirement-sudoer-json-file · requirement-three-layer-privilege-model | **have** |
-| TP-CFG-07 | `generate-sudoer-request` JSON grant | test_config_backup | requirement-sudoer-json-file | **have** |
-| TP-CFG-08 | `restore-config` unknown | test_config_backup | requirement-sshd-config-backup | **have** |
-| TP-CFG-09 | Windows cmd menu INFO | test_config_backup | requirement-sshd-config-backup | **have** |
-| TP-CFG-10 | `sync-from-remote` missing SPEC fail-closed | test_config_backup | requirement-sshd-config-backup | **have** |
-| TP-CFG-11 | invalid SPEC / extra `@` fail-closed | test_config_backup | requirement-sshd-config-backup | **have** |
-| TP-CFG-12 | fake scp `user@host` copies config | test_config_backup | requirement-sshd-config-backup | **have** |
-| TP-CFG-13 | dest mode 600 | test_config_backup | requirement-sshd-config-backup | **have** |
-| TP-CFG-14 | preferred-remote saved mode 600 | test_config_backup | requirement-sshd-config-backup | **have** |
-| TP-CFG-15 | TTY empty Enter uses stored default | test_config_backup | requirement-sshd-config-backup | **have** |
-| TP-CFG-16 | `--json` type/host fields | test_config_backup | requirement-sshd-config-backup | **have** |
+| TP-CFG-01 | Type 0 `backup-config` into `SSHD_CLI_ROOT` | test_config_backup | requirement-shell-config-backup | **have** |
+| TP-CFG-02 | `sync-config` dest mode 600 | test_config_backup | requirement-shell-config-backup | **have** |
+| TP-CFG-03 | missing source fail-closed + Next | test_config_backup | requirement-shell-config-backup | **have** |
+| TP-CFG-04 | Termux hide + INFO | test_config_backup | requirement-shell-config-backup · requirement-shell-sudoer | **have** |
+| TP-CFG-05 | Git Bash hide + INFO | test_config_backup | requirement-shell-config-backup · requirement-shell-sudoer | **have** |
+| TP-CFG-06 | `print-sudoers --allow-test-local` backup-config only | test_config_backup | requirement-shell-sudoer | **have** |
+| TP-CFG-07 | `generate-sudoer-request` JSON grant | test_config_backup | requirement-shell-sudoer | **have** |
+| TP-CFG-08 | `restore-config` unknown | test_config_backup | requirement-shell-config-backup | **have** |
+| TP-CFG-09 | Windows cmd menu INFO | test_config_backup | requirement-shell-config-backup · requirement-shell-sudoer | **have** |
+| TP-CFG-10 | `sync-from-remote` missing SPEC fail-closed | test_config_backup | requirement-shell-config-backup | **have** |
+| TP-CFG-11 | invalid SPEC / extra `@` fail-closed | test_config_backup | requirement-shell-config-backup | **have** |
+| TP-CFG-12 | fake scp `user@host` copies config | test_config_backup | requirement-shell-config-backup | **have** |
+| TP-CFG-13 | dest mode 600 | test_config_backup | requirement-shell-config-backup | **have** |
+| TP-CFG-14 | preferred-remote saved mode 600 | test_config_backup | requirement-shell-config-backup | **have** |
+| TP-CFG-15 | TTY empty Enter uses stored default | test_config_backup | requirement-shell-config-backup | **have** |
+| TP-CFG-16 | `--json` type/host fields | test_config_backup | requirement-shell-config-backup | **have** |
 | TP-CLI-13 | backup/restore/sudoers verbs unknown | test_cli | requirement-shell-cli-interface | **have** |
 | TP-CLI-14 | empty argv interactive → domain menu (no install); status + dns row 5 + Exit 9 | test_cli | requirement-shell-cli-zero-arguments · requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-CLI-15 | status Connect: live ssh -p user@ipv4; no `<this-host>` | test_cli | requirement-domain-sshd | **have** |
@@ -121,7 +123,7 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-DNS-17 | Match / Include skipped on list | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-18 | after `COMMAND=dns`, token `dns` is a field name | test_dns | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
 | TP-DNS-19 | add without dns name Next mentions add | test_dns | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
-| TP-DNS-20 | TTY menu row 5 opens Edit/Add/Delete action menu | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DNS-20 | TTY menu row 5 opens Edit/Add/Delete/Unset action menu | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-DNS-21 | TTY Edit then Host 1 | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-22 | non-interactive `delete`; `Host *` kept | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-23 | TTY delete cancel | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
@@ -140,6 +142,40 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-DNS-36 | keep-alive-only stanza is termux no; `set termux yes` writes Ciphers/MACs | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-37 | last concrete Host delete; stanza gone; `Host *` kept | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-38 | suite source has no dotted IPv4 (minted Host/IP; **PP-C-21**) | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-39 | help lists `unset N field` | test_dns | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
+| TP-DNS-40 | non-interactive `unset` user by name; HostName stays | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-41 | refuse `unset` dns or ip | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-42 | `unset` missing field fail-closed | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DNS-43 | JSON `unset` one object; stanza kept | test_dns | requirement-domain-sshd · requirement-shell-output-requirements | **have** |
+| TP-DNS-44 | TTY action Unset then field pick; HostName stays | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DNS-45 | `unset termux` strips bundle; Port and HostName stay | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-46 | `unset` missing n / unknown field fail-closed | test_dns | requirement-domain-sshd | **have** |
+
+### TP-SSH (OpenSSH client Host pick)
+
+| TP-ID | Intent | Suite | Primary requirement(s) | Status |
+|-------|--------|-------|------------------------|--------|
+| TP-SSH-01 | help lists `ssh` | `tests/test_ssh_download.sh` | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
+| TP-SSH-02 | non-interactive `ssh` by name uses Host alias | test_ssh_download | requirement-domain-sshd | **have** |
+| TP-SSH-03 | `ssh` by number | test_ssh_download | requirement-domain-sshd | **have** |
+| TP-SSH-04 | missing operand fail-closed | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-SSH-05 | unknown Host fail-closed | test_ssh_download | requirement-domain-sshd | **have** |
+| TP-SSH-06 | JSON `ssh` does not start a session | test_ssh_download | requirement-domain-sshd · requirement-shell-output-requirements | **have** |
+| TP-SSH-07 | TTY pick Host 1 | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+
+### TP-DL (remote folder download)
+
+| TP-ID | Intent | Suite | Primary requirement(s) | Status |
+|-------|--------|-------|------------------------|--------|
+| TP-DL-01 | help lists `download` | test_ssh_download | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
+| TP-DL-02 | non-interactive download extracts in cwd | test_ssh_download | requirement-domain-sshd | **have** |
+| TP-DL-03 | remembers folder for that Host | test_ssh_download | requirement-domain-sshd | **have** |
+| TP-DL-04 | TTY numbered previous folder | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DL-05 | TTY type a new folder path | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DL-06 | missing folder fail-closed | test_ssh_download | requirement-domain-sshd | **have** |
+| TP-DL-07 | refuse shell metacharacters in folder | test_ssh_download | requirement-domain-sshd | **have** |
+| TP-DL-08 | JSON download one object | test_ssh_download | requirement-domain-sshd · requirement-shell-output-requirements | **have** |
+| TP-DL-09 | `Host *` is not a ssh/download row | test_ssh_download | requirement-domain-sshd | **have** |
 
 ### TP-LC (local lifecycle)
 

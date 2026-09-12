@@ -1,7 +1,7 @@
 # Requirement ↔ test matrix — sshd-cli
 
-**Updated:** 2026-09-11  
-**Product VERSION:** 1.15.0  
+**Updated:** 2026-09-12  
+**Product VERSION:** 1.17.0  
 **Suite:** `tests/run.sh`
 
 | Requirement key | Area | TP families | Coverage notes |
@@ -14,14 +14,16 @@
 | requirement-shell-output-requirements | shell | TP-CLI-03,05,08,09 | JSON / quiet / errors |
 | requirement-shell-modular-function-design | shell | (indirect) | `sshd_*` domain prefix; `app_main` / `out_*`; `inst_ensure_companion` — no dedicated prefix scan |
 | requirement-shell-idempotency | shell | TP-LC-03,07,13,14,20,21,22 | Re-install / uninstall absent / PATH / profile; `BASHRC` create / dongle modify / VERSION+PATH no-op |
-| requirement-shell-interactive-vs-noninteractive | shell | TP-LC-05, TP-CLI-07, TP-CLI-14, TP-DNS-05, TP-DNS-08, TP-DNS-11, TP-DNS-13 | self-uninstall confirm; empty-argv TTY vs pipe; dns walk vs list/set; pick 9 is a Host |
+| requirement-shell-interactive-vs-noninteractive | shell | TP-LC-05, TP-CLI-07, TP-CLI-14, TP-DNS-05, TP-DNS-08, TP-DNS-11, TP-DNS-13, TP-DNS-42, TP-DNS-44 | self-uninstall confirm; empty-argv TTY vs pipe; dns walk vs list/set/unset; pick 9 is a Host |
 | requirement-shell-cli-storage | shell | TP-CLI-12, TP-CLI-06, TP-CLI-19, TP-CLI-20 | Isolation; about JSON storage fields; Git Bash `/dev/shm` mkdir fail-soft |
 | requirement-shell-automatic-checksum | shell | TP-CSUM-01, TP-CLI-04, TP-CLI-06 | Companion **link** on install; CHECKSUM omitted from help/about. Not TP-LC-01. |
-| requirement-domain-sshd | domain | TP-CLI-04, TP-CLI-06, TP-CLI-14, TP-CLI-15, TP-LC-16, TP-LC-17, **TP-SSHD-01**, **TP-SSHD-02**, **TP-SSHD-03..08**, **TP-SSHD-09..14**, **TP-DNS-01..38**, **TP-TX-09**, **TP-TX-13**, **TP-TX-16**, **TP-CFG-01..09** | help rows; menu 1–5 plus 6–8 backup-config; POSIX Linux non-root hides 2/3/4; host-local Linux errors; systemd unit path; Termux daemonize; dns Edit/Add/Delete; minted Host/IP fixtures; config deposit |
-| requirement-sshd-config-backup | backup | TP-CFG-01..16 | `/var/sshd-cli` deposit; sync-config 600; sync-from-remote + preferred-remote; Termux/Git Bash/Windows cmd hide deposit |
-| requirement-sudoer-json-file | privilege | TP-CFG-06, TP-CFG-07 | grant `backup-config` only |
-| requirement-three-layer-privilege-model | privilege | TP-CFG-06, TP-CFG-07 | print-sudoers / generate-sudoer-request |
-| requirement-shell-sudo-command | shell | TP-CFG-01, TP-CFG-06 | `util_sudo`; allow table |
+| requirement-domain-sshd | domain | TP-CLI-04, TP-CLI-06, TP-CLI-14, TP-CLI-15, TP-LC-16, TP-LC-17, **TP-SSHD-01**, **TP-SSHD-02**, **TP-SSHD-03..08**, **TP-SSHD-09..14**, **TP-DNS-01..46**, **TP-SSH-01..07**, **TP-DL-01..09**, **TP-TX-09**, **TP-TX-13**, **TP-TX-16**, **TP-CFG-01..16** | help rows; menu 1–5 plus 6–8 backup-config; POSIX Linux non-root hides 2/3/4; host-local Linux errors; systemd unit path; Termux daemonize; dns Edit/Add/Delete/Unset; `ssh` Host pick; `download` folder tar.gz; minted Host/IP fixtures; config deposit |
+| requirement-shell-sudoer | shell | TP-CFG-06, TP-CFG-07, TP-CFG-04/05/09 | JSON grant, print-sudoers, nuser hide; wrap `util_sudo` |
+| requirement-shell-config-backup | shell | TP-CFG-01..16 | `/var/sshd-cli` deposit; depends on shell-sudoer for 06/07 |
+| requirement-sshd-config-backup | backup | TP-CFG-01..16 | Points at shell-config-backup |
+| requirement-sudoer-json-file | privilege | TP-CFG-06, TP-CFG-07 | Points at shell-sudoer |
+| requirement-three-layer-privilege-model | privilege | TP-CFG-06, TP-CFG-07 | Points sudoer verbs at shell-sudoer |
+| requirement-shell-sudo-command | shell | TP-CFG-01, TP-CFG-06 | Points wrap at shell-sudoer |
 | requirement-shell-termux-ish | shell | TP-LC-15, TP-LC-16, TP-LC-18, TP-LC-19, **TP-TX-08..16** | not Termux: `pkg` / `termux-wake-lock` not invoked; Termux mock: `pkg install -y openssh termux-auth`; auto-acquire + `wake-lock` verb; Git Bash / Windows cmd skip |
 | requirement-shell-script-coding | shell | TP-CLI-01, TP-CLI-11, TP-CLI-20 | `sh -n`; `set -u` with HOME unset; mkdir fail-soft (no mid-chain die) |
 

@@ -55,8 +55,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config / sync-from-remote).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.15.0"
-: "${VERSION:=1.15.0}"
+VERSION="1.17.0"
+: "${VERSION:=1.17.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -110,6 +110,7 @@ fi
 : "${SSHD_CLI_ROOT:=/var/sshd-cli}"
 : "${SSHD_CLI_REMOTE_ROOT:=/var/sshd-cli}"
 : "${SSHD_CLI_SCP:=}"
+: "${SSHD_CLI_SSH:=}"
 : "${ALLOW_TEST_LOCAL_SUDOERS:=0}"
 : "${SUBMIT_ACTION:=add}"
 : "${SUBMIT_ACTION_EXPLICIT:=0}"
@@ -2661,10 +2662,10 @@ util_resolve_storage() {
 # =============================================================================
 #
 # GENERAL PURPOSE:
-# preferred-remote and other leaves that must survive reboot live under
-# ${HOME}/.local/${APP_NAME}, not the volatile cache chain.
+# preferred-remote, download-folders, and other leaves that must survive
+# reboot live under ${HOME}/.local/${APP_NAME}, not the volatile cache chain.
 #
-# ALIGNMENT: requirement-sshd-config-backup.md · requirement-shell-cli-storage.md
+# ALIGNMENT: requirement-shell-config-backup.md · requirement-shell-cli-storage.md
 # Last updated: 2026-09-11
 # =============================================================================
 util_persistent_storage_dir() {
@@ -4082,7 +4083,7 @@ sshd_dns_config_path() {
 # util_sudo() - Only in-tool sudo call site (NOPASSWD backup-config argv)
 # =============================================================================
 #
-# ALIGNMENT: requirement-shell-sudo-command.md
+# ALIGNMENT: requirement-shell-sudoer.md · requirement-shell-sudo-command.md
 # Last updated: 2026-09-11
 # =============================================================================
 util_sudo() {
@@ -4363,7 +4364,7 @@ sshd_detect_sudoer_inbound() {
 # sshd_cmd_backup_config() - elevated deposit of ~/.ssh/config → /var/sshd-cli
 # =============================================================================
 #
-# ALIGNMENT: requirement-sshd-config-backup.md · requirement-shell-sudo-command.md
+# ALIGNMENT: requirement-shell-config-backup.md · requirement-shell-sudoer.md
 # Last updated: 2026-09-11
 # =============================================================================
 sshd_cmd_backup_config() {
@@ -4447,7 +4448,7 @@ sshd_cmd_backup_config() {
 # sshd_cmd_sync_config() - Type 0 copy /var/sshd-cli/config → ~/.ssh/config
 # =============================================================================
 #
-# ALIGNMENT: requirement-sshd-config-backup.md
+# ALIGNMENT: requirement-shell-config-backup.md
 # Last updated: 2026-09-11
 # =============================================================================
 sshd_cmd_sync_config() {
@@ -4493,6 +4494,23 @@ sshd_scp_cmd() {
         return 0
     fi
     command -v scp 2>/dev/null || true
+}
+
+sshd_ssh_cmd() {
+    : "${SSHD_CLI_SSH:=}"
+    if [ -n "${SSHD_CLI_SSH}" ]; then
+        printf '%s' "${SSHD_CLI_SSH}"
+        return 0
+    fi
+    command -v ssh 2>/dev/null || true
+}
+
+# Class-B: POSIX single-quote a string for a remote sh -c / ssh command.
+sshd_sh_quote() {
+    _q_in="${1-}"
+    _q_out=$(printf '%s' "${_q_in}" | sed "s/'/'\\\\''/g")
+    printf "'%s'" "${_q_out}"
+    unset _q_in _q_out
 }
 
 sshd_host_is_ipv4() {
@@ -4650,7 +4668,7 @@ sshd_preferred_remote_save() {
 # ${HOME}/.local/${APP_NAME}/preferred-remote (mode 0600) and used as the TTY
 # default next time.
 #
-# ALIGNMENT: requirement-sshd-config-backup.md
+# ALIGNMENT: requirement-shell-config-backup.md
 # Last updated: 2026-09-11
 # =============================================================================
 sshd_cmd_sync_from_remote() {
@@ -6173,6 +6191,235 @@ sshd_dns_walk_add() {
     unset _dns _ip _user _port _idfile _idonly _sai _sacm _tcpka _ipqos _hka _paa _ciphers _macs _n _idonly_def
 }
 
+# Last updated: 2026-09-12
+# Optional fields only. MUST NOT clear dns (Host) or ip (HostName).
+sshd_dns_unset_refuse_identity() {
+    out_die "Cannot unset dns or ip (the Host name and address stay). Next: ${APP_NAME} dns unset <n> user"
+}
+
+# Last updated: 2026-09-12
+sshd_dns_unset_parse_fields() {
+    DNS_UNSET_USER=0
+    DNS_UNSET_PORT=0
+    DNS_UNSET_IDFILE=0
+    DNS_UNSET_IDONLY=0
+    DNS_UNSET_TERMUX=0
+    DNS_UNSET_OLD=0
+    DNS_UNSET_ANY=0
+    while [ $# -gt 0 ]; do
+        _uf=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+        case "${_uf}" in
+            dns|--dns|ip|--ip|hostname|--hostname|host|--host)
+                unset _uf
+                sshd_dns_unset_refuse_identity
+                ;;
+            user|--user)
+                DNS_UNSET_USER=1
+                DNS_UNSET_ANY=1
+                shift
+                ;;
+            port|--port)
+                DNS_UNSET_PORT=1
+                DNS_UNSET_ANY=1
+                shift
+                ;;
+            identity-file|--identity-file|identityfile)
+                DNS_UNSET_IDFILE=1
+                DNS_UNSET_ANY=1
+                shift
+                ;;
+            identities-only|--identities-only|identitiesonly)
+                DNS_UNSET_IDONLY=1
+                DNS_UNSET_ANY=1
+                shift
+                ;;
+            termux|--termux)
+                DNS_UNSET_TERMUX=1
+                DNS_UNSET_ANY=1
+                shift
+                ;;
+            old-openssh|--old-openssh|oldopenssh)
+                DNS_UNSET_OLD=1
+                DNS_UNSET_ANY=1
+                shift
+                ;;
+            *)
+                out_die "Unknown extra setting '${1}'. Use user, port, identity-file, identities-only, termux, or old-openssh (not dns or ip). Next: ${APP_NAME} dns unset <n> user"
+                ;;
+        esac
+    done
+    unset _uf
+}
+
+# Last updated: 2026-09-12
+# Apply already-parsed DNS_UNSET_* flags to a loaded row, then rewrite.
+sshd_dns_unset_commit() {
+    _n="${DNS_R_N}"
+    _dns="${DNS_R_DNS}"
+    _ip="${DNS_R_IP}"
+    _user="${DNS_R_USER}"
+    _port="${DNS_R_PORT}"
+    _idfile="${DNS_R_IDFILE}"
+    _idonly="${DNS_R_IDONLY}"
+    _sai="${DNS_R_SAI}"
+    _sacm="${DNS_R_SACM}"
+    _tcpka="${DNS_R_TCPKA}"
+    _ipqos="${DNS_R_IPQOS}"
+    _hka="${DNS_R_HKA}"
+    _paa="${DNS_R_PAA}"
+    _ciphers="${DNS_R_CIPHERS}"
+    _macs="${DNS_R_MACS}"
+    _cleared=""
+    if [ "${DNS_UNSET_USER}" -eq 1 ]; then
+        _user=""
+        _cleared="${_cleared} user"
+    fi
+    if [ "${DNS_UNSET_PORT}" -eq 1 ]; then
+        _port=""
+        _cleared="${_cleared} port"
+    fi
+    if [ "${DNS_UNSET_IDFILE}" -eq 1 ]; then
+        _idfile=""
+        _cleared="${_cleared} identity-file"
+    fi
+    if [ "${DNS_UNSET_IDONLY}" -eq 1 ]; then
+        _idonly=""
+        _cleared="${_cleared} identities-only"
+    fi
+    if [ "${DNS_UNSET_TERMUX}" -eq 1 ]; then
+        _sai=""
+        _sacm=""
+        _tcpka=""
+        _ipqos=""
+        _ciphers=""
+        _macs=""
+        _cleared="${_cleared} termux"
+    fi
+    if [ "${DNS_UNSET_OLD}" -eq 1 ]; then
+        _hka=""
+        _paa=""
+        _cleared="${_cleared} old-openssh"
+    fi
+    _cleared="${_cleared# }"
+    sshd_dns_rewrite "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
+        "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}" \
+        "${_ciphers}" "${_macs}"
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "out_success" "Host extra settings cleared." "n" "${_n}" "dns" "${_dns}" "cleared" "${_cleared}"
+    else
+        out_success "Cleared ${_cleared} from Host ${_dns} in $(sshd_dns_config_path)."
+        sshd_dns_print_details "${_n}" "${_dns}" "${_ip}" "${_user}" "${_port}" \
+            "${_idfile}" "${_idonly}" "${_sai}" "${_sacm}" "${_tcpka}" "${_ipqos}" "${_hka}" "${_paa}" \
+            "${_ciphers}" "${_macs}"
+    fi
+    unset _n _dns _ip _user _port _idfile _idonly _sai _sacm _tcpka _ipqos _hka _paa _ciphers _macs _cleared
+}
+
+# Last updated: 2026-09-12
+# TTY picker of currently set extra fields. MUST run in current shell (do-not-capture-read).
+sshd_dns_walk_unset() {
+    _sel="$1"
+    out_info "Clear extra settings. dns (Host name) and ip (address) stay. Enter on Edit still keeps the current value."
+    while true; do
+        _row=$(sshd_dns_lookup "${_sel}") || out_die "No Host entry '${_sel}' in $(sshd_dns_config_path). Next: ${APP_NAME} dns list"
+        sshd_dns_load_row "${_row}"
+        _n="${DNS_R_N}"
+        _dns="${DNS_R_DNS}"
+        _tx=$(sshd_dns_disp_termux "${DNS_R_PORT}" "${DNS_R_SAI}" "${DNS_R_SACM}" "${DNS_R_TCPKA}" "${DNS_R_IPQOS}" "${DNS_R_CIPHERS}" "${DNS_R_MACS}")
+        _old=$(sshd_dns_disp_old "${DNS_R_HKA}" "${DNS_R_PAA}")
+        _keys=""
+        _i=0
+        if [ -n "${DNS_R_USER}" ]; then
+            _i=$((_i + 1))
+            _keys="${_keys} user"
+            out_plain "${_i}. user (${DNS_R_USER})"
+        fi
+        if [ -n "${DNS_R_PORT}" ]; then
+            _i=$((_i + 1))
+            _keys="${_keys} port"
+            out_plain "${_i}. port (${DNS_R_PORT})"
+        fi
+        if [ -n "${DNS_R_IDFILE}" ]; then
+            _i=$((_i + 1))
+            _keys="${_keys} identity-file"
+            out_plain "${_i}. identity-file (${DNS_R_IDFILE})"
+        fi
+        if [ -n "${DNS_R_IDONLY}" ]; then
+            _i=$((_i + 1))
+            _keys="${_keys} identities-only"
+            out_plain "${_i}. identities-only (${DNS_R_IDONLY})"
+        fi
+        if [ "${_tx}" = "yes" ]; then
+            _i=$((_i + 1))
+            _keys="${_keys} termux"
+            out_plain "${_i}. as Termux (yes)"
+        fi
+        if [ "${_old}" = "yes" ]; then
+            _i=$((_i + 1))
+            _keys="${_keys} old-openssh"
+            out_plain "${_i}. Old OpenSSH (yes)"
+        fi
+        if [ "${_i}" -eq 0 ]; then
+            out_info "Nothing extra to clear on Host ${_dns} (dns and ip stay)."
+            unset _sel _row _n _dns _tx _old _keys _i _pick _k
+            return 0
+        fi
+        out_plain "0. Done"
+        out_msg_n "Choose a number to clear (0 to leave): "
+        _pick=""
+        read -r _pick || true
+        case "${_pick}" in
+            0|q|exit|"")
+                unset _sel _row _n _dns _tx _old _keys _i _pick _k
+                return 0
+                ;;
+        esac
+        case "${_pick}" in
+            *[!0-9]*)
+                out_die "Choose a number from the extra-settings list (0 to leave). Next: ${APP_NAME} dns unset ${_n} user"
+                ;;
+        esac
+        if [ "${_pick}" -lt 1 ] || [ "${_pick}" -gt "${_i}" ]; then
+            out_die "Choose a number from the extra-settings list (0 to leave). Next: ${APP_NAME} dns unset ${_n} user"
+        fi
+        _k=$(printf '%s' "${_keys}" | awk -v n="${_pick}" '{print $n}')
+        sshd_dns_unset_parse_fields "${_k}"
+        sshd_dns_unset_commit
+    done
+}
+
+# Last updated: 2026-09-12
+sshd_dns_apply_unset() {
+    _sel="${1-}"
+    if [ -z "${_sel}" ]; then
+        if sshd_dns_can_prompt; then
+            if sshd_dns_pick_host "unset"; then
+                sshd_dns_walk_unset "${DNS_PICK_SEL}"
+            fi
+            unset _sel
+            return 0
+        fi
+        out_die "dns unset needs a number or Host name and a field. Next: ${APP_NAME} dns unset <n> user"
+    fi
+    shift
+    _row=$(sshd_dns_lookup "${_sel}") || out_die "No Host entry '${_sel}' in $(sshd_dns_config_path). Next: ${APP_NAME} dns list"
+    sshd_dns_load_row "${_row}"
+    if [ $# -eq 0 ]; then
+        if sshd_dns_can_prompt; then
+            sshd_dns_walk_unset "${_sel}"
+            unset _sel _row
+            return 0
+        fi
+        out_die "dns unset needs a field (user, port, identity-file, identities-only, termux, or old-openssh — not dns or ip). Next: ${APP_NAME} dns unset ${_sel} user"
+    fi
+    sshd_dns_unset_parse_fields "$@"
+    if [ "${DNS_UNSET_ANY}" -ne 1 ]; then
+        out_die "dns unset needs a field (user, port, identity-file, identities-only, termux, or old-openssh — not dns or ip). Next: ${APP_NAME} dns unset ${_sel} user"
+    fi
+    sshd_dns_unset_commit
+    unset _sel _row
+}
+
 sshd_dns_apply_delete() {
     : "${FORCE:=0}"
     _sel="$1"
@@ -6234,9 +6481,10 @@ sshd_dns_pick_host() {
 sshd_dns_interactive_pick() {
     out_info "SSH names (dns) in $(sshd_dns_config_path)"
     sshd_dns_list_context
-    out_plain "1. Edit: change this Host (dns, ip, user, Termux, identity, Old OpenSSH)"
+    out_plain "1. Edit: change this Host (dns, ip, user, Termux, identity, Old OpenSSH). Enter keeps the current value"
     out_plain "2. Add: new Host in this login ~/.ssh/config"
     out_plain "3. Delete: remove a Host"
+    out_plain "4. Unset: drop extra settings (user, port, …) — not dns or ip"
     out_plain "9. Exit"
     out_msg_n "Choose a number, or type the command name: "
     _act=""
@@ -6255,17 +6503,24 @@ sshd_dns_interactive_pick() {
                 sshd_dns_apply_delete "${DNS_PICK_SEL}"
             fi
             ;;
+        4|unset|clear)
+            if sshd_dns_pick_host "unset"; then
+                sshd_dns_walk_unset "${DNS_PICK_SEL}"
+            fi
+            ;;
         9|0|q|exit|"")
             unset _act
             return 0
             ;;
         *)
-            out_die "Unknown dns action '${_act}'. Use edit, add, or delete."
+            out_die "Unknown dns action '${_act}'. Use edit, add, delete, or unset."
             ;;
     esac
     unset _act
 }
 
+# Last updated: 2026-09-12
+# ALIGNMENT: requirement-domain-sshd.md · requirement-shell-cli-interface.md
 sshd_cmd_dns() {
     : "${INTERACTIVE:=0}"
     _sub="${1-}"
@@ -6314,11 +6569,310 @@ sshd_cmd_dns() {
             sshd_dns_apply_delete "${_sel}"
             unset _sel
             ;;
+        unset|clear)
+            sshd_dns_apply_unset "$@"
+            ;;
         *)
-            out_die "Unknown dns action '${_sub}'. Use list, show, edit, set, add, or delete."
+            out_die "Unknown dns action '${_sub}'. Use list, show, edit, set, add, delete, or unset."
             ;;
     esac
     unset _sub
+}
+
+# =============================================================================
+# sshd_cmd_ssh / sshd_cmd_download — OpenSSH client using this-login Host list
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# ssh: pick a concrete Host from ~/.ssh/config and run OpenSSH client ssh
+# with that alias (User/Port/IdentityFile from the stanza apply). download:
+# pick a Host, pick or type a remote folder, tar.gz on the remote, extract
+# into this login's current directory. Previous folders per Host are stored
+# under ${HOME}/.local/${APP_NAME}/download-folders (mode 0600).
+#
+# ALIGNMENT: requirement-domain-sshd.md · requirement-shell-cli-interface.md
+# Last updated: 2026-09-12
+# =============================================================================
+
+sshd_download_folders_path() {
+    : "${APP_NAME:=sshd-cli}"
+    if [ -z "${PERSISTENT_STORAGE_DIR:-}" ]; then
+        PERSISTENT_STORAGE_DIR=$(util_resolve_persistent_storage)
+        export PERSISTENT_STORAGE_DIR
+    fi
+    printf '%s' "${PERSISTENT_STORAGE_DIR}/download-folders"
+}
+
+sshd_download_folders_list() {
+    _df_dns="${1-}"
+    _df_path=$(sshd_download_folders_path)
+    if [ ! -f "${_df_path}" ] || [ -z "${_df_dns}" ]; then
+        unset _df_dns _df_path
+        return 0
+    fi
+    awk -F '\t' -v d="${_df_dns}" '$1==d && $2!="" {print $2}' "${_df_path}"
+    unset _df_dns _df_path
+}
+
+sshd_download_folders_save() {
+    _df_dns="${1-}"
+    _df_folder="${2-}"
+    if [ -z "${_df_dns}" ] || [ -z "${_df_folder}" ]; then
+        unset _df_dns _df_folder
+        return 1
+    fi
+    _df_path=$(sshd_download_folders_path)
+    _df_tmp=$(mktemp -t "${APP_NAME}.dlfolders.XXXXXX") || return 1
+    printf '%s\t%s\n' "${_df_dns}" "${_df_folder}" > "${_df_tmp}"
+    _df_n=1
+    if [ -f "${_df_path}" ]; then
+        while IFS= read -r _df_line || [ -n "${_df_line}" ]; do
+            _df_d="${_df_line%%	*}"
+            _df_f="${_df_line#*	}"
+            if [ "${_df_d}" = "${_df_dns}" ] && [ "${_df_f}" = "${_df_folder}" ]; then
+                continue
+            fi
+            if [ "${_df_d}" = "${_df_dns}" ]; then
+                _df_n=$((_df_n + 1))
+                if [ "${_df_n}" -gt 20 ]; then
+                    continue
+                fi
+            fi
+            if [ -n "${_df_line}" ]; then
+                printf '%s\n' "${_df_line}" >> "${_df_tmp}"
+            fi
+        done < "${_df_path}"
+    fi
+    if command -v install >/dev/null 2>&1; then
+        if ! install -m 0600 "${_df_tmp}" "${_df_path}"; then
+            rm -f "${_df_tmp}"
+            unset _df_dns _df_folder _df_path _df_tmp _df_n _df_line _df_d _df_f
+            return 1
+        fi
+    else
+        if ! mv "${_df_tmp}" "${_df_path}"; then
+            rm -f "${_df_tmp}"
+            unset _df_dns _df_folder _df_path _df_tmp _df_n _df_line _df_d _df_f
+            return 1
+        fi
+        chmod 0600 "${_df_path}" 2>/dev/null || true
+    fi
+    rm -f "${_df_tmp}"
+    unset _df_dns _df_folder _df_path _df_tmp _df_n _df_line _df_d _df_f
+    return 0
+}
+
+sshd_download_norm_folder() {
+    _nf="${1-}"
+    _nf=$(printf '%s' "${_nf}" | tr -d '\r')
+    while [ "${#_nf}" -gt 1 ]; do
+        case "${_nf}" in
+            */) _nf="${_nf%/}" ;;
+            *) break ;;
+        esac
+    done
+    printf '%s' "${_nf}"
+    unset _nf
+}
+
+sshd_download_validate_folder() {
+    _vf="${1-}"
+    if [ -z "${_vf}" ]; then
+        out_die "download needs a remote folder. Next: ${APP_NAME} download <n|name> /path/on/that-host"
+    fi
+    case "${_vf}" in
+        -*|~*)
+            out_die "Remote folder '${_vf}' is not allowed. Use an absolute or relative path (not ., .., /, or ~). Next: ${APP_NAME} download <n|name> /path/on/that-host"
+            ;;
+    esac
+    if [ "${_vf}" = "." ] || [ "${_vf}" = ".." ] || [ "${_vf}" = "/" ]; then
+        out_die "Remote folder '${_vf}' is not allowed. Use an absolute or relative path (not ., .., /, or ~). Next: ${APP_NAME} download <n|name> /path/on/that-host"
+    fi
+    case "${_vf}" in
+        *';'*|*'|'*|*'&'*|'$'*|'`'*|*"\\"*|*'('*|*')'*|*'<'*|*'>'*|'*'*|'?'*|*'!'*|*'~'*|*'#'*)
+            out_die "Remote folder '${_vf}' has a character that is not allowed. Next: ${APP_NAME} download <n|name> /path/on/that-host"
+            ;;
+    esac
+    unset _vf
+}
+
+# Sets SSHD_DL_FOLDER. MUST run in current shell (do-not-capture-read).
+sshd_download_walk_folder() {
+    _dw_dns="$1"
+    SSHD_DL_FOLDER=""
+    _dw_i=0
+    _dw_keys=""
+    while IFS= read -r _dw_p || [ -n "${_dw_p}" ]; do
+        [ -n "${_dw_p}" ] || continue
+        _dw_i=$((_dw_i + 1))
+        if [ -z "${_dw_keys}" ]; then
+            _dw_keys="${_dw_p}"
+        else
+            _dw_keys="${_dw_keys}
+${_dw_p}"
+        fi
+        out_plain "${_dw_i}. ${_dw_p}"
+    done <<EOF
+$(sshd_download_folders_list "${_dw_dns}")
+EOF
+    if [ "${_dw_i}" -eq 0 ]; then
+        out_msg_n "Remote folder to download (absolute or relative on ${_dw_dns}): "
+    else
+        out_info "Previous folders for ${_dw_dns}. Choose a number, or type a folder path."
+        out_msg_n "Folder: "
+    fi
+    _dw_pick=""
+    read -r _dw_pick || true
+    if [ -z "${_dw_pick}" ]; then
+        _dw_name="${_dw_dns}"
+        unset _dw_dns _dw_i _dw_keys _dw_p _dw_pick
+        out_die "download needs a remote folder. Next: ${APP_NAME} download ${_dw_name} /path/on/that-host"
+    fi
+    _dw_is_num=0
+    case "${_dw_pick}" in
+        *[!0-9]*) _dw_is_num=0 ;;
+        *) _dw_is_num=1 ;;
+    esac
+    if [ "${_dw_is_num}" -eq 1 ] && [ "${_dw_i}" -gt 0 ]; then
+        if [ "${_dw_pick}" -ge 1 ] && [ "${_dw_pick}" -le "${_dw_i}" ]; then
+            SSHD_DL_FOLDER=$(printf '%s\n' "${_dw_keys}" | awk -v n="${_dw_pick}" 'NR==n {print; exit}')
+            unset _dw_dns _dw_i _dw_keys _dw_p _dw_pick _dw_is_num
+            return 0
+        fi
+        unset _dw_dns _dw_i _dw_keys _dw_p _dw_pick _dw_is_num
+        out_die "Choose a number from the folder list, or type a folder path. Next: ${APP_NAME} download <n|name> /path/on/that-host"
+    fi
+    SSHD_DL_FOLDER="${_dw_pick}"
+    unset _dw_dns _dw_i _dw_keys _dw_p _dw_pick _dw_is_num
+    return 0
+}
+
+sshd_cmd_ssh() {
+    : "${JSON:=0}"
+    : "${TTY:=0}"
+    : "${QUIET:=0}"
+    : "${SSHD_CLI_SSH:=}"
+    : "${APP_NAME:=sshd-cli}"
+    _sel="${1-}"
+    if [ -z "${_sel}" ]; then
+        if sshd_dns_can_prompt; then
+            if sshd_dns_pick_host "ssh"; then
+                _sel="${DNS_PICK_SEL}"
+            else
+                unset _sel
+                return 0
+            fi
+        else
+            out_die "ssh needs a number or Host name. Next: ${APP_NAME} dns list, then ${APP_NAME} ssh <n|name>"
+        fi
+    fi
+    _row=$(sshd_dns_lookup "${_sel}") || out_die "No Host entry '${_sel}' in $(sshd_dns_config_path). Next: ${APP_NAME} dns list"
+    sshd_dns_load_row "${_row}"
+    _dns="${DNS_R_DNS}"
+    _n="${DNS_R_N}"
+    _bin=$(sshd_ssh_cmd)
+    if [ -z "${_bin}" ] || [ ! -x "${_bin}" ]; then
+        out_die "Cannot ssh: OpenSSH client not found. Next: install openssh-client, then ${APP_NAME} ssh ${_dns}"
+    fi
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "ssh" "ok" "n" "${_n}" "dns" "${_dns}" "command" "ssh ${_dns}"
+        unset _sel _row _dns _n _bin
+        return 0
+    fi
+    out_info "Connecting to ${_dns} (OpenSSH client; Host from $(sshd_dns_config_path))"
+    if [ -n "${SSHD_CLI_SSH}" ]; then
+        if ! "${_bin}" "${_dns}"; then
+            out_die "ssh ${_dns} failed. Next: ssh ${_dns}"
+        fi
+        out_success "ssh ${_dns} complete."
+        unset _sel _row _dns _n _bin
+        return 0
+    fi
+    if [ "${TTY}" -eq 1 ]; then
+        exec "${_bin}" "${_dns}"
+        out_die "Could not start ssh ${_dns}. Next: ssh ${_dns}"
+    fi
+    if ! "${_bin}" -o BatchMode=yes -o ConnectTimeout=15 "${_dns}"; then
+        out_die "ssh ${_dns} failed. Next: ssh ${_dns}"
+    fi
+    unset _sel _row _dns _n _bin
+    return 0
+}
+
+sshd_cmd_download() {
+    : "${JSON:=0}"
+    : "${TTY:=0}"
+    : "${QUIET:=0}"
+    : "${SSHD_CLI_SSH:=}"
+    : "${APP_NAME:=sshd-cli}"
+    _sel="${1-}"
+    _folder="${2-}"
+    if [ -z "${_sel}" ]; then
+        if sshd_dns_can_prompt; then
+            if sshd_dns_pick_host "download"; then
+                _sel="${DNS_PICK_SEL}"
+            else
+                unset _sel _folder
+                return 0
+            fi
+        else
+            out_die "download needs a number or Host name and a remote folder. Next: ${APP_NAME} dns list, then ${APP_NAME} download <n|name> /path/on/that-host"
+        fi
+    fi
+    _row=$(sshd_dns_lookup "${_sel}") || out_die "No Host entry '${_sel}' in $(sshd_dns_config_path). Next: ${APP_NAME} dns list"
+    sshd_dns_load_row "${_row}"
+    _dns="${DNS_R_DNS}"
+    _n="${DNS_R_N}"
+    if [ -z "${_folder}" ]; then
+        if sshd_dns_can_prompt; then
+            sshd_download_walk_folder "${_dns}"
+            _folder="${SSHD_DL_FOLDER}"
+        else
+            out_die "download needs a remote folder. Next: ${APP_NAME} download ${_dns} /path/on/that-host"
+        fi
+    fi
+    _folder=$(sshd_download_norm_folder "${_folder}")
+    sshd_download_validate_folder "${_folder}"
+    _base=$(basename "${_folder}")
+    _dir=$(dirname "${_folder}")
+    if [ -z "${_base}" ] || [ "${_base}" = "/" ] || [ "${_base}" = "." ] || [ "${_base}" = ".." ]; then
+        out_die "Remote folder '${_folder}' is not allowed. Next: ${APP_NAME} download ${_dns} /path/on/that-host"
+    fi
+    _bin=$(sshd_ssh_cmd)
+    if [ -z "${_bin}" ] || [ ! -x "${_bin}" ]; then
+        out_die "Cannot download: OpenSSH client not found. Next: install openssh-client, then ${APP_NAME} download ${_dns} ${_folder}"
+    fi
+    if ! command -v tar >/dev/null 2>&1; then
+        out_die "Cannot download: tar not found. Next: install tar, then ${APP_NAME} download ${_dns} ${_folder}"
+    fi
+    _qpath=$(sshd_sh_quote "${_folder}")
+    _qdir=$(sshd_sh_quote "${_dir}")
+    _qbase=$(sshd_sh_quote "${_base}")
+    _remote_cmd="test -d ${_qpath} && tar czf - -C ${_qdir} ${_qbase}"
+    _cwd=$(pwd)
+    _tmp=$(mktemp -t "${APP_NAME}.download.XXXXXX") || out_die "Could not create a temp file for download."
+    out_info "Downloading ${_folder} from ${_dns} into ${_cwd}"
+    if ! "${_bin}" -o BatchMode=yes -o ConnectTimeout=15 "${_dns}" "${_remote_cmd}" > "${_tmp}"; then
+        rm -f "${_tmp}"
+        out_die "Cannot download: ssh ${_dns} failed. Next: ssh ${_dns}, then ${APP_NAME} download ${_dns} ${_folder}"
+    fi
+    if [ ! -s "${_tmp}" ]; then
+        rm -f "${_tmp}"
+        out_die "Cannot download: remote ${_dns} returned an empty archive for ${_folder}. Next: ssh ${_dns} and check that folder exists"
+    fi
+    if ! tar xzf "${_tmp}" -C "${_cwd}"; then
+        rm -f "${_tmp}"
+        out_die "Cannot download: could not extract the archive into ${_cwd}. Next: check this folder is writable, then ${APP_NAME} download ${_dns} ${_folder}"
+    fi
+    rm -f "${_tmp}"
+    sshd_download_folders_save "${_dns}" "${_folder}" || true
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "download" "ok" "n" "${_n}" "dns" "${_dns}" "folder" "${_folder}" "destination" "${_cwd}/${_base}"
+    else
+        out_success "Downloaded ${_folder} from ${_dns} into ${_cwd}/${_base}"
+    fi
+    unset _sel _folder _row _dns _n _base _dir _bin _qpath _qdir _qbase _remote_cmd _cwd _tmp
+    return 0
 }
 
 sshd_cmd_menu() {
@@ -6379,6 +6933,8 @@ sshd_cmd_menu() {
             ;;
         restart) sshd_cmd_restart ;;
         5|dns) sshd_cmd_dns ;;
+        ssh) sshd_cmd_ssh ;;
+        download) sshd_cmd_download ;;
         6)
             if [ "${_show_cfg}" -eq 1 ]; then
                 sshd_cmd_backup_config
@@ -6663,7 +7219,9 @@ app_help() {
     out_plain "  config               Show resolved sshd paths and key settings"
     out_plain "  host-keys [list|generate]  List or create host keys"
     out_plain "  auth-keys [list|add <file>]  This login authorized_keys"
-    out_plain "  dns [list|show N|edit N|set N …|add …|delete N]  This login ~/.ssh/config Host list (dns-ip; as Termux / identity-file / Old OpenSSH)"
+    out_plain "  dns [list|show N|edit N|set N …|add …|delete N|unset N field …]  This login ~/.ssh/config Host list (dns-ip; as Termux / identity-file / Old OpenSSH; unset drops extra settings, not dns or ip)"
+    out_plain "  ssh [N|name]         OpenSSH client to a Host from this login ~/.ssh/config (TTY: pick from the list)"
+    out_plain "  download [N|name] [folder]  tar.gz a remote folder over ssh and extract it here (TTY: pick Host, then numbered previous folders or type a path)"
     out_plain "  backup-config        Copy this login ~/.ssh/config into /var/sshd-cli (passwordless sudo sshd-cli backup-config after sudoer-adm)"
     out_plain "  sync-config          Copy /var/sshd-cli/config into this login ~/.ssh/config (mode 600; no sudo)"
     out_plain "  sync-from-remote [SPEC]  Copy a remote host's /var/sshd-cli/config into this login ~/.ssh/config (scp; remembers last user@host)"
@@ -6715,6 +7273,7 @@ app_help() {
     out_plain "  SSHD_CLI_ROOT        durable store (default /var/sshd-cli)"
     out_plain "  SSHD_CLI_REMOTE_ROOT remote store for sync-from-remote (default /var/sshd-cli)"
     out_plain "  SSHD_CLI_SCP         scp binary override (tests inject a fake)"
+    out_plain "  SSHD_CLI_SSH         ssh binary override (tests inject a fake)"
     out_empty_line
 }
 
@@ -6851,9 +7410,9 @@ app_main() {
                 COMMAND="$1"
                 ;;
             # --- DOMAIN_DISPATCH_COMMANDS (specializee injection) ---
-            status|start|stop|restart|port|config|host-keys|auth-keys|dns|menu|main|wake-lock|wake-unlock|backup-config|sync-config|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
+            status|start|stop|restart|port|config|host-keys|auth-keys|dns|ssh|download|menu|main|wake-lock|wake-unlock|backup-config|sync-config|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
                 case "${COMMAND}" in
-                    port|host-keys|auth-keys|dns|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
+                    port|host-keys|auth-keys|dns|ssh|download|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
                         if [ "${COMMAND}" = "dns" ] && [ -z "$1" ]; then
                             _op='""'
                         else
@@ -6881,7 +7440,7 @@ app_main() {
                             RC_TEST_OPERANDS="$1"
                         fi
                         ;;
-                    port|host-keys|auth-keys|dns|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
+                    port|host-keys|auth-keys|dns|ssh|download|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
                         if [ "${COMMAND}" = "dns" ] && [ -z "$1" ]; then
                             _op='""'
                         else
@@ -6952,6 +7511,14 @@ app_main() {
         dns)
             set -- ${DOMAIN_OPERANDS}
             sshd_cmd_dns "$@"
+            ;;
+        ssh)
+            set -- ${DOMAIN_OPERANDS}
+            sshd_cmd_ssh "$@"
+            ;;
+        download)
+            set -- ${DOMAIN_OPERANDS}
+            sshd_cmd_download "$@"
             ;;
         menu|main) sshd_cmd_menu ;;
         wake-lock) sshd_cmd_wake_lock ;;

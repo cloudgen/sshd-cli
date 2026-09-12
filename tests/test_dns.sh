@@ -79,6 +79,7 @@ run_test_dns() {
     _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" help 2>&1)
     assert_contains "TP-DNS-01 help lists dns" "$_out" "dns ["
     assert_contains "TP-DNS-01 help lists delete" "$_out" "delete"
+    assert_contains "TP-DNS-01 help lists unset" "$_out" "unset"
 
     # TP-DNS-02 numbered list; Host * omitted
     _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns list 2>&1)
@@ -305,6 +306,7 @@ EOF
     assert_contains "TP-DNS-20 action Edit" "$_out" "1. Edit"
     assert_contains "TP-DNS-20 action Add" "$_out" "2. Add"
     assert_contains "TP-DNS-20 action Delete" "$_out" "3. Delete"
+    assert_contains "TP-DNS-20 action Unset" "$_out" "4. Unset"
     assert_contains "TP-DNS-20 action Exit 9" "$_out" "9. Exit"
     assert_not_contains "TP-DNS-20 context is not Host pick 1." "$_out" "1. ${H_A}"
 
@@ -551,6 +553,98 @@ EOF
     assert_not_contains "TP-DNS-37 HostName gone" "$_cfg" "HostName ${IP_A}"
     assert_not_contains "TP-DNS-37 User gone" "$_cfg" "User ${USER_A}"
     assert_contains "TP-DNS-37 Host * kept after last delete" "$_cfg" "Host *"
+
+    # TP-DNS-39 help lists unset (also covered in TP-DNS-01; keep a dedicated row)
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" help 2>&1)
+    assert_contains "TP-DNS-39 help unset operand" "$_out" "unset N field"
+
+    # TP-DNS-40 non-interactive unset user by name; HostName stays
+    _dns_fixture
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns unset "${H_B}" user 2>&1)
+    _ec=$?
+    assert_eq "TP-DNS-40 unset user exit 0" 0 "$_ec"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show "${H_B}" 2>&1)
+    assert_contains "TP-DNS-40 user now empty" "$_out" "user: empty"
+    assert_contains "TP-DNS-40 ip stays" "$_out" "ip:   ${IP_B}"
+    _cfg=$(cat "${CI_HOME}/.ssh/config")
+    assert_contains "TP-DNS-40 Host stays" "$_cfg" "Host ${H_B}"
+    assert_contains "TP-DNS-40 HostName stays" "$_cfg" "HostName ${IP_B}"
+    assert_not_contains "TP-DNS-40 User line omitted" "$_cfg" "User ${USER_A}"
+
+    # TP-DNS-41 refuse unset dns or ip
+    _err=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns unset "${H_B}" dns 2>&1 >/dev/null)
+    _ec=$?
+    assert_eq "TP-DNS-41 unset dns exit 1" 1 "$_ec"
+    assert_contains "TP-DNS-41 unset dns Next" "$_err" "dns unset"
+    _err=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns unset "${H_B}" ip 2>&1 >/dev/null)
+    _ec=$?
+    assert_eq "TP-DNS-41 unset ip exit 1" 1 "$_ec"
+    assert_contains "TP-DNS-41 cannot unset identity" "$_err" "Cannot unset dns or ip"
+    _cfg=$(cat "${CI_HOME}/.ssh/config")
+    assert_contains "TP-DNS-41 Host still present" "$_cfg" "Host ${H_B}"
+    assert_contains "TP-DNS-41 HostName still present" "$_cfg" "HostName ${IP_B}"
+
+    # TP-DNS-42 missing field fail-closed
+    _err=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns unset "${H_B}" 2>&1 >/dev/null)
+    _ec=$?
+    assert_eq "TP-DNS-42 missing field exit 1" 1 "$_ec"
+    assert_contains "TP-DNS-42 Next names user" "$_err" "dns unset"
+    assert_contains "TP-DNS-42 names a field" "$_err" "user"
+
+    # TP-DNS-43 JSON unset one object; stanza kept
+    _dns_fixture
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" --json dns unset "${H_B}" user 2>/dev/null)
+    _ec=$?
+    assert_eq "TP-DNS-43 json unset exit 0" 0 "$_ec"
+    assert_contains "TP-DNS-43 json success type" "$_out" '"type":"out_success"'
+    assert_contains "TP-DNS-43 json dns name" "$_out" "\"dns\":\"${H_B}\""
+    assert_contains "TP-DNS-43 json cleared user" "$_out" '"cleared":"user"'
+    assert_not_contains "TP-DNS-43 json not a second object type" "$_out" '"type":"dns_show"'
+    _cfg=$(cat "${CI_HOME}/.ssh/config")
+    assert_contains "TP-DNS-43 Host kept" "$_cfg" "Host ${H_B}"
+    assert_not_contains "TP-DNS-43 User omitted" "$_cfg" "User ${USER_A}"
+
+    # TP-DNS-44 TTY action Unset then field pick; HostName stays
+    _dns_fixture
+    _out=$(HOME="${CI_HOME}" INTERACTIVE=1 sh "${SCRIPT}" dns <<'EOF'
+4
+2
+1
+EOF
+)
+    _ec=$?
+    assert_eq "TP-DNS-44 tty unset walk exit 0" 0 "$_ec"
+    assert_contains "TP-DNS-44 action Unset" "$_out" "4. Unset"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show "${H_B}" 2>&1)
+    assert_contains "TP-DNS-44 user cleared" "$_out" "user: empty"
+    assert_contains "TP-DNS-44 ip stays after tty unset" "$_out" "ip:   ${IP_B}"
+
+    # TP-DNS-45 unset termux strips bundle; Port and HostName stay
+    _dns_fixture
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns add dns "${H_TX}" ip "${IP_TX}" termux yes 2>&1)
+    _ec=$?
+    assert_eq "TP-DNS-45 termux add for unset exit 0" 0 "$_ec"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns unset "${H_TX}" termux 2>&1)
+    _ec=$?
+    assert_eq "TP-DNS-45 unset termux exit 0" 0 "$_ec"
+    _tp=$(awk -v h="${H_TX}" 'BEGIN{p=0} $0 ~ "^Host " h "( |$)" {p=1; next} /^Host /{p=0} p{print}' "${CI_HOME}/.ssh/config")
+    assert_contains "TP-DNS-45 Port 8022 kept" "$_tp" "Port 8022"
+    assert_contains "TP-DNS-45 HostName kept" "$_tp" "HostName ${IP_TX}"
+    assert_not_contains "TP-DNS-45 ServerAlive stripped" "$_tp" "ServerAliveInterval"
+    assert_not_contains "TP-DNS-45 Ciphers stripped" "$_tp" "Ciphers"
+    assert_not_contains "TP-DNS-45 MACs stripped" "$_tp" "MACs"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show "${H_TX}" 2>&1)
+    assert_contains "TP-DNS-45 show termux no" "$_out" "termux: no"
+
+    # TP-DNS-46 missing n / unknown field fail-closed
+    _err=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns unset 2>&1 >/dev/null)
+    _ec=$?
+    assert_eq "TP-DNS-46 missing n exit 1" 1 "$_ec"
+    assert_contains "TP-DNS-46 missing n Next" "$_err" "dns unset"
+    _err=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns unset "${H_B}" not-a-field 2>&1 >/dev/null)
+    _ec=$?
+    assert_eq "TP-DNS-46 unknown field exit 1" 1 "$_ec"
+    assert_contains "TP-DNS-46 unknown names user" "$_err" "user"
 
     # TP-DNS-38 suite source has no dotted IPv4 (mint at run time; PP-C-21)
     _hits=$(grep -E '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' "${TESTS_ROOT}/test_dns.sh" | grep -v '127\.0\.0\.1' || true)

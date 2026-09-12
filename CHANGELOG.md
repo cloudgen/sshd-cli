@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.17.0] - 2026-09-12
+
+### Added
+
+- **`ssh [N|name]`**: pick a concrete Host from this login `~/.ssh/config` and run the OpenSSH client with that alias (User / Port / keys from the stanza apply). TTY lists Hosts; `--json` prints the alias and does not start a session.
+- **`download [N|name] [folder]`**: pick a Host, then a remote folder. If this Host has previous folders, they appear as a numbered list; type a number or a new path. Remote `tar.gz` over ssh, extract into the current directory. Remembers paths per Host in `~/.local/sshd-cli/download-folders` (mode 600). Tests **TP-SSH-01..07** · **TP-DL-01..09** (fake `SSHD_CLI_SSH`; no real SSH).
+
+## [1.16.0] - 2026-09-12
+
+### Added
+
+- **`dns unset <n|name> field …`**: drop extra settings on a `~/.ssh/config` Host (user, port, identity-file, identities-only, termux, old-openssh) without deleting the Host name or HostName. Example: `sshd-cli dns unset win user` omits the `User` line and keeps `Host win` / `HostName`. TTY action menu row **4 Unset**. `clear` is an unlisted alias. Tests **TP-DNS-39..46**.
+
 ## [1.15.0] - 2026-09-11
 
 ### Added

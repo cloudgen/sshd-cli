@@ -222,10 +222,12 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 | `requirement-shell-modular-function-design` | Prefixes / single-file modularity |
 | `requirement-shell-script-coding` | Coding-style home (this file points) |
 | `requirement-domain-sshd` | OpenSSH sshd domain SSOT |
-| `requirement-sshd-config-backup` | `~/.ssh/config` host deposit |
-| `requirement-sudoer-json-file` | JSON grant body |
-| `requirement-three-layer-privilege-model` | Sudoers workflow |
-| `requirement-shell-sudo-command` | `util_sudo` |
+| `requirement-shell-sudoer` | Sudoer features SSOT (JSON, print/generate/submit, `util_sudo`) |
+| `requirement-shell-config-backup` | `backup-config` / `sync-config` (depends on sudoer) |
+| `requirement-sshd-config-backup` | Points at shell-config-backup |
+| `requirement-sudoer-json-file` | Points at shell-sudoer |
+| `requirement-three-layer-privilege-model` | Type 0/1/2; sudoer verbs point at shell-sudoer |
+| `requirement-shell-sudo-command` | Points at shell-sudoer (`util_sudo`) |
 | `docs/requirements/index.md` | Registry SSOT |
 
 ---

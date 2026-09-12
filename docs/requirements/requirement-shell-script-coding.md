@@ -46,7 +46,7 @@ This is the **coding-style related requirement** for sshd-cli (POSIX `/bin/sh`).
 7. **MUST** initialize variables used under `set -u` (`: "${VAR:=…}"` or a prior assign).  
 8. **MUST NOT** use this file as a second copy of install or checksum tables.  
 9. **SHOULD** keep `sh -n ./sshd-cli` passing in `tests/test_cli.sh`.  
-10. In-tool sudo wrappers: **`util_sudo`** for `backup-config` only. SSOT: `requirement-shell-sudo-command`.  
+10. In-tool sudo wrappers: **`util_sudo`** for `backup-config` only. SSOT: `requirement-shell-sudoer` (this file **points**; wrap slice `requirement-shell-sudo-command` also points).  
 11. **MUST NOT** `out_die` because `mkdir` of one cache/storage leaf failed while later roots remain untried. Chain SSOT: `requirement-shell-cli-storage`.
 
 ### 2.1 Implementation Notes (this project)
@@ -57,7 +57,7 @@ This is the **coding-style related requirement** for sshd-cli (POSIX `/bin/sh`).
 | Prefixes in use | `out_` `inst_` `path_` `ver_` `util_` `prompt_` `app_` `sshd_` |
 | `set -u` | yes (file top) |
 | Menu read | `sshd_cmd_menu` calls `read -r` in-function (not `$()` of `prompt_ask`) |
-| Sudo wrap | `util_sudo` (`backup-config` only; `requirement-shell-sudo-command`) |
+| Sudo wrap | `util_sudo` (`backup-config` only; `requirement-shell-sudoer`) |
 
 ### 2.2 Why This Requirement Exists (Direct CIAO Alignment)
 

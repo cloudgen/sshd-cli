@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-interactive-vs-noninteractive.md  
-**Status**: Active (Version 1.2.1)  
+**Status**: Active (Version 1.2.3)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -156,11 +156,14 @@ interactive   non-interactive
 | `self-update` / `version-check` | Human status messages | No prompts; fail loud if `SCRIPT_URL` missing; JSON structured results |
 | `about` / `version` / `help` | Human diagnostics / help | Quiet: suppress human; JSON: structured object only |
 | Colors | When `TTY=1` and not quiet/json | No color under quiet/json |
-| `dns` (no subcommand) | Host names as context (no choice numbers); action menu **1 Edit / 2 Add / 3 Delete / 9 Exit** (`read` in-shell). Edit/Delete then numbered Host pick (`0` to leave, not `9`). Delete confirms with `prompt_yes_no`. `INTERACTIVE=1` allowed when TTY probe is flaky. | **List only** — never wait. JSON: one `dns_list` object with `@items` |
+| `dns` (no subcommand) | Host names as context (no choice numbers); action menu **1 Edit / 2 Add / 3 Delete / 4 Unset / 9 Exit** (`read` in-shell). Edit/Delete/Unset then numbered Host pick (`0` to leave, not `9`). Delete confirms with `prompt_yes_no`. Unset then lists currently set extra fields. `INTERACTIVE=1` allowed when TTY probe is flaky. | **List only** — never wait. JSON: one `dns_list` object with `@items` |
 | `dns show` | Human details (`user` empty → `empty`; empty port → `22`) | Same fields; JSON object; no prompt |
 | `dns edit` | Same field walk as after the Edit pick | Fail closed: Next `dns set …` (no hang) |
 | `dns delete` | Show details; `prompt_yes_no` unless `--force` | No prompt; delete the stanza; JSON: one `out_success` |
+| `dns unset` | Host pick (if no n); then numbered extra-field picker (`0` to leave). dns and ip stay. | Needs n/name **and** a field; no prompt; JSON: one `out_success`. Fail closed if dns/ip requested |
 | `dns set` / `dns add` | **MAY** fill missing fields with the same walk when TTY | Operands only; omitted **set** fields unchanged; `""` clears; never prompt |
+| `ssh` | Numbered Host pick if no operand; then OpenSSH client (`exec` on TTY unless `SSHD_CLI_SSH` is set) | Needs `<n\|name>`; no prompt; JSON: one object, **no** session |
+| `download` | Host pick if no first operand; then numbered previous folders for that Host, or type a path | Needs Host **and** folder; no prompt; JSON: one object after the transfer |
 
 #### `prompt_yes_no` contract (this project)
 
@@ -290,7 +293,7 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 10. Let `inst_maybe_install` return success under `--quiet` / `--json` without calling `inst_perform_install` when the program is not installed.  
 11. Re-test `[ -t 0 ]` / `[ -t 1 ]` inside helpers as the sole interactive gate; helpers **MUST** consume process `TTY`.  
 12. Strip the **Under command line for normal user only** section, or recommend `sudo curl | sh` / Type 1 sudo on that class.  
-13. Hang `dns` / `dns edit` / `dns delete` in non-interactive mode, or `$()` the dns field `read` (**do-not-capture-read**). Non-interactive `dns` with no subcommand **MUST** list and return. Non-interactive `dns delete N` **MUST NOT** prompt.
+13. Hang `dns` / `dns edit` / `dns delete` / `dns unset` / `ssh` / `download` in non-interactive mode, or `$()` the dns field `read` (**do-not-capture-read**). Non-interactive `dns` with no subcommand **MUST** list and return. Non-interactive `dns delete N` and `dns unset N field` **MUST NOT** prompt. Non-interactive `ssh` / `download` without required operands **MUST** fail closed.
 
 **Supporting non-interactive environments cleanly is mandatory for CIAO compliance.**
 
@@ -324,6 +327,6 @@ Mode-related work for sshd-cli is **not done** if any of the following fail:
 
 ---
 
-**Last Updated**: 2026-09-07  
+**Last Updated**: 2026-09-12 (1.2.3: `ssh` / `download` TTY pick vs non-interactive operands)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
