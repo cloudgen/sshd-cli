@@ -163,7 +163,7 @@ interactive   non-interactive
 | `dns unset` | Host pick (if no n); then numbered extra-field picker (`0` to leave). dns and ip stay. | Needs n/name **and** a field; no prompt; JSON: one `out_success`. Fail closed if dns/ip requested |
 | `dns set` / `dns add` | **MAY** fill missing fields with the same walk when TTY | Operands only; omitted **set** fields unchanged; `""` clears; never prompt |
 | `ssh` | Numbered Host pick if no operand; then **user [default]** (Host User, else this login); then OpenSSH client (`exec` on TTY unless `SSHD_CLI_SSH` is set). `read` in-shell. | Needs `<n\|name>`; no prompt; JSON: one object, **no** session |
-| `download` | Host pick if no first operand; then **user [default]** (same as `ssh`); then numbered previous folders for that Host, or type a path | Needs Host **and** folder; no prompt; JSON: one object after the transfer |
+| `download` | Host pick if no first operand; then **user [default]** (same as `ssh`); then numbered previous folders for that Host, or type a path (`~/folder` allowed) | Needs Host **and** folder; no prompt; JSON: one object after the transfer. `~/folder` allowed |
 
 #### `prompt_yes_no` contract (this project)
 
@@ -332,10 +332,10 @@ Mode-related work for sshd-cli is **not done** if any of the following fail:
 | TP family / ID | Suite | Status |
 |----------------|-------|--------|
 | **TP-SSH-07**, **TP-SSH-08** | `tests/test_ssh_download.sh` | have |
-| **TP-DL-04**, **TP-DL-05**, **TP-DL-10** .. **TP-DL-13** | `tests/test_ssh_download.sh` | have |
+| **TP-DL-04**, **TP-DL-05**, **TP-DL-10** .. **TP-DL-16** | `tests/test_ssh_download.sh` | have |
 
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-09-12 (1.2.4: TTY `download` asks **user** with default, same as `ssh`; DTV **TP-DL-10** .. **TP-DL-13**)  
+**Last Updated**: 2026-09-12 (1.2.5: `download` accepts `~/folder`; DTV **TP-DL-14** .. **TP-DL-16**)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

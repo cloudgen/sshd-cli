@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.19.1] - 2026-09-12
+
+### Fixed
+
+- **`download`** accepts a remote **`~/folder`** (the ssh user’s home, not this login). Remote `tar` uses `"$HOME"/'folder'` so tilde expands. `~` alone and `~user/…` still fail closed. Tests **TP-DL-14** · **TP-DL-15** · **TP-DL-16**. Incident **INC-20260912-002**.
+
 ## [1.19.0] - 2026-09-12
 
 ### Added

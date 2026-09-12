@@ -14,8 +14,10 @@
 _ssh_dl_mint() {
     H_SSH=$(t_rand_host)
     H_DL=$(t_rand_host)
+    H_TILDE=$(t_rand_host)
     IP_SSH=$(t_rand_ip)
     IP_DL=$(t_rand_ip)
+    IP_TILDE=$(t_rand_ip)
 }
 
 _ssh_dl_fixture() {
@@ -27,6 +29,9 @@ Host ${H_SSH}
 
 Host ${H_DL}
     HostName ${IP_DL}
+
+Host ${H_TILDE}
+    HostName ${IP_TILDE}
 
 Host *
     StrictHostKeyChecking accept-new
@@ -161,6 +166,7 @@ EOF
     _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" help 2>&1)
     assert_contains "TP-DL-01 help download operand" "$_out" "download [N|name]"
     assert_contains "TP-DL-01 help download user then folder" "$_out" "then user with default, then numbered previous folders"
+    assert_contains "TP-DL-01 help tilde folder" "$_out" "~/folder"
 
     _fix="${CI_HOME}/remote-box"
     mkdir -p "${_fix}"
@@ -322,6 +328,60 @@ EOF
     assert_contains "TP-DL-13 log alias" "$_log" "${H_SSH}"
     assert_file_exists "TP-DL-13 extracted" "${_wd7}/app/ok.txt"
 
-    rm -rf "${_wd}" "${_wd2}" "${_wd3}" "${_wd4}" "${_wd5}" "${_wd6}" "${_wd7}" "${_fix}"
+    # TP-DL-14 ~/folder is allowed; remote command expands "$HOME" (not a quoted ~)
+    _wd8=$(mktemp -d "${TMPDIR:-/tmp}/dl-wd8.XXXXXX")
+    : > "${_ssh_log}"
+    _out=$(
+        cd "${_wd8}" || exit 1
+        HOME="${CI_HOME}" SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SSH_LOG="${_ssh_log}" \
+            SSHD_CLI_TAR_FIXTURE="${_fix}" SSHD_CLI_TAR_BASE="app" \
+            sh "${SCRIPT}" download "${H_DL}" '~/box/app' 2>&1
+    )
+    _ec=$?
+    assert_eq "TP-DL-14 tilde folder exit 0" 0 "$_ec"
+    assert_file_exists "TP-DL-14 extracted" "${_wd8}/app/ok.txt"
+    _log=$(cat "${_ssh_log}")
+    assert_contains "TP-DL-14 remote uses HOME" "$_log" '"$HOME"'
+    assert_not_contains "TP-DL-14 remote not quoted tilde" "$_log" "'~/box/app'"
+    assert_not_contains "TP-DL-14 remote not this-login HOME" "$_log" "${CI_HOME}"
+    _mc=$(cat "${_mem}")
+    assert_contains "TP-DL-14 memory tilde path" "$_mc" "~/box/app"
+
+    # TP-DL-14 TTY walk (incident path): first-time prompt names ~/folder; read -r keeps ~
+    _wd9=$(mktemp -d "${TMPDIR:-/tmp}/dl-wd9.XXXXXX")
+    : > "${_ssh_log}"
+    _out=$(
+        cd "${_wd9}" || exit 1
+        HOME="${CI_HOME}" INTERACTIVE=1 SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SSH_LOG="${_ssh_log}" \
+            SSHD_CLI_TAR_FIXTURE="${_fix}" SSHD_CLI_TAR_BASE="app" \
+            sh "${SCRIPT}" download "${H_TILDE}" <<'EOF'
+
+~/box/app
+EOF
+    )
+    _ec=$?
+    assert_eq "TP-DL-14 tty tilde exit 0" 0 "$_ec"
+    assert_contains "TP-DL-14 tty prompt names tilde" "$_out" "~/folder"
+    assert_file_exists "TP-DL-14 tty extracted" "${_wd9}/app/ok.txt"
+    _log=$(cat "${_ssh_log}")
+    assert_contains "TP-DL-14 tty remote uses HOME" "$_log" '"$HOME"'
+    assert_not_contains "TP-DL-14 tty remote not quoted tilde" "$_log" "'~/box/app'"
+    assert_not_contains "TP-DL-14 tty remote not this-login HOME" "$_log" "${CI_HOME}"
+
+    # TP-DL-15 ~ alone is still refused
+    _err=$(HOME="${CI_HOME}" SSHD_CLI_SSH="${_fake_ssh}" sh "${SCRIPT}" download "${H_DL}" '~' 2>&1 >/dev/null)
+    _ec=$?
+    assert_eq "TP-DL-15 tilde-only exit 1" 1 "$_ec"
+    assert_contains "TP-DL-15 not allowed" "$_err" "not allowed"
+    assert_contains "TP-DL-15 Next download" "$_err" "download"
+
+    # TP-DL-16 ~user/path is refused (only ~/folder is the home prefix)
+    _err=$(HOME="${CI_HOME}" SSHD_CLI_SSH="${_fake_ssh}" sh "${SCRIPT}" download "${H_DL}" '~other/box' 2>&1 >/dev/null)
+    _ec=$?
+    assert_eq "TP-DL-16 tilde-user exit 1" 1 "$_ec"
+    assert_contains "TP-DL-16 not allowed" "$_err" "not allowed"
+    assert_contains "TP-DL-16 Next download" "$_err" "download"
+
+    rm -rf "${_wd}" "${_wd2}" "${_wd3}" "${_wd4}" "${_wd5}" "${_wd6}" "${_wd7}" "${_wd8}" "${_wd9}" "${_fix}"
     ci_cleanup_env
 }

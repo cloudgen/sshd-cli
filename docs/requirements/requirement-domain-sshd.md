@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.19.0)  
+**Status**: Active (Version 1.19.1)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -147,6 +147,7 @@ sshd-cli ssh 1
 sshd-cli ssh phone
 sshd-cli download
 sshd-cli download phone /opt/app
+sshd-cli download phone ~/box/app
 sshd-cli menu
 ```
 
@@ -275,12 +276,12 @@ Intention: the operator is not forced to assemble a long flag list from memory. 
 |------|------|----------|
 | **Host pick** | Same concrete Host list as `dns` / `ssh`. TTY with no first operand: pick Host. Non-interactive: require `<n\|name>` | Follow `Include`; list `Host *` |
 | **User (TTY)** | After the Host is known, prompt **user [default]** with the same contract as **ssh** (Host `User` if set, else this login; Enter keeps default; `""` means empty / no `-l`). Then `-l` when user is non-empty. | Skip the user prompt on TTY; hang under `--json` / quiet / no TTY; `$()` a `read` helper |
-| **Folder pick (TTY)** | After user. If this Host has **no** stored folders: prompt for a remote path. If it has stored folders: numbered list (1…), **or** type a non-number path. In-range number → that stored path. Empty → fail closed. | Hang under `--json` / quiet / no TTY; treat an out-of-range number as a path |
-| **Folder (non-interactive)** | Second operand is the path. Missing → `out_die` with Next. No user prompt; OpenSSH uses the Host stanza `User` when `-l` is omitted | Prompt |
-| **Transfer** | Remote `test -d` then `tar czf - -C <parent> <basename>` over `ssh -o BatchMode=yes` (and `-l` when TTY user is non-empty). Extract with local `tar xzf` into **this login’s current directory**. Quote the remote path for `sh`. After success, remember the path for that Host | `sudo`; leave a tarball as the only result; extract into `{{HOME}}` instead of cwd; pass HostName instead of the alias |
+| **Folder pick (TTY)** | After user. If this Host has **no** stored folders: prompt for a remote path (absolute, relative, or **`~/folder`**). If it has stored folders: numbered list (1…), **or** type a non-number path. In-range number → that stored path. Empty → fail closed. | Hang under `--json` / quiet / no TTY; treat an out-of-range number as a path; refuse `~/folder` as if it were `~` |
+| **Folder (non-interactive)** | Second operand is the path. Missing → `out_die` with Next. No user prompt; OpenSSH uses the Host stanza `User` when `-l` is omitted. **`~/folder`** is allowed | Prompt |
+| **Transfer** | Remote `test -d` then `tar czf - -C <parent> <basename>` over `ssh -o BatchMode=yes` (and `-l` when TTY user is non-empty). Extract with local `tar xzf` into **this login’s current directory**. Quote the remote path for `sh`. A **`~/folder`** prefix **MUST** become `"$HOME"/'folder'` for the ssh user (do **not** single-quote the whole `~/…` string; do **not** expand `~` against this login). After success, remember the path for that Host | `sudo`; leave a tarball as the only result; extract into `{{HOME}}` instead of cwd; pass HostName instead of the alias |
 | **Memory** | File `{{HOME}}/.local/{{APP_NAME}}/download-folders` (mode **600**): `dns<TAB>path`, most recent first, unique pair, cap **20** paths per Host. Same persistent dir as preferred-remote (not `/dev/shm`) | Volatile cache; freeze a session login path as a sample in law |
 | **`--json`** | One object (`n`, `dns`, `user`, `folder`, `destination`). Still performs the transfer when operands are complete. `user` is Host `User` (may be `""`) | Two JSON objects; start an interactive `ssh` session |
-| **Refuse** | Empty; `.` ; `..` ; `/` ; leading `-` ; `~`; shell metacharacters `; | & $ \` ( ) < > * ? ! # ~` | Remote `rm`; follow `Include` |
+| **Refuse** | Empty; `.` ; `..` ; `/` ; leading `-` ; **`~` alone**; **`~user`** / **`~user/…`**; shell metacharacters `; \| & $ \` ( ) < > * ? ! # ~` after any allowed `~/` prefix | Remote `rm`; follow `Include`; treat `~/folder` as forbidden `~` |
 
 **Non-goals:** SSH client `ProxyJump` recipes, ControlMaster session mux, Dropbear-only hosts, changing Linux firewall, wrapping `apt`/`dnf` on POSIX Linux, password-auth policy as a verb (shown on `config` only), auto-running `passwd`, **writing** systemd unit files, `systemctl enable` / `disable` / `mask` as CLI verbs, a routed `systemctl` command, `termux-services` / runit supervision, cron-as-service, a Termux:Boot installer, `/etc/hosts` editing, folder-archive `backup`/`restore`, copying private keys, `rsync`. Termux `pkg install openssh termux-auth` **is** in scope as the install companion (§2.1.1). This login `~/.ssh/config` Host list **is** in scope as **dns**. OpenSSH client `ssh <Host-alias>` **is** in scope as **ssh**. Remote-folder `tar.gz` into cwd **is** in scope as **download**. POSIX Linux deposit of `~/.ssh/config` **is** in scope as **backup-config** / **sync-config**. POSIX Linux `systemctl start` / `stop` / `restart` of the distro ssh/sshd **unit** **is** in scope (§2.2.1).
 
@@ -355,7 +356,7 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 
 | Item | Value |
 |------|--------|
-| Product | `sshd-cli` 1.19.0 |
+| Product | `sshd-cli` 1.19.1 |
 | Bootstrap origin | `selfmanaged` 1.2.3 (architecture + Type 0 only; A untouched) |
 | Domain prefix | `sshd_*` |
 | Channel | `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli` |
@@ -481,7 +482,8 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 32. Write the Termux client bundle **without** simpler Ciphers **aes128-ctr,aes256-ctr** and MACs **hmac-sha2-256**, or treat keep-alives-only as **termux yes**. Some Termux OpenSSH `sshd` versions reply too slowly; the client then aborts with **Connection corrupted** / **Bad packet length**.  
 33. Treat `dns unset` as deleting the Host stanza, or allow `unset` of **dns** / **ip** (Host name and HostName stay; **delete** drops the stanza).  
 34. Hang `ssh` / `download` under `--json` / quiet / no TTY, `$()` a `read` helper for the Host, user, or folder pick, skip the TTY **user** prompt on `download`, pass HostName/IP instead of the Host alias, `exec` when `SSHD_CLI_SSH` is set, or start a live `ssh` session in JSON mode.  
-35. Store download folder history under volatile cache (`/dev/shm`), skip quoting the remote path, or extract into `{{HOME}}` instead of the current directory.
+35. Store download folder history under volatile cache (`/dev/shm`), skip quoting the remote path, or extract into `{{HOME}}` instead of the current directory.  
+36. Refuse **`~/folder`** as if it were **`~` alone**, single-quote the whole `~/…` string so remote tilde never expands, or expand `~` against this login and send that local path to the remote host (**INC-20260912-002**).
 
 ## 5. Related artifacts (versioned surface only)
 
@@ -506,11 +508,11 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 | **TP-LC-16**, **TP-LC-17**, **TP-SSHD-02**, **TP-TX-09**, **TP-TX-13**, **TP-TX-16** | `tests/test_local_lifecycle.sh` | have |
 | **TP-DNS-01** .. **TP-DNS-46** | `tests/test_dns.sh` | have |
 | **TP-SSH-01** .. **TP-SSH-09** | `tests/test_ssh_download.sh` | have |
-| **TP-DL-01** .. **TP-DL-13** | `tests/test_ssh_download.sh` | have |
+| **TP-DL-01** .. **TP-DL-16** | `tests/test_ssh_download.sh` | have |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-09-12 (1.19.0: TTY `download` asks **user** with default, same as `ssh`; **TP-DL-10** · **TP-DL-11** · **TP-DL-12** · **TP-DL-13**; **INC-20260912-001**)  
+**Last Updated**: 2026-09-12 (1.19.1: `download` accepts `~/folder`; remote `"$HOME"`; **TP-DL-14** · **TP-DL-15** · **TP-DL-16**; **INC-20260912-002**)  
 **Owner**: Cloudgen Wong  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

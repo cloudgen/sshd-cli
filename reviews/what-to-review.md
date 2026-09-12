@@ -5,7 +5,7 @@
 **Always load first:** `reviews/lessons.md`
 
 **Last plan update:** 2026-09-12  
-**Ship unit VERSION:** 1.19.0  
+**Ship unit VERSION:** 1.19.1  
 **Suite baseline:** see `reviews/test-plan.md`
 
 ---
@@ -15,7 +15,7 @@
 | # | Check | Notes |
 |---|--------|-------|
 | P1 | Read `docs/requirements/index.md` | Class + shell + domain sshd + config deposit + sudoers (18 Active) |
-| P2 | Confirm ship unit `src/sshd-cli` / `./sshd-cli` | `APP_NAME` / `VERSION` hard-assign (**1.19.0**); same bytes |
+| P2 | Confirm ship unit `src/sshd-cli` / `./sshd-cli` | `APP_NAME` / `VERSION` hard-assign (**1.19.1**); same bytes |
 | P3 | Load `reviews/lessons.md` and re-check open L-* that still apply | Skip L-SUDOERS / restore lessons as parent-only |
 | P4 | Run `./tests/run.sh` | Record PASS/FAIL/SKIP in report |
 | P5 | Confirm install **channel** is `cloudgen/sshd-cli` | `SCRIPT_URL` default raw GitHub |

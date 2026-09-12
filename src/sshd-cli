@@ -55,8 +55,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config / sync-from-remote).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.19.0"
-: "${VERSION:=1.19.0}"
+VERSION="1.19.1"
+: "${VERSION:=1.19.1}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -6594,6 +6594,9 @@ sshd_cmd_dns() {
 #
 # ALIGNMENT: requirement-domain-sshd.md · requirement-shell-cli-interface.md
 # Last updated: 2026-09-12
+# Lessons: INC-20260912-002 — ~/folder is allowed; remote quote uses "$HOME"
+#          (single-quoting the whole ~/path blocks remote tilde). ~ alone
+#          and ~user/path stay refused.
 # =============================================================================
 
 # Sets SSHD_SSH_USER. MUST run in current shell (do-not-capture-read).
@@ -6721,25 +6724,69 @@ sshd_download_norm_folder() {
     unset _nf
 }
 
+# Quote a remote download path for sh. ~/folder becomes "$HOME"/'folder'
+# so the ssh user home expands; a fully single-quoted ~/path does not.
+sshd_download_remote_quote() {
+    _rq="${1-}"
+    _rq_rest="${_rq#\~}"
+    if [ "${_rq}" != "${_rq_rest}" ]; then
+        case "${_rq_rest}" in
+            "")
+                printf '%s' '"$HOME"'
+                ;;
+            /*)
+                _rq_body="${_rq_rest#/}"
+                if [ -z "${_rq_body}" ]; then
+                    printf '%s' '"$HOME"'
+                else
+                    printf '"$HOME"/%s' "$(sshd_sh_quote "${_rq_body}")"
+                fi
+                unset _rq_body
+                ;;
+            *)
+                sshd_sh_quote "${_rq}"
+                ;;
+        esac
+    else
+        sshd_sh_quote "${_rq}"
+    fi
+    unset _rq _rq_rest
+}
+
 sshd_download_validate_folder() {
     _vf="${1-}"
     if [ -z "${_vf}" ]; then
         out_die "download needs a remote folder. Next: ${APP_NAME} download <n|name> /path/on/that-host"
     fi
     case "${_vf}" in
-        -*|~*)
-            out_die "Remote folder '${_vf}' is not allowed. Use an absolute or relative path (not ., .., /, or ~). Next: ${APP_NAME} download <n|name> /path/on/that-host"
+        -*)
+            out_die "Remote folder '${_vf}' is not allowed. Use an absolute or relative path, or ~/folder (not ., .., /, or ~ alone). Next: ${APP_NAME} download <n|name> /path/on/that-host"
             ;;
     esac
-    if [ "${_vf}" = "." ] || [ "${_vf}" = ".." ] || [ "${_vf}" = "/" ]; then
-        out_die "Remote folder '${_vf}' is not allowed. Use an absolute or relative path (not ., .., /, or ~). Next: ${APP_NAME} download <n|name> /path/on/that-host"
+    _vf_body="${_vf}"
+    _vf_rest="${_vf#\~}"
+    if [ "${_vf}" != "${_vf_rest}" ]; then
+        case "${_vf_rest}" in
+            /*)
+                _vf_body="${_vf_rest#/}"
+                if [ -z "${_vf_body}" ]; then
+                    out_die "Remote folder '${_vf}' is not allowed. Use ~/folder for the remote login home (not ~ alone). Next: ${APP_NAME} download <n|name> /path/on/that-host"
+                fi
+                ;;
+            *)
+                out_die "Remote folder '${_vf}' is not allowed. Use ~/folder for the remote login home (not ~ alone or ~user). Next: ${APP_NAME} download <n|name> /path/on/that-host"
+                ;;
+        esac
     fi
-    case "${_vf}" in
+    if [ "${_vf}" = "." ] || [ "${_vf}" = ".." ] || [ "${_vf}" = "/" ]; then
+        out_die "Remote folder '${_vf}' is not allowed. Use an absolute or relative path, or ~/folder (not ., .., /, or ~ alone). Next: ${APP_NAME} download <n|name> /path/on/that-host"
+    fi
+    case "${_vf_body}" in
         *';'*|*'|'*|*'&'*|'$'*|'`'*|*"\\"*|*'('*|*')'*|*'<'*|*'>'*|'*'*|'?'*|*'!'*|*'~'*|*'#'*)
             out_die "Remote folder '${_vf}' has a character that is not allowed. Next: ${APP_NAME} download <n|name> /path/on/that-host"
             ;;
     esac
-    unset _vf
+    unset _vf _vf_body _vf_rest
 }
 
 # Sets SSHD_DL_FOLDER. MUST run in current shell (do-not-capture-read).
@@ -6762,7 +6809,7 @@ ${_dw_p}"
 $(sshd_download_folders_list "${_dw_dns}")
 EOF
     if [ "${_dw_i}" -eq 0 ]; then
-        out_msg_n "Remote folder to download (absolute or relative on ${_dw_dns}): "
+        out_msg_n "Remote folder to download (absolute, relative, or ~/folder on ${_dw_dns}): "
     else
         out_info "Previous folders for ${_dw_dns}. Choose a number, or type a folder path."
         out_msg_n "Folder: "
@@ -6927,8 +6974,8 @@ sshd_cmd_download() {
     if ! command -v tar >/dev/null 2>&1; then
         out_die "Cannot download: tar not found. Next: install tar, then ${APP_NAME} download ${_dns} ${_folder}"
     fi
-    _qpath=$(sshd_sh_quote "${_folder}")
-    _qdir=$(sshd_sh_quote "${_dir}")
+    _qpath=$(sshd_download_remote_quote "${_folder}")
+    _qdir=$(sshd_download_remote_quote "${_dir}")
     _qbase=$(sshd_sh_quote "${_base}")
     _remote_cmd="test -d ${_qpath} && tar czf - -C ${_qdir} ${_qbase}"
     _cwd=$(pwd)
@@ -7320,7 +7367,7 @@ app_help() {
     out_plain "  auth-keys [list|add <file>]  This login authorized_keys"
     out_plain "  dns [list|show N|edit N|set N …|add …|delete N|unset N field …]  This login ~/.ssh/config Host list (dns-ip; as Termux / identity-file / Old OpenSSH; unset drops extra settings, not dns or ip)"
     out_plain "  ssh [N|name]         OpenSSH client to a Host from this login ~/.ssh/config (TTY: numbered pick, then user with default)"
-    out_plain "  download [N|name] [folder]  tar.gz a remote folder over ssh and extract it here (TTY: pick Host, then user with default, then numbered previous folders or type a path)"
+    out_plain "  download [N|name] [folder]  tar.gz a remote folder over ssh and extract it here (TTY: pick Host, then user with default, then numbered previous folders or type a path; ~/folder allowed)"
     out_plain "  backup-config        Copy this login ~/.ssh/config into /var/sshd-cli (passwordless sudo sshd-cli backup-config after sudoer-adm)"
     out_plain "  sync-config          Copy /var/sshd-cli/config into this login ~/.ssh/config (mode 600; no sudo)"
     out_plain "  sync-from-remote [SPEC]  Copy a remote host's /var/sshd-cli/config into this login ~/.ssh/config (scp; remembers last user@host)"
