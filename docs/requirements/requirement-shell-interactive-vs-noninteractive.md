@@ -162,7 +162,7 @@ interactive   non-interactive
 | `dns delete` | Show details; `prompt_yes_no` unless `--force` | No prompt; delete the stanza; JSON: one `out_success` |
 | `dns unset` | Host pick (if no n); then numbered extra-field picker (`0` to leave). dns and ip stay. | Needs n/name **and** a field; no prompt; JSON: one `out_success`. Fail closed if dns/ip requested |
 | `dns set` / `dns add` | **MAY** fill missing fields with the same walk when TTY | Operands only; omitted **set** fields unchanged; `""` clears; never prompt |
-| `ssh` | Numbered Host pick if no operand; then OpenSSH client (`exec` on TTY unless `SSHD_CLI_SSH` is set) | Needs `<n\|name>`; no prompt; JSON: one object, **no** session |
+| `ssh` | Numbered Host pick if no operand; then **user [default]** (Host User, else this login); then OpenSSH client (`exec` on TTY unless `SSHD_CLI_SSH` is set). `read` in-shell. | Needs `<n\|name>`; no prompt; JSON: one object, **no** session |
 | `download` | Host pick if no first operand; then numbered previous folders for that Host, or type a path | Needs Host **and** folder; no prompt; JSON: one object after the transfer |
 
 #### `prompt_yes_no` contract (this project)
@@ -281,7 +281,7 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 
 **Future AI assistants, Grok, or maintainers MUST NOT**:
 
-1. Add `read` or confirmation prompts outside `prompt_ask` / `prompt_yes_no` / documented in-shell `dns` pick-and-field walk / `sshd_cmd_menu` without updating this requirement.  
+1. Add `read` or confirmation prompts outside `prompt_ask` / `prompt_yes_no` / documented in-shell `dns` pick-and-field walk / `sshd_ssh_walk_user` / `sshd_cmd_menu` without updating this requirement.  
 2. Allow prompts to run under `--json` or `--quiet`.  
 3. Hang on prompts when stdin/stdout are not TTYs (except explicit `INTERACTIVE=1` for `prompt_ask` and the `dns` field walk).  
 4. Break the invariant that `--json` forces quiet-style non-interactive human suppression.  
@@ -327,6 +327,6 @@ Mode-related work for sshd-cli is **not done** if any of the following fail:
 
 ---
 
-**Last Updated**: 2026-09-12 (1.2.3: `ssh` / `download` TTY pick vs non-interactive operands)  
+**Last Updated**: 2026-09-12 (1.2.3: `ssh` / `download` TTY pick vs non-interactive operands; TTY `ssh` user default)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

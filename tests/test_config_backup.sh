@@ -58,16 +58,18 @@ run_test_config_backup() {
     assert_contains "TP-CFG-04 Termux not available" "$_err" "not available for termux"
     _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 TERMUX_VERSION=1 sh "${SCRIPT}" </dev/null 2>&1)
     assert_contains "TP-CFG-04 Termux menu INFO" "$_out" "backup-config and sync-config not available for termux"
-    assert_not_contains "TP-CFG-04 Termux no row 6 backup-config" "$_out" "6. backup-config"
-    assert_contains "TP-CFG-04 Termux sync-from-remote row 6" "$_out" "6. sync-from-remote"
+    assert_not_contains "TP-CFG-04 Termux no row 8 backup-config" "$_out" "8. backup-config"
+    assert_contains "TP-CFG-04 Termux ssh row 6" "$_out" "6. ssh"
+    assert_contains "TP-CFG-04 Termux sync-from-remote row 8" "$_out" "8. sync-from-remote"
     ci_cleanup_env
 
     # TP-CFG-05 Git Bash menu INFO
     ci_isolated_env
     _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 MSYSTEM=MINGW64 env -u TERMUX_VERSION sh "${SCRIPT}" </dev/null 2>&1)
     assert_contains "TP-CFG-05 Git Bash menu INFO" "$_out" "backup-config and sync-config not available for gitbash"
-    assert_not_contains "TP-CFG-05 Git Bash no row 6 backup-config" "$_out" "6. backup-config"
-    assert_contains "TP-CFG-05 Git Bash sync-from-remote row 6" "$_out" "6. sync-from-remote"
+    assert_not_contains "TP-CFG-05 Git Bash no row 8 backup-config" "$_out" "8. backup-config"
+    assert_contains "TP-CFG-05 Git Bash ssh row 6" "$_out" "6. ssh"
+    assert_contains "TP-CFG-05 Git Bash sync-from-remote row 8" "$_out" "8. sync-from-remote"
     _err=$(HOME="${CI_HOME}" MSYSTEM=MINGW64 env -u TERMUX_VERSION sh "${SCRIPT}" sync-config 2>&1 >/dev/null)
     _ec=$?
     assert_eq "TP-CFG-05 Git Bash sync-config exit 1" 1 "$_ec"
@@ -106,7 +108,8 @@ run_test_config_backup() {
     ci_isolated_env
     _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 OS=Windows_NT COMSPEC='C:\\Windows\\system32\\cmd.exe' env -u TERMUX_VERSION -u MSYSTEM -u WSL_DISTRO_NAME sh "${SCRIPT}" </dev/null 2>&1)
     assert_contains "TP-CFG-09 Windows cmd menu INFO" "$_out" "backup-config and sync-config not available for windows-cmd"
-    assert_contains "TP-CFG-09 Windows cmd sync-from-remote row 6" "$_out" "6. sync-from-remote"
+    assert_contains "TP-CFG-09 Windows cmd ssh row 6" "$_out" "6. ssh"
+    assert_contains "TP-CFG-09 Windows cmd sync-from-remote row 8" "$_out" "8. sync-from-remote"
     ci_cleanup_env
 
     # TP-CFG-10..15 sync-from-remote (fake scp; never a real SSH session)

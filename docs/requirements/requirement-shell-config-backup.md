@@ -113,7 +113,7 @@ The last two are owned by `requirement-shell-sudoer` (listed so the dependency i
 
 ## Under command line for normal user only
 
-When the ship unit detects Termux, Git Bash, Windows cmd, or the same class: **MUST NOT** deposit into `/var/sshd-cli` or wrap `sudo`. Direct `backup-config` / local `sync-config` **MUST** fail closed. TTY menu **MUST** print `[INFO] backup-config and sync-config not available for termux` / `gitbash` / `windows-cmd` **before** the numbered list and **MUST** omit those rows (and sudoers). **`sync-from-remote` remains available** and **MUST** be numbered **6** on that class.
+When the ship unit detects Termux, Git Bash, Windows cmd, or the same class: **MUST NOT** deposit into `/var/sshd-cli` or wrap `sudo`. Direct `backup-config` / local `sync-config` **MUST** fail closed. TTY menu **MUST** print `[INFO] backup-config and sync-config not available for termux` / `gitbash` / `windows-cmd` **before** the numbered list and **MUST** omit those rows (and sudoers). **`sync-from-remote` remains available** and **MUST** be numbered **8** on that class (`ssh` is 6, `download` is 7).
 
 **This requirement:** host deposit is POSIX Linux; remote pull is this-login `scp` on every class.
 

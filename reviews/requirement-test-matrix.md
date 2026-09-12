@@ -1,7 +1,7 @@
 # Requirement ↔ test matrix — sshd-cli
 
 **Updated:** 2026-09-12  
-**Product VERSION:** 1.17.0  
+**Product VERSION:** 1.18.0  
 **Suite:** `tests/run.sh`
 
 | Requirement key | Area | TP families | Coverage notes |
@@ -17,7 +17,7 @@
 | requirement-shell-interactive-vs-noninteractive | shell | TP-LC-05, TP-CLI-07, TP-CLI-14, TP-DNS-05, TP-DNS-08, TP-DNS-11, TP-DNS-13, TP-DNS-42, TP-DNS-44 | self-uninstall confirm; empty-argv TTY vs pipe; dns walk vs list/set/unset; pick 9 is a Host |
 | requirement-shell-cli-storage | shell | TP-CLI-12, TP-CLI-06, TP-CLI-19, TP-CLI-20 | Isolation; about JSON storage fields; Git Bash `/dev/shm` mkdir fail-soft |
 | requirement-shell-automatic-checksum | shell | TP-CSUM-01, TP-CLI-04, TP-CLI-06 | Companion **link** on install; CHECKSUM omitted from help/about. Not TP-LC-01. |
-| requirement-domain-sshd | domain | TP-CLI-04, TP-CLI-06, TP-CLI-14, TP-CLI-15, TP-LC-16, TP-LC-17, **TP-SSHD-01**, **TP-SSHD-02**, **TP-SSHD-03..08**, **TP-SSHD-09..14**, **TP-DNS-01..46**, **TP-SSH-01..07**, **TP-DL-01..09**, **TP-TX-09**, **TP-TX-13**, **TP-TX-16**, **TP-CFG-01..16** | help rows; menu 1–5 plus 6–8 backup-config; POSIX Linux non-root hides 2/3/4; host-local Linux errors; systemd unit path; Termux daemonize; dns Edit/Add/Delete/Unset; `ssh` Host pick; `download` folder tar.gz; minted Host/IP fixtures; config deposit |
+| requirement-domain-sshd | domain | TP-CLI-04, TP-CLI-06, TP-CLI-14, TP-CLI-15, TP-LC-16, TP-LC-17, **TP-SSHD-01**, **TP-SSHD-02**, **TP-SSHD-03..08**, **TP-SSHD-09..14**, **TP-DNS-01..46**, **TP-SSH-01..09**, **TP-DL-01..09**, **TP-TX-09**, **TP-TX-13**, **TP-TX-16**, **TP-CFG-01..16** | help rows; menu 1–5 plus ssh 6 / download 7; POSIX Linux non-root hides 2/3/4; host-local Linux errors; systemd unit path; Termux daemonize; dns Edit/Add/Delete/Unset; `ssh` Host pick + user default; `download` folder tar.gz; minted Host/IP fixtures; config deposit |
 | requirement-shell-sudoer | shell | TP-CFG-06, TP-CFG-07, TP-CFG-04/05/09 | JSON grant, print-sudoers, nuser hide; wrap `util_sudo` |
 | requirement-shell-config-backup | shell | TP-CFG-01..16 | `/var/sshd-cli` deposit; depends on shell-sudoer for 06/07 |
 | requirement-sshd-config-backup | backup | TP-CFG-01..16 | Points at shell-config-backup |

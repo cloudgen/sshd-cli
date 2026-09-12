@@ -134,6 +134,28 @@ EOF
     assert_eq "TP-SSH-07 tty pick exit 0" 0 "$_ec"
     _log=$(cat "${_ssh_log}")
     assert_contains "TP-SSH-07 tty picked first alias" "$_log" "${H_SSH}"
+    assert_contains "TP-SSH-07 tty default user -l" "$_log" "-l u1"
+
+    # TP-SSH-08 TTY user override
+    : > "${_ssh_log}"
+    _out=$(HOME="${CI_HOME}" INTERACTIVE=1 SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SSH_LOG="${_ssh_log}" \
+        sh "${SCRIPT}" ssh <<'EOF'
+1
+otheruser
+EOF
+)
+    _ec=$?
+    assert_eq "TP-SSH-08 tty user override exit 0" 0 "$_ec"
+    _log=$(cat "${_ssh_log}")
+    assert_contains "TP-SSH-08 log -l otheruser" "$_log" "-l otheruser"
+    assert_contains "TP-SSH-08 log alias" "$_log" "${H_SSH}"
+
+    # TP-SSH-09 TTY menu numbers ssh / download
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 TERMUX_VERSION=1 \
+        sh "${SCRIPT}" </dev/null 2>&1)
+    assert_contains "TP-SSH-09 Termux menu ssh row 6" "$_out" "6. ssh"
+    assert_contains "TP-SSH-09 Termux menu download row 7" "$_out" "7. download"
+    assert_contains "TP-SSH-09 Termux menu user prompt not on main" "$_out" "Choose a number"
 
     # TP-DL-01 help lists download (also TP-SSH-01)
     _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" help 2>&1)

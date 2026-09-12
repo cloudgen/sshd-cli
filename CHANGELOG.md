@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.18.0] - 2026-09-12
+
+### Added
+
+- TTY main menu numbers **`ssh` (6)** and **`download` (7)** so interactive empty argv can open a Host without typing the verb. Termux / Git Bash / Windows cmd: **`sync-from-remote` is 8**, Exit **9**. POSIX Linux: backup-config **8**, sync-config **9**, sudoers **10**, Exit **99**.
+- TTY **`ssh`**: after the numbered Host pick, prompt **user [default]** (Host `User` if set, else this login). Enter keeps the default; `""` omits `-l`. Tests **TP-SSH-08** · **TP-SSH-09**.
+
 ## [1.17.0] - 2026-09-12
 
 ### Added

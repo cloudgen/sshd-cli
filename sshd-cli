@@ -55,8 +55,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config / sync-from-remote).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.17.0"
-: "${VERSION:=1.17.0}"
+VERSION="1.18.0"
+: "${VERSION:=1.18.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -6585,7 +6585,8 @@ sshd_cmd_dns() {
 #
 # GENERAL PURPOSE:
 # ssh: pick a concrete Host from ~/.ssh/config and run OpenSSH client ssh
-# with that alias (User/Port/IdentityFile from the stanza apply). download:
+# with that alias (Port/IdentityFile from the stanza apply). TTY asks user
+# with default (Host User, else this login). download:
 # pick a Host, pick or type a remote folder, tar.gz on the remote, extract
 # into this login's current directory. Previous folders per Host are stored
 # under ${HOME}/.local/${APP_NAME}/download-folders (mode 0600).
@@ -6593,6 +6594,46 @@ sshd_cmd_dns() {
 # ALIGNMENT: requirement-domain-sshd.md · requirement-shell-cli-interface.md
 # Last updated: 2026-09-12
 # =============================================================================
+
+# Sets SSHD_SSH_USER. MUST run in current shell (do-not-capture-read).
+# Default: Host User if set, else this login. Enter keeps default. "" means empty (no -l).
+sshd_ssh_walk_user() {
+    _su_cur="${1-}"
+    _su_login=$(sshd_current_login_user)
+    if [ -n "${_su_cur}" ]; then
+        _su_def="${_su_cur}"
+    else
+        _su_def="${_su_login}"
+    fi
+    SSHD_SSH_USER="${_su_def}"
+    if ! sshd_dns_can_prompt; then
+        unset _su_cur _su_login _su_def
+        return 0
+    fi
+    out_msg_n "user [${_su_def}]: "
+    _su_ans=""
+    read -r _su_ans || true
+    if [ -z "${_su_ans}" ]; then
+        SSHD_SSH_USER="${_su_def}"
+    else
+        SSHD_SSH_USER=$(sshd_dns_norm "${_su_ans}")
+    fi
+    unset _su_cur _su_login _su_def _su_ans
+}
+
+sshd_ssh_validate_user() {
+    _vu="${1-}"
+    if [ -z "${_vu}" ]; then
+        unset _vu
+        return 0
+    fi
+    case "${_vu}" in
+        *[!A-Za-z0-9._-]*)
+            out_die "user '${_vu}' is not allowed. Use letters, digits, dot, underscore, or hyphen. Next: ${APP_NAME} ssh <n|name>"
+            ;;
+    esac
+    unset _vu
+}
 
 sshd_download_folders_path() {
     : "${APP_NAME:=sshd-cli}"
@@ -6770,32 +6811,62 @@ sshd_cmd_ssh() {
     sshd_dns_load_row "${_row}"
     _dns="${DNS_R_DNS}"
     _n="${DNS_R_N}"
+    _user=""
+    if sshd_dns_can_prompt; then
+        sshd_ssh_walk_user "${DNS_R_USER}"
+        _user="${SSHD_SSH_USER}"
+        sshd_ssh_validate_user "${_user}"
+    fi
     _bin=$(sshd_ssh_cmd)
     if [ -z "${_bin}" ] || [ ! -x "${_bin}" ]; then
         out_die "Cannot ssh: OpenSSH client not found. Next: install openssh-client, then ${APP_NAME} ssh ${_dns}"
     fi
+    _cmd="ssh ${_dns}"
+    if [ -n "${_user}" ]; then
+        _cmd="ssh -l ${_user} ${_dns}"
+    fi
     if [ "${JSON}" -eq 1 ]; then
-        out_json "ssh" "ok" "n" "${_n}" "dns" "${_dns}" "command" "ssh ${_dns}"
-        unset _sel _row _dns _n _bin
+        _json_user="${_user}"
+        if [ -z "${_json_user}" ]; then
+            _json_user="${DNS_R_USER}"
+        fi
+        out_json "ssh" "ok" "n" "${_n}" "dns" "${_dns}" "user" "${_json_user}" "command" "${_cmd}"
+        unset _sel _row _dns _n _user _bin _cmd _json_user
         return 0
     fi
-    out_info "Connecting to ${_dns} (OpenSSH client; Host from $(sshd_dns_config_path))"
+    out_info "Connecting to ${_dns} as ${_user:-${DNS_R_USER:-this login}} (OpenSSH client; Host from $(sshd_dns_config_path))"
     if [ -n "${SSHD_CLI_SSH}" ]; then
-        if ! "${_bin}" "${_dns}"; then
-            out_die "ssh ${_dns} failed. Next: ssh ${_dns}"
+        if [ -n "${_user}" ]; then
+            if ! "${_bin}" -l "${_user}" "${_dns}"; then
+                out_die "ssh ${_dns} failed. Next: ssh ${_dns}"
+            fi
+        else
+            if ! "${_bin}" "${_dns}"; then
+                out_die "ssh ${_dns} failed. Next: ssh ${_dns}"
+            fi
         fi
         out_success "ssh ${_dns} complete."
-        unset _sel _row _dns _n _bin
+        unset _sel _row _dns _n _user _bin _cmd
         return 0
     fi
     if [ "${TTY}" -eq 1 ]; then
-        exec "${_bin}" "${_dns}"
+        if [ -n "${_user}" ]; then
+            exec "${_bin}" -l "${_user}" "${_dns}"
+        else
+            exec "${_bin}" "${_dns}"
+        fi
         out_die "Could not start ssh ${_dns}. Next: ssh ${_dns}"
     fi
-    if ! "${_bin}" -o BatchMode=yes -o ConnectTimeout=15 "${_dns}"; then
-        out_die "ssh ${_dns} failed. Next: ssh ${_dns}"
+    if [ -n "${_user}" ]; then
+        if ! "${_bin}" -o BatchMode=yes -o ConnectTimeout=15 -l "${_user}" "${_dns}"; then
+            out_die "ssh ${_dns} failed. Next: ssh ${_dns}"
+        fi
+    else
+        if ! "${_bin}" -o BatchMode=yes -o ConnectTimeout=15 "${_dns}"; then
+            out_die "ssh ${_dns} failed. Next: ssh ${_dns}"
+        fi
     fi
-    unset _sel _row _dns _n _bin
+    unset _sel _row _dns _n _user _bin _cmd
     return 0
 }
 
@@ -6901,17 +6972,18 @@ sshd_cmd_menu() {
         out_plain "4. Restart sshd: stop then start"
     fi
     out_plain "5. SSH names (dns): this login ~/.ssh/config Host list"
+    out_plain "6. ssh: OpenSSH client to a Host from this login ~/.ssh/config"
+    out_plain "7. download: tar.gz a remote folder into this directory"
     if [ "${_show_cfg}" -eq 1 ]; then
-        out_plain "6. backup-config: copy this login ~/.ssh/config to /var/sshd-cli"
-        out_plain "7. sync-config: copy /var/sshd-cli/config into this login ~/.ssh/config"
-        out_plain "8. sudoers: grant and drafts for passwordless sudo backup-config"
-    fi
-    if [ "${_show_cfg}" -eq 1 ]; then
+        out_plain "8. backup-config: copy this login ~/.ssh/config to /var/sshd-cli"
+        out_plain "9. sync-config: copy /var/sshd-cli/config into this login ~/.ssh/config"
+        out_plain "10. sudoers: grant and drafts for passwordless sudo backup-config"
         out_plain "   (or type sync-from-remote [user@host]: copy /var/sshd-cli/config from another host)"
+        out_plain "99. Exit"
     else
-        out_plain "6. sync-from-remote: copy /var/sshd-cli/config from user@host (or host)"
+        out_plain "8. sync-from-remote: copy /var/sshd-cli/config from user@host (or host)"
+        out_plain "9. Exit"
     fi
-    out_plain "9. Exit"
     out_msg_n "Choose a number, or type the command name: "
     _choice=""
     read -r _choice || true
@@ -6933,9 +7005,9 @@ sshd_cmd_menu() {
             ;;
         restart) sshd_cmd_restart ;;
         5|dns) sshd_cmd_dns ;;
-        ssh) sshd_cmd_ssh ;;
-        download) sshd_cmd_download ;;
-        6)
+        6|ssh) sshd_cmd_ssh ;;
+        7|download) sshd_cmd_download ;;
+        8)
             if [ "${_show_cfg}" -eq 1 ]; then
                 sshd_cmd_backup_config
             else
@@ -6943,12 +7015,15 @@ sshd_cmd_menu() {
             fi
             ;;
         backup-config) sshd_cmd_backup_config ;;
-        7)
-            [ "${_show_cfg}" -eq 1 ] || out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help."
-            sshd_cmd_sync_config
+        9)
+            if [ "${_show_cfg}" -eq 1 ]; then
+                sshd_cmd_sync_config
+            else
+                return 0
+            fi
             ;;
         sync-config) sshd_cmd_sync_config ;;
-        8)
+        10)
             [ "${_show_cfg}" -eq 1 ] || out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help."
             sshd_cmd_sudoers_menu
             ;;
@@ -6965,7 +7040,7 @@ sshd_cmd_menu() {
         auth-keys) sshd_cmd_auth_keys list ;;
         wake-lock) sshd_cmd_wake_lock ;;
         wake-unlock) sshd_cmd_wake_unlock ;;
-        9|99|999|exit|"") return 0 ;;
+        99|999|exit|"") return 0 ;;
         *) out_die "Unknown menu choice '${_choice}'. See ${APP_NAME} help." ;;
     esac
     unset _choice _show_daemon _show_cfg
@@ -7220,7 +7295,7 @@ app_help() {
     out_plain "  host-keys [list|generate]  List or create host keys"
     out_plain "  auth-keys [list|add <file>]  This login authorized_keys"
     out_plain "  dns [list|show N|edit N|set N …|add …|delete N|unset N field …]  This login ~/.ssh/config Host list (dns-ip; as Termux / identity-file / Old OpenSSH; unset drops extra settings, not dns or ip)"
-    out_plain "  ssh [N|name]         OpenSSH client to a Host from this login ~/.ssh/config (TTY: pick from the list)"
+    out_plain "  ssh [N|name]         OpenSSH client to a Host from this login ~/.ssh/config (TTY: numbered pick, then user with default)"
     out_plain "  download [N|name] [folder]  tar.gz a remote folder over ssh and extract it here (TTY: pick Host, then numbered previous folders or type a path)"
     out_plain "  backup-config        Copy this login ~/.ssh/config into /var/sshd-cli (passwordless sudo sshd-cli backup-config after sudoer-adm)"
     out_plain "  sync-config          Copy /var/sshd-cli/config into this login ~/.ssh/config (mode 600; no sudo)"
@@ -7230,7 +7305,7 @@ app_help() {
     out_plain "  generate-sudoer-request [path]  Independently write a JSON grant (backup-config verb)"
     out_plain "  submit-sudoer-request [file]  Queue a JSON sudoers-grant request via sudoer-cli"
     out_plain "  remove-project-sudoers [path]  Delete project-sudoers-file draft only"
-    out_plain "  menu                 Numbered list: status, start, stop, restart, dns, backup-config, sync-config, sudoers, Exit 9 (terminal only; alias: main). POSIX Linux non-root omits 2/3/4. Termux / Git Bash / Windows cmd omit backup-config / sync-config / sudoers and number sync-from-remote as 6"
+    out_plain "  menu                 Numbered list: status, start, stop, restart, dns, ssh, download, then backup-config/sync-config/sudoers (POSIX Linux, Exit 99) or sync-from-remote (Termux / Git Bash / Windows cmd, Exit 9). Alias: main. POSIX Linux non-root omits 2/3/4"
     out_empty_line
     out_info "Termux (Android wake lock):"
     out_plain "  wake-lock            Acquire the Android wake lock so sshd can keep listening with the screen off (idempotent; acquire again if Android dropped it)"

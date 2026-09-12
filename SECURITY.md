@@ -4,7 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| **1.17.0** (current) | Yes — report security issues against this release |
+| **1.18.0** (current) | Yes — report security issues against this release |
+| 1.17.0 | Superseded — prefer current when reporting |
 | 1.16.0 | Superseded — prefer current when reporting |
 | 1.15.0 | Superseded — prefer current when reporting |
 | 1.13.2 | Superseded — prefer current when reporting |

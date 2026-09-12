@@ -1,6 +1,6 @@
 # sshd-cli - Simplify Termux to install sshd
 
-![Version](https://img.shields.io/badge/Version-1.17.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.18.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/sshd-cli?style=flat-square)](https://github.com/cloudgen/sshd-cli)
@@ -24,7 +24,7 @@
 | Start sshd | OpenSSH **forks itself** so a laptop can connect. Default Termux port is often **8022**. This is not a boot service. | `sshd-cli start` then `ssh -p 8022 user@host` |
 | After a reboot | The daemon is gone. Start again. Termux:Boot is **your** hook if you want listen-after-reboot. | `sshd-cli start` |
 
-Runtime version SSOT: `VERSION="1.17.0"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
+Runtime version SSOT: `VERSION="1.18.0"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
 
 ## Features
 
@@ -32,12 +32,12 @@ Runtime version SSOT: `VERSION="1.17.0"` in `./sshd-cli`. Install channel SSOT: 
 - Places itself for this login (`~/.local/bin`) or, on a **root login**, under `/usr/local/bin` (Termux: `$PREFIX/bin`)
 - On a **terminal**, no arguments opens a numbered **menu**; under a **pipe** (`curl | sh`, quiet, json) it **installs itself** (not help)
 - Purpose: **simplify Termux to install sshd** (`status`, `start`, `stop`, `restart`, `port`, `config`, `host-keys`, `auth-keys`)
-- On POSIX Linux (not Termux / Git Bash / Windows cmd), the TTY menu shows **start / stop / restart** (rows **2** / **3** / **4**) **only as root**. A non-root login sees an INFO line naming this OS, then rows **1**, **5**, **9**. Typed `start` / `stop` / `restart` still fail closed without wrapping `sudo`
+- On POSIX Linux (not Termux / Git Bash / Windows cmd), the TTY menu shows **start / stop / restart** (rows **2** / **3** / **4**) **only as root**. A non-root login sees an INFO line naming this OS, then rows **1**, **5**, **6** (`ssh`), **7** (`download`), **8**–**10**, **99**. Typed `start` / `stop` / `restart` still fail closed without wrapping `sudo`
 - `start` launches OpenSSH sshd as a **background daemon** (`sshd -f`) on Termux and on Linux with **no** distro unit. On POSIX Linux with a loaded `ssh.service` / `sshd.service`, `start` / `stop` / `restart` call **`systemctl`** as a **root login** (no in-tool `sudo`; no `sshd-cli systemctl` verb)
 - On Termux, `start` also acquires an **Android wake lock** so sshd can keep listening with the screen off. Acquire again with `sshd-cli wake-lock` if Android dropped it. `wake-unlock` is optional and does **not** run on `stop`
 - After a reboot on Termux, run `sshd-cli start` again. Listen-after-reboot on Termux is **Termux:Boot** (you own `~/.termux/boot/`) — not a `sshd-cli` verb. On POSIX Linux, listen-after-reboot is the distro sshd unit
 - This login’s `~/.ssh/config` **Host** list (`dns`, TTY menu row **5**): action menu **Edit / Add / Delete / Unset**, then a Host pick; TTY **as Termux (Y/n)** (Port 8022, simpler Ciphers/MACs, keep-alives — some Termux sshd versions otherwise **corrupt** the session), **identity-file** / **identities-only**, **Old OpenSSH (Y/n)** (`ssh-rsa` / `ssh-dss`); `""` means empty; `dns unset <name> user` drops extra settings (not the Host name or address); `--json` / pipes list or `set` / `delete` / `unset` without hanging
-- **`ssh`**: pick a Host from that list and open an OpenSSH client session (the alias applies User / Port / keys). **`download`**: pick a Host, then a remote folder (numbered previous paths for that Host, or type a new path); tar.gz over ssh and extract into the current directory
+- **`ssh`** (TTY menu row **6**): pick a Host from that numbered list, then **user** with default (Host `User`, else this login). **`download`** (row **7**): pick a Host, then a remote folder (numbered previous paths for that Host, or type a new path); tar.gz over ssh and extract into the current directory
 - On POSIX Linux, `backup-config` copies this login `~/.ssh/config` to `/var/sshd-cli`; `sync-config` copies it back (mode 600). `sync-from-remote` scp’s that store from another host. Termux / Git Bash / Windows cmd hide those rows and print an INFO line
 - Termux-first paths (`PREFIX`); Linux system sshd is a second home and asks for a **root login** instead of wrapping `sudo`
 - Online install / self-update fetches a SHA-256 sidecar (`${SCRIPT_URL}.sha256`) and tells you link, value, and result
@@ -97,14 +97,16 @@ After install, on a terminal (no arguments opens the menu). Termux (primary targ
 
 ```text
 $ sshd-cli
-[INFO] **sshd-cli**(*1.17.0*)
+[INFO] **sshd-cli**(*1.18.0*)
 [INFO] backup-config and sync-config not available for termux
 1. Show sshd status: running, port, and paths
 2. Start sshd: launch the OpenSSH daemon (background, not a boot service)
 3. Stop sshd: end the running daemon
 4. Restart sshd: stop then start
 5. SSH names (dns): this login ~/.ssh/config Host list
-6. sync-from-remote: copy /var/sshd-cli/config from user@host (or host)
+6. ssh: OpenSSH client to a Host from this login ~/.ssh/config
+7. download: tar.gz a remote folder into this directory
+8. sync-from-remote: copy /var/sshd-cli/config from user@host (or host)
 9. Exit
 Choose a number, or type the command name:
 ```
@@ -113,19 +115,21 @@ On POSIX Linux as a **non-root** login, rows **2** / **3** / **4** are omitted (
 
 ```text
 $ sshd-cli
-[INFO] **sshd-cli**(*1.17.0*)
+[INFO] **sshd-cli**(*1.18.0*)
 [INFO] start/stop/restart sshd features are not available for non-root in Ubuntu
 1. Show sshd status: running, port, and paths
 5. SSH names (dns): this login ~/.ssh/config Host list
-6. backup-config: copy this login ~/.ssh/config to /var/sshd-cli
-7. sync-config: copy /var/sshd-cli/config into this login ~/.ssh/config
-8. sudoers: grant and drafts for passwordless sudo backup-config
+6. ssh: OpenSSH client to a Host from this login ~/.ssh/config
+7. download: tar.gz a remote folder into this directory
+8. backup-config: copy this login ~/.ssh/config to /var/sshd-cli
+9. sync-config: copy /var/sshd-cli/config into this login ~/.ssh/config
+10. sudoers: grant and drafts for passwordless sudo backup-config
    (or type sync-from-remote [user@host]: copy /var/sshd-cli/config from another host)
-9. Exit
+99. Exit
 Choose a number, or type the command name:
 ```
 
-Choose a number, or type the command name. `5` opens this login’s `~/.ssh/config` Host list, then **Edit / Add / Delete / Unset**. Type `ssh` or `download` for a Host pick (not numbered rows). `9` exits. Re-run as root on Linux to see start/stop/restart.
+Choose a number, or type the command name. `5` opens this login’s `~/.ssh/config` Host list, then **Edit / Add / Delete / Unset**. `6` is **ssh** (Host pick, then user with default). `7` is **download**. Termux `9` exits. POSIX Linux `99` exits (`9` is sync-config). Re-run as root on Linux to see start/stop/restart.
 
 ## Usage
 
@@ -264,4 +268,4 @@ MIT. See [`LICENSE.md`](./LICENSE.md). Copyright (c) 2026 Cloudgen Wong.
 
 ## Last Update
 
-2026-09-12 — 1.17.0: `ssh` picks a Host from this login `~/.ssh/config`; `download` tar.gz a remote folder into the current directory (remembers paths per Host). 2026-09-12 — 1.16.0: `dns unset` drops extra `~/.ssh/config` settings (user, port, …) without deleting the Host or HostName. 2026-09-11 — 1.15.0: `sync-from-remote` pulls `/var/sshd-cli/config` via scp and remembers last user@host. 2026-09-11 — 1.14.0: `backup-config` / `sync-config` for this-login `~/.ssh/config` (`/var/sshd-cli`); sudoers grant `sudo sshd-cli backup-config`; Termux/Git Bash/Windows cmd hide + INFO. 2026-09-11 — 1.13.4: Git Bash `/dev/shm` mkdir fail-soft; use AppData Local Temp/`cache` with no extra `[ERROR]`. 2026-09-10 — 1.13.3: Windows companion `setup-windows-ssh-server.ps1` (+ Git Bash `.sh` launcher); Git Bash detect is `MSYSTEM`/`uname` (not `$0` or `/c/`); `winpty grok` for Windows consoles. 2026-09-09 — 1.13.2: dns tests mint Host/IP (do not copy this-login LAN identity). 1.13.1: `self-update` is CLI-only (does not fail on `/etc/ssh/sshd_config` / `/run/sshd`). 1.13.0: `rc-test` proves PATH/profile ensure in a temp folder; uninstall keeps a shared PATH while other tools remain.
+2026-09-12 — 1.18.0: TTY menu numbers `ssh` (6) and `download` (7); `ssh` asks user with default. 2026-09-12 — 1.17.0: `ssh` picks a Host from this login `~/.ssh/config`; `download` tar.gz a remote folder into the current directory (remembers paths per Host). 2026-09-12 — 1.16.0: `dns unset` drops extra `~/.ssh/config` settings (user, port, …) without deleting the Host or HostName. 2026-09-11 — 1.15.0: `sync-from-remote` pulls `/var/sshd-cli/config` via scp and remembers last user@host. 2026-09-11 — 1.14.0: `backup-config` / `sync-config` for this-login `~/.ssh/config` (`/var/sshd-cli`); sudoers grant `sudo sshd-cli backup-config`; Termux/Git Bash/Windows cmd hide + INFO. 2026-09-11 — 1.13.4: Git Bash `/dev/shm` mkdir fail-soft; use AppData Local Temp/`cache` with no extra `[ERROR]`. 2026-09-10 — 1.13.3: Windows companion `setup-windows-ssh-server.ps1` (+ Git Bash `.sh` launcher); Git Bash detect is `MSYSTEM`/`uname` (not `$0` or `/c/`); `winpty grok` for Windows consoles. 2026-09-09 — 1.13.2: dns tests mint Host/IP (do not copy this-login LAN identity). 1.13.1: `self-update` is CLI-only (does not fail on `/etc/ssh/sshd_config` / `/run/sshd`). 1.13.0: `rc-test` proves PATH/profile ensure in a temp folder; uninstall keeps a shared PATH while other tools remain.

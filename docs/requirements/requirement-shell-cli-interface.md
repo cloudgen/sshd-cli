@@ -134,7 +134,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | **Primary executable** | Repo root `./sshd-cli` (POSIX `/bin/sh`, single-file for `curl \| sh`) |
 | **Dispatcher** | `app_main` (always invoked at end of script: `app_main "$@"` — no `${0##*/}` / APP_NAME basename gate; required for `curl \| sh`) |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION` default `1.17.0` (script header / config block: `VERSION="1.17.0"`) |
+| **Version SSOT** | `VERSION` default `1.18.0` (script header / config block: `VERSION="1.18.0"`) |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`, or `${PREFIX}/bin` when Termux `PREFIX/bin` exists; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Interactive rc write path** | `BASHRC` default `${HOME}/.bashrc`. `install` PATH ensure creates/modifies this file. Tests/CI **MAY** set `BASHRC` to a file in a temp folder. Dual mention: `requirement-shell-path-and-shell-support`. |
 | **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`). **`help` Environment also lists `BASHRC`.** |
@@ -163,9 +163,9 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | `host-keys` | Type 0 domain | `sshd_cmd_host_keys` | List or generate host keys. Dual mention: `requirement-domain-sshd` |
 | `auth-keys` | Type 0 domain | `sshd_cmd_auth_keys` | List or add this login `authorized_keys`. Dual mention: `requirement-domain-sshd` |
 | `dns` | Type 0 domain | `sshd_cmd_dns` | This login `~/.ssh/config` Host list (TTY edit/add/delete/unset menu; as Termux / identity-file / Old OpenSSH; show; set/add/delete/unset operands). `unset` drops extra settings (user, port, …), not dns or ip. Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive` |
-| `ssh` | Type 0 domain | `sshd_cmd_ssh` | OpenSSH client to a concrete Host alias from this login `~/.ssh/config` (TTY pick; operand `<n\|name>`). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli ssh 1` |
+| `ssh` | Type 0 domain | `sshd_cmd_ssh` | OpenSSH client to a concrete Host alias from this login `~/.ssh/config` (TTY numbered pick then user with default; operand `<n\|name>`). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli ssh 1` |
 | `download` | Type 0 domain | `sshd_cmd_download` | tar.gz a remote folder over ssh and extract into cwd (TTY Host pick + numbered previous folders or a typed path). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli download 1 /opt/app` |
-| `menu` / `main` | Type 0 domain | `sshd_cmd_menu` | Numbered domain list on a terminal (`main` is an unlisted alias of `menu`). Same handler as interactive empty argv. POSIX Linux non-root omits start/stop/restart rows (2/3/4) and prints an INFO with the OS name. Dual mention: `requirement-domain-sshd` |
+| `menu` / `main` | Type 0 domain | `sshd_cmd_menu` | Numbered domain list on a terminal (`main` is an unlisted alias of `menu`). Same handler as interactive empty argv. Rows include **ssh 6** / **download 7**. POSIX Linux non-root omits start/stop/restart rows (2/3/4) and prints an INFO with the OS name. Dual mention: `requirement-domain-sshd` |
 | `wake-lock` | Type 0 | `sshd_cmd_wake_lock` | Acquire Android wake lock again (`termux-wake-lock`). Termux: fail closed if helper missing. Off Termux: success no-op. Dual mention: `requirement-shell-termux-ish` |
 | `wake-unlock` | Type 0 | `sshd_cmd_wake_unlock` | Release Android wake lock (`termux-wake-unlock`). Operator-owned. **MUST NOT** auto-run from `stop`. Dual mention: `requirement-shell-termux-ish` |
 | `backup-config` | Type 1 deposit (POSIX Linux) | `sshd_cmd_backup_config` | Copy this login `~/.ssh/config` to `/var/sshd-cli/config`. Dual mention: `requirement-shell-config-backup` · `requirement-shell-sudoer` · `requirement-domain-sshd`. Sample: `sshd-cli backup-config` |
@@ -344,6 +344,6 @@ This requirement is satisfied for the sshd-cli shell CLI when all of the followi
 
 ---
 
-**Last Updated**: 2026-09-12 (1.14.0: `ssh` + `download` Host-pick verbs)  
+**Last Updated**: 2026-09-12 (1.14.0: `ssh` + `download` Host-pick verbs; TTY menu numbers ssh/download)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 5, 6, 10, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
