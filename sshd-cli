@@ -55,8 +55,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config / sync-from-remote).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.18.0"
-: "${VERSION:=1.18.0}"
+VERSION="1.19.0"
+: "${VERSION:=1.19.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -6587,8 +6587,9 @@ sshd_cmd_dns() {
 # ssh: pick a concrete Host from ~/.ssh/config and run OpenSSH client ssh
 # with that alias (Port/IdentityFile from the stanza apply). TTY asks user
 # with default (Host User, else this login). download:
-# pick a Host, pick or type a remote folder, tar.gz on the remote, extract
-# into this login's current directory. Previous folders per Host are stored
+# pick a Host, TTY asks user (same default as ssh), pick or type a remote
+# folder, tar.gz on the remote, extract into this login's current directory.
+# Previous folders per Host are stored
 # under ${HOME}/.local/${APP_NAME}/download-folders (mode 0600).
 #
 # ALIGNMENT: requirement-domain-sshd.md · requirement-shell-cli-interface.md
@@ -6623,16 +6624,20 @@ sshd_ssh_walk_user() {
 
 sshd_ssh_validate_user() {
     _vu="${1-}"
+    _vu_next="${2-}"
+    if [ -z "${_vu_next}" ]; then
+        _vu_next="ssh <n|name>"
+    fi
     if [ -z "${_vu}" ]; then
-        unset _vu
+        unset _vu _vu_next
         return 0
     fi
     case "${_vu}" in
         *[!A-Za-z0-9._-]*)
-            out_die "user '${_vu}' is not allowed. Use letters, digits, dot, underscore, or hyphen. Next: ${APP_NAME} ssh <n|name>"
+            out_die "user '${_vu}' is not allowed. Use letters, digits, dot, underscore, or hyphen. Next: ${APP_NAME} ${_vu_next}"
             ;;
     esac
-    unset _vu
+    unset _vu _vu_next
 }
 
 sshd_download_folders_path() {
@@ -6894,6 +6899,12 @@ sshd_cmd_download() {
     sshd_dns_load_row "${_row}"
     _dns="${DNS_R_DNS}"
     _n="${DNS_R_N}"
+    _user=""
+    if sshd_dns_can_prompt; then
+        sshd_ssh_walk_user "${DNS_R_USER}"
+        _user="${SSHD_SSH_USER}"
+        sshd_ssh_validate_user "${_user}" "download <n|name> /path/on/that-host"
+    fi
     if [ -z "${_folder}" ]; then
         if sshd_dns_can_prompt; then
             sshd_download_walk_folder "${_dns}"
@@ -6922,10 +6933,19 @@ sshd_cmd_download() {
     _remote_cmd="test -d ${_qpath} && tar czf - -C ${_qdir} ${_qbase}"
     _cwd=$(pwd)
     _tmp=$(mktemp -t "${APP_NAME}.download.XXXXXX") || out_die "Could not create a temp file for download."
-    out_info "Downloading ${_folder} from ${_dns} into ${_cwd}"
-    if ! "${_bin}" -o BatchMode=yes -o ConnectTimeout=15 "${_dns}" "${_remote_cmd}" > "${_tmp}"; then
-        rm -f "${_tmp}"
-        out_die "Cannot download: ssh ${_dns} failed. Next: ssh ${_dns}, then ${APP_NAME} download ${_dns} ${_folder}"
+    out_info "Downloading ${_folder} from ${_dns} as ${_user:-${DNS_R_USER:-this login}} into ${_cwd}"
+    if [ -n "${_user}" ]; then
+        _next_ssh="ssh -l ${_user} ${_dns}"
+        if ! "${_bin}" -o BatchMode=yes -o ConnectTimeout=15 -l "${_user}" "${_dns}" "${_remote_cmd}" > "${_tmp}"; then
+            rm -f "${_tmp}"
+            out_die "Cannot download: ssh ${_dns} failed. Next: ${_next_ssh}, then ${APP_NAME} download ${_dns} ${_folder}"
+        fi
+    else
+        _next_ssh="ssh ${_dns}"
+        if ! "${_bin}" -o BatchMode=yes -o ConnectTimeout=15 "${_dns}" "${_remote_cmd}" > "${_tmp}"; then
+            rm -f "${_tmp}"
+            out_die "Cannot download: ssh ${_dns} failed. Next: ${_next_ssh}, then ${APP_NAME} download ${_dns} ${_folder}"
+        fi
     fi
     if [ ! -s "${_tmp}" ]; then
         rm -f "${_tmp}"
@@ -6938,11 +6958,15 @@ sshd_cmd_download() {
     rm -f "${_tmp}"
     sshd_download_folders_save "${_dns}" "${_folder}" || true
     if [ "${JSON}" -eq 1 ]; then
-        out_json "download" "ok" "n" "${_n}" "dns" "${_dns}" "folder" "${_folder}" "destination" "${_cwd}/${_base}"
+        _json_user="${_user}"
+        if [ -z "${_json_user}" ]; then
+            _json_user="${DNS_R_USER}"
+        fi
+        out_json "download" "ok" "n" "${_n}" "dns" "${_dns}" "user" "${_json_user}" "folder" "${_folder}" "destination" "${_cwd}/${_base}"
     else
         out_success "Downloaded ${_folder} from ${_dns} into ${_cwd}/${_base}"
     fi
-    unset _sel _folder _row _dns _n _base _dir _bin _qpath _qdir _qbase _remote_cmd _cwd _tmp
+    unset _sel _folder _row _dns _n _user _base _dir _bin _qpath _qdir _qbase _remote_cmd _cwd _tmp _json_user _next_ssh
     return 0
 }
 
@@ -7296,7 +7320,7 @@ app_help() {
     out_plain "  auth-keys [list|add <file>]  This login authorized_keys"
     out_plain "  dns [list|show N|edit N|set N …|add …|delete N|unset N field …]  This login ~/.ssh/config Host list (dns-ip; as Termux / identity-file / Old OpenSSH; unset drops extra settings, not dns or ip)"
     out_plain "  ssh [N|name]         OpenSSH client to a Host from this login ~/.ssh/config (TTY: numbered pick, then user with default)"
-    out_plain "  download [N|name] [folder]  tar.gz a remote folder over ssh and extract it here (TTY: pick Host, then numbered previous folders or type a path)"
+    out_plain "  download [N|name] [folder]  tar.gz a remote folder over ssh and extract it here (TTY: pick Host, then user with default, then numbered previous folders or type a path)"
     out_plain "  backup-config        Copy this login ~/.ssh/config into /var/sshd-cli (passwordless sudo sshd-cli backup-config after sudoer-adm)"
     out_plain "  sync-config          Copy /var/sshd-cli/config into this login ~/.ssh/config (mode 600; no sudo)"
     out_plain "  sync-from-remote [SPEC]  Copy a remote host's /var/sshd-cli/config into this login ~/.ssh/config (scp; remembers last user@host)"

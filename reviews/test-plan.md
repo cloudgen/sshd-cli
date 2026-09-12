@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.18.0  
+**Product VERSION:** 1.19.0  
 **Last plan update:** 2026-09-12  
-**Last suite run:** PASS=608 FAIL=0 SKIP=0 (2026-09-12)
+**Last suite run:** PASS=626 FAIL=0 SKIP=0 (2026-09-12)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -30,7 +30,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | POSIX Linux systemd unit path (`systemctl` start/stop/restart) | have | TP-SSHD-09..14 |
 | this-login `~/.ssh/config` dns-ip list / show / set / add / delete / unset | have | TP-DNS-01..46 |
 | OpenSSH client `ssh` Host pick | have | TP-SSH-01..09 |
-| remote folder `download` tar.gz into cwd | have | TP-DL-01..09 |
+| remote folder `download` tar.gz into cwd | have | TP-DL-01..13 |
 | Automatic companion link on install (file://) | have | TP-CSUM-01 |
 | Backup / restore / sudoers emit | n/a | Absent by design (not a backup product) |
 | Online curl against public GitHub | n/a | Core suite stays offline; channel is `file://` in CI |
@@ -178,6 +178,10 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-DL-07 | refuse shell metacharacters in folder | test_ssh_download | requirement-domain-sshd | **have** |
 | TP-DL-08 | JSON download one object | test_ssh_download | requirement-domain-sshd · requirement-shell-output-requirements | **have** |
 | TP-DL-09 | `Host *` is not a ssh/download row | test_ssh_download | requirement-domain-sshd | **have** |
+| TP-DL-10 | TTY download default user `-l` | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DL-11 | TTY download user override `-l` | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DL-12 | TTY invalid user fail-closed; Next names download | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DL-13 | TTY `""` omits `-l` | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 
 ### TP-LC (local lifecycle)
 

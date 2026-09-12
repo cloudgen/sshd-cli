@@ -19,7 +19,7 @@ Exit **0** when all assertions pass; **1** on failure; **2** if ship unit missin
 | `test_cli.sh` | CLI surface, empty argv, domain help, systemd unit path, POSIX Linux non-root menu hide, Git Bash storage fail-soft | **TP-CLI-*** · **TP-SSHD-01** · **TP-SSHD-03..14** |
 | `test_local_lifecycle.sh` | install / self-uninstall / about / login rc / `BASHRC` fixture / sibling / scoped uninstall / heal / `rc-test` / Termux pkg mock / companion link / daemon hint / Android wake lock | **TP-LC-*** · **TP-CSUM-01** · **TP-SSHD-02** · **TP-TX-08..16** |
 | `test_dns.sh` | this-login `~/.ssh/config` Host list (dns-ip; edit/add/delete/unset; as Termux / identity / Old OpenSSH; simpler Ciphers/MACs; **minted** Host/IP) | **TP-DNS-01..46** |
-| `test_ssh_download.sh` | OpenSSH client Host pick (`ssh`) + user default + remote folder tar.gz (`download`); fake `SSHD_CLI_SSH` | **TP-SSH-01..09** · **TP-DL-01..09** |
+| `test_ssh_download.sh` | OpenSSH client Host pick (`ssh`) + user default + remote folder tar.gz (`download`) with TTY user default; fake `SSHD_CLI_SSH` | **TP-SSH-01..09** · **TP-DL-01..13** |
 | `test_config_backup.sh` | `backup-config` / `sync-config` / `sync-from-remote` / sudoers grant; Termux Git Bash Windows cmd hide | **TP-CFG-01..16** |
 
 ## Isolation

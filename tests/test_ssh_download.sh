@@ -160,6 +160,7 @@ EOF
     # TP-DL-01 help lists download (also TP-SSH-01)
     _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" help 2>&1)
     assert_contains "TP-DL-01 help download operand" "$_out" "download [N|name]"
+    assert_contains "TP-DL-01 help download user then folder" "$_out" "then user with default, then numbered previous folders"
 
     _fix="${CI_HOME}/remote-box"
     mkdir -p "${_fix}"
@@ -185,7 +186,7 @@ EOF
     assert_contains "TP-DL-03 memory dns" "$_mc" "${H_DL}"
     assert_contains "TP-DL-03 memory path" "$_mc" "/opt/app"
 
-    # TP-DL-04 TTY numbered previous folder
+    # TP-DL-04 TTY numbered previous folder (empty user keeps default)
     _wd2=$(mktemp -d "${TMPDIR:-/tmp}/dl-wd2.XXXXXX")
     : > "${_ssh_log}"
     _out=$(
@@ -193,6 +194,7 @@ EOF
         HOME="${CI_HOME}" INTERACTIVE=1 SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SSH_LOG="${_ssh_log}" \
             SSHD_CLI_TAR_FIXTURE="${_fix}" SSHD_CLI_TAR_BASE="app" \
             sh "${SCRIPT}" download "${H_DL}" <<'EOF'
+
 1
 EOF
     )
@@ -201,13 +203,14 @@ EOF
     assert_contains "TP-DL-04 lists previous path" "$_out" "/opt/app"
     assert_file_exists "TP-DL-04 extracted from previous" "${_wd2}/app/ok.txt"
 
-    # TP-DL-05 TTY type a new folder path (non-number)
+    # TP-DL-05 TTY type a new folder path (non-number; empty user keeps default)
     _wd3=$(mktemp -d "${TMPDIR:-/tmp}/dl-wd3.XXXXXX")
     _out=$(
         cd "${_wd3}" || exit 1
         HOME="${CI_HOME}" INTERACTIVE=1 SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SSH_LOG="${_ssh_log}" \
             SSHD_CLI_TAR_FIXTURE="${_fix}" SSHD_CLI_TAR_BASE="other" \
             sh "${SCRIPT}" download "${H_DL}" <<'EOF'
+
 /var/data/other
 EOF
     )
@@ -242,6 +245,7 @@ EOF
     assert_contains "TP-DL-08 json type" "$_out" '"type":"download"'
     assert_contains "TP-DL-08 json dns" "$_out" "\"dns\":\"${H_DL}\""
     assert_contains "TP-DL-08 json folder" "$_out" '"folder":"/opt/app"'
+    assert_contains "TP-DL-08 json user key" "$_out" '"user":'
     assert_file_exists "TP-DL-08 json extracted" "${_wd4}/app/ok.txt"
 
     # TP-DL-09 Host * is not a download/ssh row
@@ -251,6 +255,73 @@ EOF
     _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns list 2>&1)
     assert_not_contains "TP-DL-09 list has no asterisk row" "$_out" "*  "
 
-    rm -rf "${_wd}" "${_wd2}" "${_wd3}" "${_wd4}" "${_fix}"
+    # TP-DL-10 TTY download default user uses Host User (-l u1)
+    _wd5=$(mktemp -d "${TMPDIR:-/tmp}/dl-wd5.XXXXXX")
+    : > "${_ssh_log}"
+    _out=$(
+        cd "${_wd5}" || exit 1
+        HOME="${CI_HOME}" INTERACTIVE=1 SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SSH_LOG="${_ssh_log}" \
+            SSHD_CLI_TAR_FIXTURE="${_fix}" SSHD_CLI_TAR_BASE="app" \
+            sh "${SCRIPT}" download "${H_SSH}" /opt/app <<'EOF'
+
+EOF
+    )
+    _ec=$?
+    assert_eq "TP-DL-10 tty default user exit 0" 0 "$_ec"
+    _log=$(cat "${_ssh_log}")
+    assert_contains "TP-DL-10 log -l u1" "$_log" "-l u1"
+    assert_contains "TP-DL-10 log alias" "$_log" "${H_SSH}"
+    assert_file_exists "TP-DL-10 extracted" "${_wd5}/app/ok.txt"
+    assert_contains "TP-DL-10 prompt user" "$_out" "user ["
+
+    # TP-DL-11 TTY download user override
+    _wd6=$(mktemp -d "${TMPDIR:-/tmp}/dl-wd6.XXXXXX")
+    : > "${_ssh_log}"
+    _out=$(
+        cd "${_wd6}" || exit 1
+        HOME="${CI_HOME}" INTERACTIVE=1 SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SSH_LOG="${_ssh_log}" \
+            SSHD_CLI_TAR_FIXTURE="${_fix}" SSHD_CLI_TAR_BASE="app" \
+            sh "${SCRIPT}" download "${H_SSH}" /opt/app <<'EOF'
+otheruser
+EOF
+    )
+    _ec=$?
+    assert_eq "TP-DL-11 tty user override exit 0" 0 "$_ec"
+    _log=$(cat "${_ssh_log}")
+    assert_contains "TP-DL-11 log -l otheruser" "$_log" "-l otheruser"
+    assert_contains "TP-DL-11 log alias" "$_log" "${H_SSH}"
+    assert_file_exists "TP-DL-11 extracted" "${_wd6}/app/ok.txt"
+
+    # TP-DL-12 TTY invalid user fail-closed; Next names download
+    _err=$(
+        HOME="${CI_HOME}" INTERACTIVE=1 SSHD_CLI_SSH="${_fake_ssh}" \
+            sh "${SCRIPT}" download "${H_SSH}" /opt/app 2>&1 >/dev/null <<'EOF'
+bad!user
+EOF
+    )
+    _ec=$?
+    assert_eq "TP-DL-12 bad user exit 1" 1 "$_ec"
+    assert_contains "TP-DL-12 not allowed" "$_err" "not allowed"
+    assert_contains "TP-DL-12 Next download" "$_err" "download"
+
+    # TP-DL-13 TTY "" omits -l
+    _wd7=$(mktemp -d "${TMPDIR:-/tmp}/dl-wd7.XXXXXX")
+    : > "${_ssh_log}"
+    _out=$(
+        cd "${_wd7}" || exit 1
+        HOME="${CI_HOME}" INTERACTIVE=1 SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SSH_LOG="${_ssh_log}" \
+            SSHD_CLI_TAR_FIXTURE="${_fix}" SSHD_CLI_TAR_BASE="app" \
+            sh "${SCRIPT}" download "${H_SSH}" /opt/app <<'EOF'
+""
+EOF
+    )
+    _ec=$?
+    assert_eq "TP-DL-13 empty user token exit 0" 0 "$_ec"
+    _log=$(cat "${_ssh_log}")
+    assert_not_contains "TP-DL-13 log has no -l" "$_log" "-l "
+    assert_contains "TP-DL-13 log alias" "$_log" "${H_SSH}"
+    assert_file_exists "TP-DL-13 extracted" "${_wd7}/app/ok.txt"
+
+    rm -rf "${_wd}" "${_wd2}" "${_wd3}" "${_wd4}" "${_wd5}" "${_wd6}" "${_wd7}" "${_fix}"
     ci_cleanup_env
 }

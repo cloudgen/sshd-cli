@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.19.0] - 2026-09-12
+
+### Added
+
+- TTY **`download`**: after the numbered Host pick, prompt **user [default]** (same contract as **`ssh`**: Host `User` if set, else this login). Enter keeps the default; `""` omits `-l`. Then the remote folder prompt. Tests **TP-DL-10** · **TP-DL-11** · **TP-DL-12** · **TP-DL-13**.
+
+### Fixed
+
+- Invalid TTY download user `Next:` names `download`, not only `ssh`. Download ssh-fail `Next:` includes `-l` when a user was chosen.
+
 ## [1.18.0] - 2026-09-12
 
 ### Added
