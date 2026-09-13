@@ -646,6 +646,50 @@ EOF
     assert_eq "TP-DNS-46 unknown field exit 1" 1 "$_ec"
     assert_contains "TP-DNS-46 unknown names user" "$_err" "user"
 
+    # TP-DNS-47 TTY unknown action warns and redisplays
+    _dns_fixture
+    _out=$(HOME="${CI_HOME}" INTERACTIVE=1 sh "${SCRIPT}" dns 2>&1 <<'EOF'
+88
+9
+EOF
+)
+    _ec=$?
+    assert_eq "TP-DNS-47 unknown action then Exit 9 exit 0" 0 "$_ec"
+    assert_contains "TP-DNS-47 unknown action named" "$_out" "Unknown dns action '88'"
+    _n=$(t_count_substr "$_out" "1. Edit")
+    assert_eq "TP-DNS-47 redisplays action menu" "2" "$_n"
+
+    # TP-DNS-48 TTY unknown Host pick warns and redisplays
+    _dns_fixture
+    _out=$(HOME="${CI_HOME}" INTERACTIVE=1 sh "${SCRIPT}" dns 2>&1 <<'EOF'
+1
+99
+0
+EOF
+)
+    _ec=$?
+    assert_eq "TP-DNS-48 unknown Host then leave exit 0" 0 "$_ec"
+    assert_contains "TP-DNS-48 unknown Host named" "$_out" "Unknown Host choice '99'"
+    _n=$(t_count_substr "$_out" "0. Exit")
+    assert_eq "TP-DNS-48 redisplays Host pick" "2" "$_n"
+
+    # TP-DNS-49 TTY unknown extra-settings pick warns and redisplays
+    _dns_fixture
+    _out=$(HOME="${CI_HOME}" INTERACTIVE=1 sh "${SCRIPT}" dns 2>&1 <<'EOF'
+4
+2
+99
+0
+EOF
+)
+    _ec=$?
+    assert_eq "TP-DNS-49 unknown extra-settings then leave exit 0" 0 "$_ec"
+    assert_contains "TP-DNS-49 unknown extra-settings named" "$_out" "Unknown extra-settings choice '99'"
+    _n=$(t_count_substr "$_out" "Choose a number to clear")
+    assert_eq "TP-DNS-49 redisplays extra-settings picker" "2" "$_n"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show "${H_B}" 2>&1)
+    assert_contains "TP-DNS-49 user still set after leave" "$_out" "user: ${USER_A}"
+
     # TP-DNS-38 suite source has no dotted IPv4 (mint at run time; PP-C-21)
     _hits=$(grep -E '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' "${TESTS_ROOT}/test_dns.sh" | grep -v '127\.0\.0\.1' || true)
     assert_eq "TP-DNS-38 no IPv4 literals in suite source" "" "${_hits}"

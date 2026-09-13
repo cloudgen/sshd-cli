@@ -382,6 +382,26 @@ EOF
     assert_contains "TP-DL-16 not allowed" "$_err" "not allowed"
     assert_contains "TP-DL-16 Next download" "$_err" "download"
 
-    rm -rf "${_wd}" "${_wd2}" "${_wd3}" "${_wd4}" "${_wd5}" "${_wd6}" "${_wd7}" "${_wd8}" "${_wd9}" "${_fix}"
+    # TP-DL-17 TTY out-of-range folder number warns and redisplays; then pick 1
+    _wd10=$(mktemp -d "${TMPDIR:-/tmp}/dl-wd10.XXXXXX")
+    : > "${_ssh_log}"
+    _out=$(
+        cd "${_wd10}" || exit 1
+        HOME="${CI_HOME}" INTERACTIVE=1 SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SSH_LOG="${_ssh_log}" \
+            SSHD_CLI_TAR_FIXTURE="${_fix}" SSHD_CLI_TAR_BASE="app" \
+            sh "${SCRIPT}" download "${H_DL}" 2>&1 <<'EOF'
+
+99
+1
+EOF
+    )
+    _ec=$?
+    assert_eq "TP-DL-17 out-of-range then pick 1 exit 0" 0 "$_ec"
+    assert_contains "TP-DL-17 unknown folder named" "$_out" "Unknown folder choice '99'"
+    _n=$(t_count_substr "$_out" "Previous folders for")
+    assert_eq "TP-DL-17 redisplays folder list" "2" "$_n"
+    assert_file_exists "TP-DL-17 extracted after retry" "${_wd10}/app/ok.txt"
+
+    rm -rf "${_wd}" "${_wd2}" "${_wd3}" "${_wd4}" "${_wd5}" "${_wd6}" "${_wd7}" "${_wd8}" "${_wd9}" "${_wd10}" "${_fix}"
     ci_cleanup_env
 }

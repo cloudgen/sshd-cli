@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.19.1  
-**Last plan update:** 2026-09-12  
-**Last suite run:** PASS=637 FAIL=0 SKIP=0 (2026-09-12)
+**Product VERSION:** 1.19.2  
+**Last plan update:** 2026-09-13  
+**Last suite run:** PASS=668 FAIL=0 SKIP=0 (2026-09-13)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -17,20 +17,21 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 |------|--------|----------|
 | Syntax `sh -n` | have | TP-CLI-01 |
 | version / help / about human + JSON | have | TP-CLI-02..06 |
-| Empty argv: non-TTY install-ensure / TTY menu | have | TP-CLI-07, TP-CLI-14, TP-SSHD-03..05 |
+| Empty argv: non-TTY install-ensure / TTY menu | have | TP-CLI-07, TP-CLI-14, TP-SSHD-03..05, TP-SSHD-16 |
 | Unknown + quiet + set -u HOME | have | TP-CLI-08..11 |
 | Storage isolation | have | TP-CLI-12 |
 | Git Bash `/dev/shm` mkdir fail-soft → AppData Temp/`cache` | have | TP-CLI-19, TP-CLI-20 |
-| `backup-config` / `sync-config` / `sync-from-remote` / sudoers grant | have | TP-CFG-01..16 |
+| `backup-config` / `sync-config` / `sync-from-remote` / sudoers grant | have | TP-CFG-01..17 |
 | Channel verbs routed (`self-update`, `version-check`); no public network in CI | have | TP-CLI-04, TP-CLI-10 |
 | Trimmed parent verbs fail closed | have | TP-CLI-13 |
 | Local install / idempotent / uninstall / mode 0755 / login rc / Termux pkg | have | TP-LC-01..19 |
 | Android wake lock (auto on start + `wake-lock` verb) | have | TP-TX-08..16 |
 | sshd start is a background daemon (not a service manager) | have | TP-SSHD-01, TP-SSHD-02 |
 | POSIX Linux systemd unit path (`systemctl` start/stop/restart) | have | TP-SSHD-09..14 |
-| this-login `~/.ssh/config` dns-ip list / show / set / add / delete / unset | have | TP-DNS-01..46 |
+| this-login `~/.ssh/config` dns-ip list / show / set / add / delete / unset | have | TP-DNS-01..49 |
 | OpenSSH client `ssh` Host pick | have | TP-SSH-01..09 |
-| remote folder `download` tar.gz into cwd | have | TP-DL-01..16 |
+| remote folder `download` tar.gz into cwd | have | TP-DL-01..17 |
+| local folder `upload` tar.gz onto a Host | **todo** | TP-UL-01..18 |
 | Automatic companion link on install (file://) | have | TP-CSUM-01 |
 | Backup / restore / sudoers emit | n/a | Absent by design (not a backup product) |
 | Online curl against public GitHub | n/a | Core suite stays offline; channel is `file://` in CI |
@@ -76,6 +77,7 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-CFG-14 | preferred-remote saved mode 600 | test_config_backup | requirement-shell-config-backup | **have** |
 | TP-CFG-15 | TTY empty Enter uses stored default | test_config_backup | requirement-shell-config-backup | **have** |
 | TP-CFG-16 | `--json` type/host fields | test_config_backup | requirement-shell-config-backup | **have** |
+| TP-CFG-17 | TTY sudoers submenu unknown choice warns and redisplays | test_config_backup | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-CLI-13 | backup/restore/sudoers verbs unknown | test_cli | requirement-shell-cli-interface | **have** |
 | TP-CLI-14 | empty argv interactive → domain menu (no install); status + dns row 5 + Exit 9 | test_cli | requirement-shell-cli-zero-arguments · requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-CLI-15 | status Connect: live ssh -p user@ipv4; no `<this-host>` | test_cli | requirement-domain-sshd | **have** |
@@ -88,7 +90,7 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-SSHD-02 | Termux stub install/start names background daemon, reboot re-start, Termux:Boot operator hook | `tests/test_local_lifecycle.sh` | requirement-domain-sshd | **have** |
 | TP-SSHD-03 | POSIX Linux non-root TTY menu hides rows 2/3/4; INFO names OS; dns stays 5 | `tests/test_cli.sh` | requirement-domain-sshd | **have** |
 | TP-SSHD-04 | Termux mock TTY menu still shows rows 2/3/4; no non-root INFO | `tests/test_cli.sh` | requirement-domain-sshd · requirement-shell-termux-ish | **have** |
-| TP-SSHD-05 | POSIX Linux non-root: numbered **2** is unknown (does not start) | `tests/test_cli.sh` | requirement-domain-sshd | **have** |
+| TP-SSHD-05 | POSIX Linux non-root: numbered **2** is unknown (does not start); warns and redisplays; Exit 99 | `tests/test_cli.sh` | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-SSHD-06 | POSIX Linux non-root `stop` error names re-run as root; no Termux | `tests/test_cli.sh` | requirement-domain-sshd | **have** |
 | TP-SSHD-07 | Ship-unit start/stop/writable die copy is host-local (no “use Termux”) | `tests/test_cli.sh` | requirement-domain-sshd | **have** |
 | TP-SSHD-08 | POSIX Linux `start` already-running does not deny systemd / session-daemon | `tests/test_cli.sh` | requirement-domain-sshd | **have** |
@@ -99,6 +101,7 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-SSHD-13 | Termux mock `start` never invokes `systemctl` | `tests/test_cli.sh` | requirement-domain-sshd · requirement-shell-termux-ish | **have** |
 | TP-SSHD-14 | Dispatcher has no routed verb `systemctl` / `enable-service` | `tests/test_cli.sh` | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
 | TP-SSHD-15 | `self-update --force` still exit 0 when stub `sshd -t` would fail; no sshd_config ERROR | `tests/test_local_lifecycle.sh` | requirement-domain-sshd · requirement-shell-self-management | **have** |
+| TP-SSHD-16 | TTY unknown menu token warns and redisplays; then Exit | `tests/test_cli.sh` | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 
 ### TP-DNS (this login ~/.ssh/config Host list)
 
@@ -150,6 +153,9 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-DNS-44 | TTY action Unset then field pick; HostName stays | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-DNS-45 | `unset termux` strips bundle; Port and HostName stay | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-46 | `unset` missing n / unknown field fail-closed | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-47 | TTY unknown dns action warns and redisplays | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DNS-48 | TTY unknown Host pick warns and redisplays | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-DNS-49 | TTY unknown extra-settings pick warns and redisplays | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 
 ### TP-SSH (OpenSSH client Host pick)
 
@@ -185,6 +191,30 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-DL-14 | `~/folder` accepted (operand + TTY); remote `"$HOME"`; not this-login HOME | test_ssh_download | requirement-domain-sshd | **have** |
 | TP-DL-15 | `~` alone fail-closed | test_ssh_download | requirement-domain-sshd | **have** |
 | TP-DL-16 | `~user/path` fail-closed | test_ssh_download | requirement-domain-sshd | **have** |
+| TP-DL-17 | TTY out-of-range folder number warns and redisplays | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+
+### TP-UL (local folder upload)
+
+| TP-ID | Intent | Suite | Primary requirement(s) | Status |
+|-------|--------|-------|------------------------|--------|
+| TP-UL-01 | help lists `upload` | test_ssh_download | requirement-domain-sshd · requirement-shell-cli-interface | **todo** |
+| TP-UL-02 | non-interactive upload streams local tar.gz; remote extracts under `"$HOME"` | test_ssh_download | requirement-domain-sshd | **todo** |
+| TP-UL-03 | remembers local folder for that Host | test_ssh_download | requirement-domain-sshd | **todo** |
+| TP-UL-04 | TTY numbered previous local folder | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **todo** |
+| TP-UL-05 | TTY type a new local path | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **todo** |
+| TP-UL-06 | missing folder operand fail-closed | test_ssh_download | requirement-domain-sshd | **todo** |
+| TP-UL-07 | refuse shell metacharacters in folder | test_ssh_download | requirement-domain-sshd | **todo** |
+| TP-UL-08 | JSON upload one object | test_ssh_download | requirement-domain-sshd · requirement-shell-output-requirements | **todo** |
+| TP-UL-09 | `Host *` is not an upload row | test_ssh_download | requirement-domain-sshd | **todo** |
+| TP-UL-10 | TTY upload default user `-l` | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **todo** |
+| TP-UL-11 | TTY upload user override `-l` | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **todo** |
+| TP-UL-12 | TTY invalid user fail-closed; Next names upload | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **todo** |
+| TP-UL-13 | TTY `""` omits `-l` | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **todo** |
+| TP-UL-14 | local `~/folder` accepted; this-login HOME for local tar; remote dest `"$HOME"` not this-login path | test_ssh_download | requirement-domain-sshd | **todo** |
+| TP-UL-15 | `~` alone fail-closed | test_ssh_download | requirement-domain-sshd | **todo** |
+| TP-UL-16 | `~user/path` fail-closed | test_ssh_download | requirement-domain-sshd | **todo** |
+| TP-UL-17 | missing local directory fail-closed | test_ssh_download | requirement-domain-sshd | **todo** |
+| TP-UL-18 | TTY menu numbers upload **8** | test_ssh_download | requirement-domain-sshd | **todo** |
 
 ### TP-LC (local lifecycle)
 

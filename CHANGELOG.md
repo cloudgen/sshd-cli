@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.19.2] - 2026-09-13
+
+### Changed
+
+- TTY numbered menus **warn and show the same list again** when the choice is unknown or out of range (main menu, sudoers submenu, dns action menu, Host pick, unset extra-settings picker, download folder pick). A wrong number is no longer a crash. Exit / empty still leave that layer. Tests **TP-SSHD-05** · **TP-SSHD-16** · **TP-DNS-47** · **TP-DNS-48** · **TP-DNS-49** · **TP-CFG-17** · **TP-DL-17**.
+
 ## [1.19.1] - 2026-09-12
 
 ### Fixed

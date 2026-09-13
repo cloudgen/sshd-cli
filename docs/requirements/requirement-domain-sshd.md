@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.19.1)  
+**Status**: Active (Version 1.19.2)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -22,7 +22,7 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 
 | Includes | Excludes |
 |----------|----------|
-| status / start / stop / restart / port / config / host-keys / auth-keys / menu / **dns** / **ssh** / **download** | Wrapping `sudo` inside this CLI; writing systemd unit files; `termux-services` / `sv-enable`; cron-as-service; SSH *client* session mux / ProxyJump |
+| status / start / stop / restart / port / config / host-keys / auth-keys / menu / **dns** / **ssh** / **download** / **upload** | Wrapping `sudo` inside this CLI; writing systemd unit files; `termux-services` / `sv-enable`; cron-as-service; SSH *client* session mux / ProxyJump |
 | OpenSSH sshd as a **background daemon** (`sshd -f`) on Termux and on Linux with **no** distro unit | Foreground `-D` on the OpenSSH fallback; `&` / `nohup` wrappers; a routed `systemctl` / `enable-service` verb |
 | POSIX Linux **with** a loaded distro ssh/sshd unit: `start` / `stop` / `restart` via `systemctl` (root login) | `systemctl enable` / `disable` / `mask` / `daemon-reload` as CLI verbs; invoking `systemctl` on Termux / Git Bash / Windows cmd |
 | This login’s `~/.ssh/config` **Host** entries as a numbered **dns-ip** list (alias → HostName) | Editing `/etc/hosts`; wrapping `systemd-resolved`; following `Include`; listing `Host *` / `?` wildcards |
@@ -47,6 +47,7 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 | SSH into a named Host | Numbered Host pick, then **user** with default (Host `User`, else this login) | Pick **6** · `sshd-cli ssh` · `sshd-cli ssh 1` |
 | Open a shell on a named phone | Pick that Host from the same list. OpenSSH client uses the alias so User / Port / keys apply. | `sshd-cli ssh` · `sshd-cli ssh 1` · `sshd-cli ssh phone` |
 | Copy a folder from a named phone | Pick the Host, then **user** with default (Host `User`, else this login), then a remote folder (numbered previous paths for that Host, or type a path). Remote `tar.gz`, extract here. | `sshd-cli download` · `sshd-cli download phone /opt/app` |
+| Copy a folder **to** a named phone | Same Host and **user** walk as **download**. Then a **local** folder (numbered previous local paths for that Host, or type a path). Local `tar.gz` over ssh; extract under the remote login home. | `sshd-cli upload` · `sshd-cli upload phone ./box` · `sshd-cli upload phone ~/box/app` |
 | Open the menu on POSIX Linux as a non-root login | Rows **2** / **3** / **4** (start / stop / restart) are omitted. An INFO line names this OS. `dns` stays row **5**. | `sshd-cli` on a terminal (not root). Re-run as root to see start/stop/restart. |
 | Start sshd on Linux when the distro unit exists | As **root**, this CLI calls `systemctl start` on that unit (Debian/Ubuntu often `ssh.service`; others often `sshd.service`). It does not `sshd -f` beside a systemd listener. | `sshd-cli start` as root |
 
@@ -69,6 +70,7 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 | `dns` | `list` (default non-TTY) · `show <n\|name>` · `edit <n\|name>` · `set <n\|name> …` · `add …` · `delete <n\|name>` · `unset <n\|name> field …` · empty (TTY action menu) | `sshd_cmd_dns` | This login’s `~/.ssh/config` | Missing n / empty dns name / bad port / unset of dns or ip → `out_die` |
 | `ssh` | optional `<n\|name>` | `sshd_cmd_ssh` | This login OpenSSH **client** `ssh` using a concrete Host alias | Missing n / empty list / ssh missing → `out_die` |
 | `download` | optional `<n\|name>` then optional `folder` | `sshd_cmd_download` | This login: remote `tar czf` over `ssh`, extract into **cwd** | Missing n / folder / bad folder / ssh or tar missing / ssh fail → `out_die` |
+| `upload` | optional `<n\|name>` then optional `folder` | `sshd_cmd_upload` | This login: local `tar czf` piped over `ssh`, extract under the remote login **home** | Missing n / folder / missing local dir / bad folder / ssh or tar missing / ssh fail → `out_die` |
 | `menu` / `main` | none | `sshd_cmd_menu` | TTY only | `--json` / quiet / non-TTY → `out_die` with named-command hint |
 | `backup-config` | none | `sshd_cmd_backup_config` | POSIX Linux: this login then `sudo -n {{GLOBAL_BIN}}/sshd-cli backup-config`. Termux / Git Bash / Windows cmd unused | Missing `~/.ssh/config` / sudo refused / this-login-only host → `out_die` |
 | `sync-config` | none | `sshd_cmd_sync_config` | This login, no sudo | Store missing / this-login-only host → `out_die` |
@@ -79,10 +81,10 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 | `submit-sudoer-request` | optional file | `sshd_cmd_submit_sudoer_request` | Type 0 compose sudoer-cli | Missing sudoer-cli / inbound → `out_die` |
 | `remove-project-sudoers` | optional path | `sshd_cmd_remove_project_sudoers` | Type 0 draft only | `/etc` path → `out_die` |
 
-**Routing:** `app_main` parses these verbs in the same pass as Type 0. Operands after `port` / `host-keys` / `auth-keys` / **`dns`** / **`ssh`** / **`download`** are domain operands, not unknown flags. **MUST** number `dns` as main-menu row **5**, **`ssh` as 6**, **`download` as 7**. The dns / ssh / download **Host** pick is a **separate** list (leave with `0` / empty — not `9`). **MUST NOT** number `port` / `config` / `host-keys` / `auth-keys` as numbered rows.
+**Routing:** `app_main` parses these verbs in the same pass as Type 0. Operands after `port` / `host-keys` / `auth-keys` / **`dns`** / **`ssh`** / **`download`** / **`upload`** are domain operands, not unknown flags. **MUST** number `dns` as main-menu row **5**, **`ssh` as 6**, **`download` as 7**, **`upload` as 8**. The dns / ssh / download / upload **Host** pick is a **separate** list (leave with `0` / empty — not `9`). **MUST NOT** number `port` / `config` / `host-keys` / `auth-keys` as numbered rows.
 
 **MUST:** `backup-config` / `sync-config` ops SSOT is `requirement-shell-config-backup` (depends on `requirement-shell-sudoer`). Sudoers JSON, print/generate/submit, and `util_sudo` SSOT is `requirement-shell-sudoer`. This domain file **points**; it does not re-own copy or grant emit.  
-**MUST:** TTY menu on Termux / Git Bash / Windows cmd **MUST** print `[INFO] backup-config and sync-config not available for termux` (or `gitbash` / `windows-cmd`) **before** the numbered list and omit backup-config / sync-config / sudoers. **MUST** number `sync-from-remote` **8** and **Exit 9** on that class. POSIX Linux **MUST** number `backup-config` **8**, `sync-config` **9**, `sudoers` **10**, **Exit 99**.  
+**MUST:** TTY menu on Termux / Git Bash / Windows cmd **MUST** print `[INFO] backup-config and sync-config not available for termux` (or `gitbash` / `windows-cmd`) **before** the numbered list and omit backup-config / sync-config / sudoers. **MUST** number **`upload` 8**, **`sync-from-remote` 9**, **Exit 10** on that class. POSIX Linux **MUST** number **`upload` 8**, `backup-config` **9**, `sync-config` **10**, `sudoers` **11**, **Exit 99**.  
 **MUST:** Each verb above is also named on `requirement-shell-cli-interface` (dual mention).  
 **MUST:** Interactive empty argv (`TTY=1`, not quiet/json) **MUST** call `sshd_cmd_menu` (same handler as `menu`). Dual mention: `requirement-shell-cli-zero-arguments`.  
 **MUST NOT:** Open this menu on **non-interactive** empty argv (`curl \| sh`, quiet, json, no TTY) — that path stays install-ensure.
@@ -148,6 +150,9 @@ sshd-cli ssh phone
 sshd-cli download
 sshd-cli download phone /opt/app
 sshd-cli download phone ~/box/app
+sshd-cli upload
+sshd-cli upload phone ./box
+sshd-cli upload phone ~/box/app
 sshd-cli menu
 ```
 
@@ -221,8 +226,9 @@ If (2) is true and (3) is false: **warn** once per command, then use the OpenSSH
 **Semantics:**
 
 1. **status** is read-only. Missing sshd is a warning, not a crash. Human mode **MUST** end with a recommended connect line `ssh -p <port> <user>@<lan-ipv4>` when a live IPv4 exists. **User** is `id -un`. **IPv4 SSOT:** `ifconfig wlan0` inet (Termux Wi-Fi). Then `wlan1`, then any `ifconfig` inet, then `ip` fallbacks. **MUST NOT** print a placeholder host (`<this-host>`, `<LAN-IPv4>`, `example.com`). If no usable IPv4: warn and say Next (turn on Wi-Fi, then `status`) — do not invent an address. JSON `connect` is that live string, or empty. **MUST NOT** freeze a session login or a sample home IP into product law. On a systemd host with a resolved unit, human **status** **MUST** print the unit name and active/inactive; JSON **MUST** add `sshd_systemd` (true/false), `sshd_unit` (name or `""`), `sshd_unit_active` (true/false).  
-1b. **menu** numbered rows are `status` (**1**), `start` (**2**), `stop` (**3**), `restart` (**4**), **`dns` (5)**, **`ssh` (6)**, **`download` (7)**. Choosing **5** (or typing `dns`) runs the same handler as `sshd-cli dns`. Choosing **6** (or typing `ssh`) runs `sshd_cmd_ssh` (numbered Host pick, then **user** with default). Choosing **7** (or typing `download`) runs `sshd_cmd_download` (numbered Host pick, then **user** with default, then folder). On Termux / Git Bash / Windows cmd: **`sync-from-remote` is 8**, **Exit 9**. On POSIX Linux: **`backup-config` 8**, **`sync-config` 9**, **`sudoers` 10**, **Exit 99** (row 9 is sync-config). `port` / `config` / `host-keys` / `auth-keys` stay typed. The Host pick **MUST NOT** reuse main-menu Exit `9`.  
-1c. **menu daemon rows (2/3/4):** On a **command line for normal user only** (Termux, Git Bash, Windows cmd), **MUST** print rows **2** / **3** / **4** for this login. On POSIX Linux (not that class), **MUST** print those rows **only** when this login is **root** (`id -u` is 0). When those rows are hidden, **MUST** print, **before** the numbered choices (after the nametag): `start/stop/restart sshd features are not available for non-root in <OS-Name>`. **OS-Name** is `/etc/os-release` `NAME=` (quotes stripped), else `uname -s`, else `Linux`. **MUST NOT** hardcode Ubuntu. **MUST NOT** renumber `dns` off row **5** when 2/3/4 are hidden. Hidden numbers **2** / **3** / **4** **MUST NOT** dispatch (unknown choice). Typed `start` / `stop` / `restart` at the prompt still run the handlers (fail-closed without root). **MUST NOT** wrap `sudo` to unhide the rows. Helper: `sshd_menu_show_daemon_rows` · `sshd_os_name`.  
+1b. **menu** numbered rows are `status` (**1**), `start` (**2**), `stop` (**3**), `restart` (**4**), **`dns` (5)**, **`ssh` (6)**, **`download` (7)**, **`upload` (8)**. Choosing **5** (or typing `dns`) runs the same handler as `sshd-cli dns`. Choosing **6** (or typing `ssh`) runs `sshd_cmd_ssh` (numbered Host pick, then **user** with default). Choosing **7** (or typing `download`) runs `sshd_cmd_download` (numbered Host pick, then **user** with default, then remote folder). Choosing **8** (or typing `upload`) runs `sshd_cmd_upload` (numbered Host pick, then **user** with default, then **local** folder). On Termux / Git Bash / Windows cmd: **`sync-from-remote` is 9**, **Exit 10**. On POSIX Linux: **`backup-config` 9**, **`sync-config` 10**, **`sudoers` 11**, **Exit 99**. `port` / `config` / `host-keys` / `auth-keys` stay typed. The Host pick **MUST NOT** reuse main-menu Exit `9`.  
+1c. **menu daemon rows (2/3/4):** On a **command line for normal user only** (Termux, Git Bash, Windows cmd), **MUST** print rows **2** / **3** / **4** for this login. On POSIX Linux (not that class), **MUST** print those rows **only** when this login is **root** (`id -u` is 0). When those rows are hidden, **MUST** print, **before** the numbered choices (after the nametag): `start/stop/restart sshd features are not available for non-root in <OS-Name>`. **OS-Name** is `/etc/os-release` `NAME=` (quotes stripped), else `uname -s`, else `Linux`. **MUST NOT** hardcode Ubuntu. **MUST NOT** renumber `dns` off row **5** when 2/3/4 are hidden. Hidden numbers **2** / **3** / **4** **MUST NOT** dispatch. They are an unknown TTY choice: **MUST** warn and **MUST** display the same menu again (**MUST NOT** `out_die`). Typed `start` / `stop` / `restart` at the prompt still run the handlers (fail-closed without root). **MUST NOT** wrap `sudo` to unhide the rows. Helper: `sshd_menu_show_daemon_rows` · `sshd_os_name`.  
+1d. **TTY menu retry (every numbered layer):** On the **main menu**, **sudoers** submenu, **dns action** menu, **Host pick**, **unset extra-settings** picker, and **download** / **upload** folder pick: an unknown or out-of-range numbered choice **MUST** print a warn that names the token, **MUST** display **that same list** again, and **MUST NOT** `out_die` or exit non-zero solely for that bad TTY choice. Empty / Exit / `q` / `exit` still leave that layer. A valid choice still runs the handler (one-shot; the main menu does not auto-loop after success). Non-interactive operand paths still fail closed (no hang). Dual mention: `requirement-shell-interactive-vs-noninteractive`.  
 2. **start** is idempotent: already running → success no-op. Missing host keys → generate when the host-key dir is writable (OpenSSH fallback only; systemd unit path does **not** generate host keys — the distro unit owns that). On the OpenSSH fallback, `sshd -t` must pass before launch; launch **MUST** be `"${SSHD_BIN}" -f "${SSHD_CONFIG}"`. **MUST NOT** pass `-D`. **MUST NOT** wrap the launch in `&` / `nohup`. On a systemd host with a loaded unit, launch **MUST** follow §2.2.1 (`systemctl start <unit>` as root) — **MUST NOT** `sshd -f` beside that unit. Human mode (not quiet/json) **MUST** describe **this host** per §2.2.1 (Termux: session daemon + Termux:Boot + `${APP_NAME} start` after reboot; systemd unit path: name the unit and `systemctl`; POSIX Linux fallback: do not deny systemd). On Termux, **start** (including already-running) **MUST** auto-acquire the Android wake lock (`sshd_wake_lock_acquire`). Missing helper: **warn** + Next naming `${APP_NAME} wake-lock`; **MUST NOT** fail start solely for that. Dual mention: `requirement-shell-termux-ish`. **MUST NOT** auto-unlock on `stop`.  
 3. **stop** is idempotent: already stopped → success no-op. systemd unit path: `systemctl stop <unit>` as root (**MUST NOT** `kill` MainPID). OpenSSH fallback: signal the sshd pid (pidfile, then process match).  
 4. **port set** rewrites the `Port` line (or appends one). Does not auto-restart; human mode tells the operator to `restart` when sshd is up.  
@@ -236,13 +242,13 @@ If (2) is true and (3) is false: **warn** once per command, then use the OpenSSH
 |------|------|----------|
 | **List** | Numbered **concrete** `Host` entries (`Host` first pattern has no `*` / `?`). Human row: `N. <dns>  <ip-or-(empty)>`. Missing file → empty list (success), not a crash. Skip `Host *`, `Match`, and `Include` (do not follow). | Treat `Host *` as a dns-ip row; rewrite `/etc/hosts` |
 | **Show** | Fields **dns**, **ip** (`HostName`), **user**, **port**, **identity-file**, **identities-only**, **termux** (yes/no), **old-openssh** (yes/no). Human: **user** empty → print `empty`. **port** empty → print `22`. **termux** is **yes** only when the Termux client bundle is present (Port **8022**, Ciphers **aes128-ctr,aes256-ctr**, MACs **hmac-sha2-256**, ServerAliveInterval **15**, ServerAliveCountMax **12**, TCPKeepAlive **yes**, IPQoS **none**). Keep-alives without those Ciphers/MACs is **termux no**. **old-openssh** is **yes** when HostKeyAlgorithms / PubkeyAcceptedAlgorithms are set. JSON: raw `user`/`port` may be `""`; also `user_display` / `port_display` / `identity_file` / `identities_only` / `termux` / `old_openssh`. | Invent a user or port; print a live Unix login as a sample; treat “as Termux” as this CLI’s platform detect (`sshd_is_termux`) |
-| **Interactive** (`dns` with no subcommand, TTY or `INTERACTIVE=1`, not quiet/json) | Print the Host names as **context** (no choice numbers). Then an **action menu**: **1 Edit** · **2 Add** · **3 Delete** · **4 Unset** · **9 Exit**. `read` in the **current shell** (not `$()` of `prompt_ask`). Type `edit` / `add` / `delete` / `unset` is the same as 1/2/3/4. **MUST NOT** treat the first number as a Host row (Host pick is the next screen). | Hang under `--json` / `--quiet` / no TTY (those paths **list** only); `$()` a `read` helper; jump straight to field-walk update |
-| **Edit path** | After **1 / edit**: numbered Host pick; leave with `0` / `q` / `exit` / empty — **not** `9` (row 9 is a Host when the list is long). Then **field-by-field** edit (dns, ip, user, **as Termux (Y/n)**, **port if Termux is no**, **identity-file**, **identities-only**, **Old OpenSSH (Y/n)**) with **current values as defaults**. Enter keeps current. Token `""` **or** an empty operand **means empty**. as Termux default is **yes** when the bundle is already on the stanza, else **no**. Old OpenSSH default is **yes** when algorithm lines are present. | Treat `9` as Exit on the Host pick; skip the action menu; prompt Port while as Termux is yes |
+| **Interactive** (`dns` with no subcommand, TTY or `INTERACTIVE=1`, not quiet/json) | Print the Host names as **context** (no choice numbers). Then an **action menu**: **1 Edit** · **2 Add** · **3 Delete** · **4 Unset** · **9 Exit**. `read` in the **current shell** (not `$()` of `prompt_ask`). Type `edit` / `add` / `delete` / `unset` is the same as 1/2/3/4. **MUST NOT** treat the first number as a Host row (Host pick is the next screen). Unknown action **MUST** warn and redisplay this action menu (**MUST NOT** `out_die`). | Hang under `--json` / `--quiet` / no TTY (those paths **list** only); `$()` a `read` helper; jump straight to field-walk update; exit non-zero solely for a bad TTY action |
+| **Edit path** | After **1 / edit**: numbered Host pick; leave with `0` / `q` / `exit` / empty — **not** `9` (row 9 is a Host when the list is long). Unknown / missing Host **MUST** warn and redisplay the Host list (**MUST NOT** `out_die`). Then **field-by-field** edit (dns, ip, user, **as Termux (Y/n)**, **port if Termux is no**, **identity-file**, **identities-only**, **Old OpenSSH (Y/n)**) with **current values as defaults**. Enter keeps current. Token `""` **or** an empty operand **means empty**. as Termux default is **yes** when the bundle is already on the stanza, else **no**. Old OpenSSH default is **yes** when algorithm lines are present. | Treat `9` as Exit on the Host pick; skip the action menu; prompt Port while as Termux is yes; `out_die` on a bad TTY Host number |
 | **Add path** | After **2 / add**: same field walk as `dns add` with no operands. TTY **as Termux** defaults **yes**; TTY **Old OpenSSH** defaults **yes**; **port** is skipped when as Termux is yes. | Require picking a Host first; apply those bundles on non-interactive add without operands |
 | **Delete path** | After **3 / delete**: numbered Host pick (`0` to leave). TTY: show details, then `prompt_yes_no` (y/N). No → success no-op (`Delete cancelled.`). Yes / `--force` / non-interactive `dns delete N` → drop that **whole** concrete Host stanza (extra aliases included). | Delete `Host *` / `Match`; skip backup; two JSON objects |
 | **edit N** | Same field walk as after the Edit pick. Non-interactive / quiet / json: **fail closed** with Next: `dns set …` | Hang waiting for fields in CI |
 | **delete N** / **rm N** | Non-interactive: no prompt; fail closed if n/name missing. JSON: one `out_success` object (`n`, `dns`). `rm` is an unlisted alias of `delete`. | Prompt; follow `Include`; remove other stanzas |
-| **unset N field …** / **clear** | Drop **extra** settings on that Host. Allowed fields: **user**, **port**, **identity-file**, **identities-only**, **termux**, **old-openssh** (and `--` forms). **MUST NOT** clear **dns** (Host name) or **ip** (HostName) — those stay; use **delete** to drop the whole stanza. **unset termux** strips the Termux client keep-alive / IPQoS / Ciphers / MACs lines (Port stays unless `port` is also unset). **unset old-openssh** omits the two algorithm lines. Non-interactive: needs n/name **and** at least one field; no prompt. JSON: one `out_success` object (`n`, `dns`, `cleared`). TTY / `INTERACTIVE=1` with no field: numbered picker of currently set extra fields (`0` to leave). `clear` is an unlisted alias of `unset`. Empty user after unset → omit `User`. Empty port → omit `Port`. Host line and HostName stay. | Unset dns or ip; delete the stanza; hang under `--json` / quiet / no TTY; two JSON objects |
+| **unset N field …** / **clear** | Drop **extra** settings on that Host. Allowed fields: **user**, **port**, **identity-file**, **identities-only**, **termux**, **old-openssh** (and `--` forms). **MUST NOT** clear **dns** (Host name) or **ip** (HostName) — those stay; use **delete** to drop the whole stanza. **unset termux** strips the Termux client keep-alive / IPQoS / Ciphers / MACs lines (Port stays unless `port` is also unset). **unset old-openssh** omits the two algorithm lines. Non-interactive: needs n/name **and** at least one field; no prompt. JSON: one `out_success` object (`n`, `dns`, `cleared`). TTY / `INTERACTIVE=1` with no field: numbered picker of currently set extra fields (`0` to leave). Unknown / out-of-range picker number **MUST** warn and redisplay that picker (**MUST NOT** `out_die`). `clear` is an unlisted alias of `unset`. Empty user after unset → omit `User`. Empty port → omit `Port`. Host line and HostName stay. | Unset dns or ip; delete the stanza; hang under `--json` / quiet / no TTY; two JSON objects; `out_die` on a bad TTY extra-settings number |
 | **set N** / **add** non-interactive | Operands `dns`/`ip`/`user`/`port`/`identity-file`/`identities-only`/`termux`/`old-openssh`, or the `--` forms. Omitted fields on **set** stay unchanged. **add** requires a dns name. `""` or empty value clears that field. Port empty or `22` → omit `Port` line (OpenSSH default 22). Empty user → omit `User`. Empty ip → omit `HostName`. Empty identity-file → omit `IdentityFile`. Empty identities-only → omit `IdentitiesOnly`. Empty dns name after normalize → `out_die`. Port if set must be 1–65535. **termux yes** (add or set) writes the Termux client bundle (Port **8022**, Ciphers **aes128-ctr,aes256-ctr**, MACs **hmac-sha2-256**, ServerAliveInterval **15**, ServerAliveCountMax **12**, TCPKeepAlive **yes**, IPQoS **none**) and **overrides** port. Simpler Ciphers/MACs exist because some Termux OpenSSH `sshd` versions reply too slowly and the client then aborts with **Connection corrupted** / **Bad packet length**. **termux no** on **set** strips those keep-alive / IPQoS / Ciphers / MACs lines (Port stays unless `port` is also set). **old-openssh yes** writes `HostKeyAlgorithms +ssh-rsa,ssh-dss` and `PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss`. **old-openssh no** on **set** omits those two lines. Non-interactive **add** without `termux yes` / `old-openssh yes` **MUST NOT** write those bundles. Unowned extra keys stay. | Prompt; follow `Include`; apply Termux/Old OpenSSH bundles on add without the operand; drop unowned extra keys |
 | **Write** | Backup via `util_backup` then **atomic replace** (mktemp + `mv`) for **set, add, delete, and unset**. Create `~/.ssh` mode `700` and `config` mode `600` when missing. Keep unrelated stanzas, extra keys, and extra Host aliases after the first pattern (delete drops only the chosen stanza; unset keeps the Host line and HostName). Read `Key value`, `Key=value`, and `Key = value`. **add** inserts the new Host **before** the first wildcard `Host` / `Match` (OpenSSH first-match). Duplicate dns name on rename/add → `out_die`. | Overwrite the whole file from a stub; print private keys; `>>` after trailing `Host *`; drop extra aliases on an IP-only set; drop the Host stanza on unset |
 
@@ -265,7 +271,7 @@ Intention: the operator is not forced to assemble a long flag list from memory. 
 
 | Mode | MUST | MUST NOT |
 |------|------|----------|
-| **TTY** / `INTERACTIVE=1` (not quiet/json), no operand | Same numbered concrete Host list as `dns`. Pick `n` (leave with `0` / empty — **not** `9`). Then prompt **user [default]**: default is Host `User` if set, else this login (`id -un`). Enter keeps default. Token `""` means empty (no `-l`). Then run OpenSSH `ssh` with that **Host alias** (Port / IdentityFile from the stanza apply) and `-l` when user is non-empty. TTY without a test override: `exec ssh [-l user] <alias>`. | Pass HostName/IP instead of the alias; follow `Include`; hang under `--json` / quiet / no TTY; `$()` a `read` helper |
+| **TTY** / `INTERACTIVE=1` (not quiet/json), no operand | Same numbered concrete Host list as `dns`. Pick `n` (leave with `0` / empty — **not** `9`). Unknown Host **MUST** warn and redisplay that list (**MUST NOT** `out_die`). Then prompt **user [default]**: default is Host `User` if set, else this login (`id -un`). Enter keeps default. Token `""` means empty (no `-l`). Then run OpenSSH `ssh` with that **Host alias** (Port / IdentityFile from the stanza apply) and `-l` when user is non-empty. TTY without a test override: `exec ssh [-l user] <alias>`. | Pass HostName/IP instead of the alias; follow `Include`; hang under `--json` / quiet / no TTY; `$()` a `read` helper; `out_die` on a bad TTY Host number |
 | **Operand** `<n\|name>` | Resolve like `dns show`. Missing → `out_die` with Next: `dns list` then `ssh <n\|name>` | Invent a Host |
 | **`--json`** | One object (`n`, `dns`, `command`). **MUST NOT** start a session | Mix a live `ssh` session with JSON |
 | **Binary** | `command -v ssh`, or `SSHD_CLI_SSH` override (tests inject a fake; **MUST NOT** `exec` when that override is set) | Wrap `sudo`; call `scp` for this verb |
@@ -276,14 +282,40 @@ Intention: the operator is not forced to assemble a long flag list from memory. 
 |------|------|----------|
 | **Host pick** | Same concrete Host list as `dns` / `ssh`. TTY with no first operand: pick Host. Non-interactive: require `<n\|name>` | Follow `Include`; list `Host *` |
 | **User (TTY)** | After the Host is known, prompt **user [default]** with the same contract as **ssh** (Host `User` if set, else this login; Enter keeps default; `""` means empty / no `-l`). Then `-l` when user is non-empty. | Skip the user prompt on TTY; hang under `--json` / quiet / no TTY; `$()` a `read` helper |
-| **Folder pick (TTY)** | After user. If this Host has **no** stored folders: prompt for a remote path (absolute, relative, or **`~/folder`**). If it has stored folders: numbered list (1…), **or** type a non-number path. In-range number → that stored path. Empty → fail closed. | Hang under `--json` / quiet / no TTY; treat an out-of-range number as a path; refuse `~/folder` as if it were `~` |
+| **Folder pick (TTY)** | After user. If this Host has **no** stored folders: prompt for a remote path (absolute, relative, or **`~/folder`**). If it has stored folders: numbered list (1…), **or** type a non-number path. In-range number → that stored path. Out-of-range number **MUST** warn and redisplay that list (**MUST NOT** treat it as a path; **MUST NOT** `out_die`). Empty → fail closed. | Hang under `--json` / quiet / no TTY; treat an out-of-range number as a path; refuse `~/folder` as if it were `~`; `out_die` on a bad TTY folder number |
 | **Folder (non-interactive)** | Second operand is the path. Missing → `out_die` with Next. No user prompt; OpenSSH uses the Host stanza `User` when `-l` is omitted. **`~/folder`** is allowed | Prompt |
 | **Transfer** | Remote `test -d` then `tar czf - -C <parent> <basename>` over `ssh -o BatchMode=yes` (and `-l` when TTY user is non-empty). Extract with local `tar xzf` into **this login’s current directory**. Quote the remote path for `sh`. A **`~/folder`** prefix **MUST** become `"$HOME"/'folder'` for the ssh user (do **not** single-quote the whole `~/…` string; do **not** expand `~` against this login). After success, remember the path for that Host | `sudo`; leave a tarball as the only result; extract into `{{HOME}}` instead of cwd; pass HostName instead of the alias |
 | **Memory** | File `{{HOME}}/.local/{{APP_NAME}}/download-folders` (mode **600**): `dns<TAB>path`, most recent first, unique pair, cap **20** paths per Host. Same persistent dir as preferred-remote (not `/dev/shm`) | Volatile cache; freeze a session login path as a sample in law |
 | **`--json`** | One object (`n`, `dns`, `user`, `folder`, `destination`). Still performs the transfer when operands are complete. `user` is Host `User` (may be `""`) | Two JSON objects; start an interactive `ssh` session |
 | **Refuse** | Empty; `.` ; `..` ; `/` ; leading `-` ; **`~` alone**; **`~user`** / **`~user/…`**; shell metacharacters `; \| & $ \` ( ) < > * ? ! # ~` after any allowed `~/` prefix | Remote `rm`; follow `Include`; treat `~/folder` as forbidden `~` |
 
-**Non-goals:** SSH client `ProxyJump` recipes, ControlMaster session mux, Dropbear-only hosts, changing Linux firewall, wrapping `apt`/`dnf` on POSIX Linux, password-auth policy as a verb (shown on `config` only), auto-running `passwd`, **writing** systemd unit files, `systemctl enable` / `disable` / `mask` as CLI verbs, a routed `systemctl` command, `termux-services` / runit supervision, cron-as-service, a Termux:Boot installer, `/etc/hosts` editing, folder-archive `backup`/`restore`, copying private keys, `rsync`. Termux `pkg install openssh termux-auth` **is** in scope as the install companion (§2.1.1). This login `~/.ssh/config` Host list **is** in scope as **dns**. OpenSSH client `ssh <Host-alias>` **is** in scope as **ssh**. Remote-folder `tar.gz` into cwd **is** in scope as **download**. POSIX Linux deposit of `~/.ssh/config` **is** in scope as **backup-config** / **sync-config**. POSIX Linux `systemctl start` / `stop` / `restart` of the distro ssh/sshd **unit** **is** in scope (§2.2.1).
+12. **upload** (local folder → remote login home):
+
+The inverse of **download**. Same Host pick and TTY **user [default]** contract. The folder is **local** (this login). Compression is **`tar.gz`** (same family as download). Dest on the remote is the ssh user’s home, not this login’s `HOME`.
+
+**Guided-input field table (Choice C — TTY walk and operands):**
+
+| Field | Secret? | Prompt label | Default | Skip-if |
+|-------|---------|--------------|---------|---------|
+| Host | no | numbered Host pick (same list as `dns`) | none | first operand present |
+| user | no | user [default] | Host `User` if set, else this login (`id -un`) | non-interactive / `--json` / quiet / no TTY |
+| folder | no | local folder (absolute, relative, or `~/folder` on this login) | numbered previous local paths for that Host | never; empty is fail-closed |
+
+Intention: the operator is not forced to assemble Host + user + path from memory. Dual mention: `requirement-shell-interactive-vs-noninteractive` · `requirement-shell-cli-interface`.
+
+| Mode | MUST | MUST NOT |
+|------|------|----------|
+| **Host pick** | Same concrete Host list as `dns` / `ssh` / `download`. TTY with no first operand: pick Host. Non-interactive: require `<n\|name>` | Follow `Include`; list `Host *` |
+| **User (TTY)** | After the Host is known, prompt **user [default]** with the same contract as **ssh** / **download**. Then `-l` when user is non-empty. | Skip the user prompt on TTY; hang under `--json` / quiet / no TTY; `$()` a `read` helper |
+| **Folder pick (TTY)** | After user. The path is **local**. If this Host has **no** stored upload folders: prompt for a local path (absolute, relative, or **`~/folder`**). If it has stored folders: numbered list (1…), **or** type a non-number path. In-range number → that stored path. Out-of-range number **MUST** warn and redisplay that list (**MUST NOT** treat it as a path; **MUST NOT** `out_die`). Empty → fail closed. | Hang under `--json` / quiet / no TTY; treat an out-of-range number as a path; refuse `~/folder` as if it were `~`; treat the path as remote; `out_die` on a bad TTY folder number |
+| **Folder (non-interactive)** | Second operand is the **local** path. Missing → `out_die` with Next. No user prompt; OpenSSH uses the Host stanza `User` when `-l` is omitted. **`~/folder`** is allowed (this login) | Prompt |
+| **Local path** | **MUST** exist as a directory on this login before the transfer. Relative paths are relative to **this login’s current directory**. A **`~/folder`** prefix **MUST** expand against **this login’s** `HOME` for the local `tar` only. **MUST NOT** send that expanded this-login absolute path as the remote dest. **MUST NOT** rewrite local `~/` into remote `"$HOME"` (that rewrite is **download** only) | Upload a file that is not a directory; follow `..` out of the named folder as a dest rewrite |
+| **Transfer** | Local `test -d` then `tar czf - -C <parent> <basename>` **piped** to `ssh -o BatchMode=yes` (and `-l` when TTY user is non-empty) running remote `tar xzf - -C "$HOME"`. Quote the remote dest as `"$HOME"` so it expands for the **ssh user**. After success, remember the **typed** path for that Host | `sudo`; `rsync`; leave a tarball as the only result; extract into this login `{{HOME}}`; pass HostName instead of the alias; `scp` a leftover archive as the product result |
+| **Memory** | File `{{HOME}}/.local/{{APP_NAME}}/upload-folders` (mode **600**): `dns<TAB>path`, most recent first, unique pair, cap **20** paths per Host. Same persistent dir as download-folders / preferred-remote (not `/dev/shm`) | Share the download-folders file; volatile cache; freeze a session login path as a sample in law |
+| **`--json`** | One object (`n`, `dns`, `user`, `folder`, `destination`). Still performs the transfer when operands are complete. `folder` is the typed local path. `destination` names the remote extract (`"$HOME"` / the basename under the ssh user home). `user` is Host `User` (may be `""`) | Two JSON objects; start an interactive `ssh` session |
+| **Refuse** | Empty; `.` ; `..` ; `/` ; leading `-` ; **`~` alone**; **`~user`** / **`~user/…`**; shell metacharacters `; \| & $ \` ( ) < > * ? ! # ~` after any allowed `~/` prefix; path that is not a local directory | Remote `rm`; follow `Include`; treat local `~/folder` as forbidden `~` |
+
+**Non-goals:** SSH client `ProxyJump` recipes, ControlMaster session mux, Dropbear-only hosts, changing Linux firewall, wrapping `apt`/`dnf` on POSIX Linux, password-auth policy as a verb (shown on `config` only), auto-running `passwd`, **writing** systemd unit files, `systemctl enable` / `disable` / `mask` as CLI verbs, a routed `systemctl` command, `termux-services` / runit supervision, cron-as-service, a Termux:Boot installer, `/etc/hosts` editing, folder-archive `backup`/`restore`, copying private keys, `rsync`. Termux `pkg install openssh termux-auth` **is** in scope as the install companion (§2.1.1). This login `~/.ssh/config` Host list **is** in scope as **dns**. OpenSSH client `ssh <Host-alias>` **is** in scope as **ssh**. Remote-folder `tar.gz` into cwd **is** in scope as **download**. Local-folder `tar.gz` onto a named Host (extract under that ssh user’s home) **is** in scope as **upload**. POSIX Linux deposit of `~/.ssh/config` **is** in scope as **backup-config** / **sync-config**. POSIX Linux `systemctl start` / `stop` / `restart` of the distro ssh/sshd **unit** **is** in scope (§2.2.1).
 
 **Filename grammar (when this domain allocates files):** host keys use OpenSSH names, not a dated JSON grant.
 
@@ -333,11 +365,12 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExamplePublicKeyMaterialOnly laptop-user
 - `dns [list|show N|edit N|set N …|add …|delete N|unset N field …]` — This login `~/.ssh/config` Host list (numbered dns-ip; TTY as Termux / identity-file / Old OpenSSH; TTY edit/add/delete/unset; unset drops extra settings, not dns or ip)  
 - `ssh [N|name]` — OpenSSH client to a Host from this login `~/.ssh/config` (TTY: numbered pick, then user with default)  
 - `download [N|name] [folder]` — tar.gz a remote folder over ssh and extract it here (TTY: pick Host, then user with default, then numbered previous folders or type a path)  
+- `upload [N|name] [folder]` — tar.gz a **local** folder over ssh and extract it under the remote login home (TTY: pick Host, then user with default, then numbered previous **local** folders or type a path; `~/folder` is this login)  
 - `backup-config` — Copy this login `~/.ssh/config` to `/var/sshd-cli/config`  
 - `sync-config` — Copy `/var/sshd-cli/config` into this login `~/.ssh/config` (mode 600)  
 - `sync-from-remote [SPEC]` — `scp` a remote `/var/sshd-cli/config`; remembers last user@host  
 - `print-sudoers` / `generate-sudoer-request` / `submit-sudoer-request` — passwordless `sudo sshd-cli backup-config` grant  
-- `menu` — Numbered list: status, start, stop, restart, dns, **ssh**, **download**, then backup-config/sync-config/sudoers (POSIX Linux, Exit 99) or sync-from-remote (Termux / Git Bash / Windows cmd, Exit 9). POSIX Linux non-root omits rows 2/3/4. Termux / Git Bash / Windows cmd omit backup-config / sync-config / sudoers and print INFO first
+- `menu` — Numbered list: status, start, stop, restart, dns, **ssh**, **download**, **upload**, then backup-config/sync-config/sudoers (POSIX Linux, Exit 99) or sync-from-remote (Termux / Git Bash / Windows cmd, Exit 10). POSIX Linux non-root omits rows 2/3/4. Termux / Git Bash / Windows cmd omit backup-config / sync-config / sudoers and print INFO first
 
 `help` Type 0 `install` row **MUST** mention Termux `pkg install openssh termux-auth` and `~/.bashrc` / `~/.profile` ensure (dual mention: `requirement-shell-cli-interface` · `requirement-shell-path-and-shell-support` · `requirement-shell-termux-ish`).
 
@@ -356,7 +389,7 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 
 | Item | Value |
 |------|--------|
-| Product | `sshd-cli` 1.19.1 |
+| Product | `sshd-cli` 1.19.2 |
 | Bootstrap origin | `selfmanaged` 1.2.3 (architecture + Type 0 only; A untouched) |
 | Domain prefix | `sshd_*` |
 | Channel | `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli` |
@@ -364,14 +397,15 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 | Login rc companion | Owned by `path_*` / `inst_ensure_companion` (`requirement-shell-self-management`) |
 | In-tool sudo | **none** — no `requirement-shell-sudo-command` |
 | Dest / fence | **none** (class residual: considered — no dest fence conditions) |
-| Menu | Verb `menu`/`main`; also interactive empty argv. Rows: 1 status, 2 start, 3 stop, 4 restart, 5 dns, **6 ssh**, **7 download**. Termux class: 8 sync-from-remote, Exit 9. POSIX Linux: 8 backup-config, 9 sync-config, 10 sudoers, Exit 99. POSIX Linux non-root: hide 2/3/4; INFO names OS from `sshd_os_name`; dns stays 5. TTY `dns`: action menu Edit/Add/Delete/Unset, then Host pick. TTY `ssh` / `download`: Host pick then user with default (download then folder) |
+| Menu | Verb `menu`/`main`; also interactive empty argv. Rows: 1 status, 2 start, 3 stop, 4 restart, 5 dns, **6 ssh**, **7 download**, **8 upload**. Termux class: 9 sync-from-remote, Exit 10. POSIX Linux: 9 backup-config, 10 sync-config, 11 sudoers, Exit 99. POSIX Linux non-root: hide 2/3/4; INFO names OS from `sshd_os_name`; dns stays 5. TTY `dns`: action menu Edit/Add/Delete/Unset, then Host pick. TTY `ssh` / `download` / `upload`: Host pick then user with default (download: remote folder; upload: local folder). Unknown TTY numbered choice on **every** layer warns and redisplays that list (does not die). |
 | Status connect hint | `ifconfig wlan0` via `sshd_ifconfig_ipv4` / `sshd_lan_ipv4`; live `Connect:` line; **no** placeholder host |
 | Start launch | §2.2.1 — systemd host + loaded `ssh.service` / `sshd.service` → `systemctl start/stop/restart` as root; else OpenSSH `sshd -f`. **No** `-D` on fallback. **No** routed `systemctl` verb. **No** `enable`/`disable`. Termux:Boot operator-owned. Termux: auto-acquire Android wake lock. Helpers: `sshd_is_systemd_host` · `sshd_systemd_unit` · `sshd_systemd_is_active` · `sshd_systemd_main_pid`. |
 | dns file | `${HOME}/.ssh/config` (OpenSSH client config; this login) |
 | dns fields | dns=`Host` · ip=`HostName` · user=`User` · port=`Port` (display 22 if empty) · identity-file=`IdentityFile` · identities-only=`IdentitiesOnly` · as Termux bundle (Port 8022 + keep-alives + IPQoS none) · Old OpenSSH (`HostKeyAlgorithms` / `PubkeyAcceptedAlgorithms` +ssh-rsa,ssh-dss) |
 | dns empty token | `""` or empty operand → empty field |
-| ssh / download Host | Concrete `Host` alias from this login `~/.ssh/config` (same list as `dns`) |
+| ssh / download / upload Host | Concrete `Host` alias from this login `~/.ssh/config` (same list as `dns`) |
 | download memory | `{{HOME}}/.local/sshd-cli/download-folders` mode 600 |
+| upload memory | `{{HOME}}/.local/sshd-cli/upload-folders` mode 600 |
 
 #### Worked samples (this project)
 
@@ -391,18 +425,28 @@ fi
 sshd_wake_lock_acquire
 ```
 
-**Menu choice** (current-shell `read`; **MUST NOT** `$()`):
+**Menu choice** (current-shell `read`; **MUST NOT** `$()`; unknown → warn + redisplay):
 
 ```sh
 # WARNING — do-not-capture-read (PP-A-22)
-out_info "**${APP_NAME}**(*${VERSION}*)"
-out_plain "1. Show sshd status: running, port, and paths"
-# rows 2/3/4 only when sshd_menu_show_daemon_rows
-out_plain "5. SSH names (dns): this login ~/.ssh/config Host list"
-out_plain "9. Exit"
-out_msg_n "Choose a number, or type the command name: "
-_choice=""
-read -r _choice || true
+while true; do
+    out_info "**${APP_NAME}**(*${VERSION}*)"
+    out_plain "1. Show sshd status: running, port, and paths"
+    # rows 2/3/4 only when sshd_menu_show_daemon_rows
+    out_plain "5. SSH names (dns): this login ~/.ssh/config Host list"
+    out_plain "9. Exit"
+    out_msg_n "Choose a number, or type the command name: "
+    _choice=""
+    read -r _choice || true
+    case "${_choice}" in
+        1|status) sshd_cmd_status; break ;;
+        9|exit|"") break ;;
+        *)
+            out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
+            continue
+            ;;
+    esac
+done
 ```
 
 **systemd unit pick:** probe `ssh.service` then `sshd.service`; both exist → prefer the active one, else `ssh.service`. `sshd_is_systemd_host` is false on Termux / Git Bash / Windows cmd.
@@ -453,7 +497,7 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 8. Skip Termux `pkg install -y openssh termux-auth` on `install` / empty-argv ensure, or wrap `apt` on Linux in its place.  
 8b. List wrapping Termux `pkg` as a domain **non-goal**, or empty a stated Termux sshd purpose with a portable “do not wrap package managers” habit.  
 9. Auto-run `passwd` or print a password.  
-10. Number `port` / `config` / `host-keys` / `auth-keys` as main-menu rows. Omit numbered **`ssh` (6)** / **`download` (7)** (typed `ssh` remains valid but is not the discoverable TTY path).  
+10. Number `port` / `config` / `host-keys` / `auth-keys` as main-menu rows. Omit numbered **`ssh` (6)** / **`download` (7)** / **`upload` (8)** (typed `ssh` remains valid but is not the discoverable TTY path).  
 11. Freeze a session Unix login or a literal LAN IP into product law as the connect example.  
 12. Print `<this-host>` or any other placeholder as the ssh host on `status` / `start`.  
 13. Finish Termux `install` without starting sshd, or fail POSIX CLI **install** / **self-update** because system sshd needs root, `sshd -t` of `/etc/ssh/sshd_config` failed, or `/run/sshd` is missing.  
@@ -481,9 +525,12 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 31. Tell a POSIX Linux operator that an **observed** sshd pid is “not a systemd” service or a “background daemon for this session” when this CLI has not established that it launched that pid (**INC-20260908-002**).  
 32. Write the Termux client bundle **without** simpler Ciphers **aes128-ctr,aes256-ctr** and MACs **hmac-sha2-256**, or treat keep-alives-only as **termux yes**. Some Termux OpenSSH `sshd` versions reply too slowly; the client then aborts with **Connection corrupted** / **Bad packet length**.  
 33. Treat `dns unset` as deleting the Host stanza, or allow `unset` of **dns** / **ip** (Host name and HostName stay; **delete** drops the stanza).  
-34. Hang `ssh` / `download` under `--json` / quiet / no TTY, `$()` a `read` helper for the Host, user, or folder pick, skip the TTY **user** prompt on `download`, pass HostName/IP instead of the Host alias, `exec` when `SSHD_CLI_SSH` is set, or start a live `ssh` session in JSON mode.  
-35. Store download folder history under volatile cache (`/dev/shm`), skip quoting the remote path, or extract into `{{HOME}}` instead of the current directory.  
-36. Refuse **`~/folder`** as if it were **`~` alone**, single-quote the whole `~/…` string so remote tilde never expands, or expand `~` against this login and send that local path to the remote host (**INC-20260912-002**).
+34. Hang `ssh` / `download` / `upload` under `--json` / quiet / no TTY, `$()` a `read` helper for the Host, user, or folder pick, skip the TTY **user** prompt on `download` or `upload`, pass HostName/IP instead of the Host alias, `exec` when `SSHD_CLI_SSH` is set, or start a live `ssh` session in JSON mode.  
+35. Store download or upload folder history under volatile cache (`/dev/shm`), skip quoting the remote path, extract **download** into `{{HOME}}` instead of the current directory, or extract **upload** into this login `{{HOME}}` instead of the remote ssh user’s home.  
+36. Refuse **`~/folder`** as if it were **`~` alone**, single-quote the whole `~/…` string so remote tilde never expands, or expand a **download** `~` against this login and send that local path to the remote host (**INC-20260912-002**).  
+37. Treat **upload** `~/folder` as the **remote** ssh user’s home, send this login’s absolute `HOME` as the remote dest, skip the local `test -d`, or use `rsync` / a leftover tarball instead of streamed `tar.gz`.  
+38. Share `download-folders` memory with `upload-folders`, or omit numbered **`upload` (8)** from the TTY menu.  
+39. `out_die` (or exit non-zero) solely because a TTY numbered menu received an unknown or out-of-range choice — **MUST** warn and display **that same list** again (main, sudoers, dns action, Host pick, unset picker, download/upload folder pick). Hidden main-menu **2** / **3** / **4** on non-root POSIX Linux are the same class.
 
 ## 5. Related artifacts (versioned surface only)
 
@@ -504,15 +551,18 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 |----------------|-------|--------|
 | **TP-CLI-04**, **TP-CLI-06**, **TP-CLI-14**, **TP-CLI-15** | `tests/test_cli.sh` | have |
 | **TP-SSHD-01**, **TP-SSHD-03**, **TP-SSHD-04**, **TP-SSHD-05**, **TP-SSHD-06**, **TP-SSHD-07**, **TP-SSHD-08** | `tests/test_cli.sh` | have |
-| **TP-SSHD-09** .. **TP-SSHD-14** | `tests/test_cli.sh` | have |
+| **TP-SSHD-09** .. **TP-SSHD-14**, **TP-SSHD-16** | `tests/test_cli.sh` | have |
+| **TP-SSHD-15** | `tests/test_local_lifecycle.sh` | have |
 | **TP-LC-16**, **TP-LC-17**, **TP-SSHD-02**, **TP-TX-09**, **TP-TX-13**, **TP-TX-16** | `tests/test_local_lifecycle.sh` | have |
-| **TP-DNS-01** .. **TP-DNS-46** | `tests/test_dns.sh` | have |
+| **TP-DNS-01** .. **TP-DNS-49** | `tests/test_dns.sh` | have |
 | **TP-SSH-01** .. **TP-SSH-09** | `tests/test_ssh_download.sh` | have |
-| **TP-DL-01** .. **TP-DL-16** | `tests/test_ssh_download.sh` | have |
+| **TP-DL-01** .. **TP-DL-17** | `tests/test_ssh_download.sh` | have |
+| **TP-CFG-17** | `tests/test_config_backup.sh` | have |
+| **TP-UL-01** .. **TP-UL-18** | `tests/test_ssh_download.sh` | **todo** |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-09-12 (1.19.1: `download` accepts `~/folder`; remote `"$HOME"`; **TP-DL-14** · **TP-DL-15** · **TP-DL-16**; **INC-20260912-002**)  
+**Last Updated**: 2026-09-13 (1.19.2: TTY unknown menu choice redisplays that layer; **TP-SSHD-05** · **TP-SSHD-16** · **TP-DNS-47..49** · **TP-CFG-17** · **TP-DL-17**)  
 **Owner**: Cloudgen Wong  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

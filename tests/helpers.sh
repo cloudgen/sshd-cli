@@ -53,6 +53,27 @@ assert_not_contains() {
     esac
 }
 
+# Count non-overlapping occurrences of a substring (TTY menu reprint proofs).
+t_count_substr() {
+    _hay="$1"
+    _ndl="$2"
+    _c=0
+    _rest="${_hay}"
+    while :; do
+        case "${_rest}" in
+            *"${_ndl}"*)
+                _c=$((_c + 1))
+                _rest="${_rest#*"${_ndl}"}"
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+    printf '%s' "${_c}"
+    unset _hay _ndl _c _rest
+}
+
 assert_exit() {
     _lab="$1"; _exp="$2"; shift 2
     "$@" >/dev/null 2>&1

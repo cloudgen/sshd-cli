@@ -156,14 +156,16 @@ interactive   non-interactive
 | `self-update` / `version-check` | Human status messages | No prompts; fail loud if `SCRIPT_URL` missing; JSON structured results |
 | `about` / `version` / `help` | Human diagnostics / help | Quiet: suppress human; JSON: structured object only |
 | Colors | When `TTY=1` and not quiet/json | No color under quiet/json |
-| `dns` (no subcommand) | Host names as context (no choice numbers); action menu **1 Edit / 2 Add / 3 Delete / 4 Unset / 9 Exit** (`read` in-shell). Edit/Delete/Unset then numbered Host pick (`0` to leave, not `9`). Delete confirms with `prompt_yes_no`. Unset then lists currently set extra fields. `INTERACTIVE=1` allowed when TTY probe is flaky. | **List only** — never wait. JSON: one `dns_list` object with `@items` |
+| `dns` (no subcommand) | Host names as context (no choice numbers); action menu **1 Edit / 2 Add / 3 Delete / 4 Unset / 9 Exit** (`read` in-shell). Unknown action **MUST** warn and redisplay this menu. Edit/Delete/Unset then numbered Host pick (`0` to leave, not `9`); unknown Host **MUST** warn and redisplay the Host list. Delete confirms with `prompt_yes_no`. Unset then lists currently set extra fields; unknown picker number **MUST** warn and redisplay. `INTERACTIVE=1` allowed when TTY probe is flaky. **MUST NOT** `out_die` solely for a bad TTY numbered choice. | **List only** — never wait. JSON: one `dns_list` object with `@items` |
 | `dns show` | Human details (`user` empty → `empty`; empty port → `22`) | Same fields; JSON object; no prompt |
 | `dns edit` | Same field walk as after the Edit pick | Fail closed: Next `dns set …` (no hang) |
 | `dns delete` | Show details; `prompt_yes_no` unless `--force` | No prompt; delete the stanza; JSON: one `out_success` |
 | `dns unset` | Host pick (if no n); then numbered extra-field picker (`0` to leave). dns and ip stay. | Needs n/name **and** a field; no prompt; JSON: one `out_success`. Fail closed if dns/ip requested |
 | `dns set` / `dns add` | **MAY** fill missing fields with the same walk when TTY | Operands only; omitted **set** fields unchanged; `""` clears; never prompt |
-| `ssh` | Numbered Host pick if no operand; then **user [default]** (Host User, else this login); then OpenSSH client (`exec` on TTY unless `SSHD_CLI_SSH` is set). `read` in-shell. | Needs `<n\|name>`; no prompt; JSON: one object, **no** session |
-| `download` | Host pick if no first operand; then **user [default]** (same as `ssh`); then numbered previous folders for that Host, or type a path (`~/folder` allowed) | Needs Host **and** folder; no prompt; JSON: one object after the transfer. `~/folder` allowed |
+| `ssh` | Numbered Host pick if no operand; unknown Host **MUST** warn and redisplay. Then **user [default]** (Host User, else this login); then OpenSSH client (`exec` on TTY unless `SSHD_CLI_SSH` is set). `read` in-shell. | Needs `<n\|name>`; no prompt; JSON: one object, **no** session |
+| `download` | Host pick if no first operand; then **user [default]** (same as `ssh`); then numbered previous folders for that Host, or type a path (`~/folder` allowed). Out-of-range folder number **MUST** warn and redisplay. Empty folder still fail-closed. | Needs Host **and** folder; no prompt; JSON: one object after the transfer. `~/folder` allowed |
+| `upload` | Host pick if no first operand; then **user [default]** (same as `ssh` / `download`); then numbered previous **local** folders for that Host, or type a local path (`~/folder` is this login). Out-of-range folder number **MUST** warn and redisplay. Empty folder still fail-closed. | Needs Host **and** local folder; no prompt; JSON: one object after the transfer. Local `~/folder` allowed; folder **MUST** exist as a directory |
+| `menu` / sudoers submenu | Numbered list. Unknown / hidden-row number **MUST** warn and redisplay **that** list. Exit / empty still leave. Valid choice still one-shot. | **MUST NOT** hang. Non-TTY `menu` fails closed with a named-command hint |
 
 #### `prompt_yes_no` contract (this project)
 
@@ -293,7 +295,8 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 10. Let `inst_maybe_install` return success under `--quiet` / `--json` without calling `inst_perform_install` when the program is not installed.  
 11. Re-test `[ -t 0 ]` / `[ -t 1 ]` inside helpers as the sole interactive gate; helpers **MUST** consume process `TTY`.  
 12. Strip the **Under command line for normal user only** section, or recommend `sudo curl | sh` / Type 1 sudo on that class.  
-13. Hang `dns` / `dns edit` / `dns delete` / `dns unset` / `ssh` / `download` in non-interactive mode, or `$()` the dns field / user / folder `read` (**do-not-capture-read**). Non-interactive `dns` with no subcommand **MUST** list and return. Non-interactive `dns delete N` and `dns unset N field` **MUST NOT** prompt. Non-interactive `ssh` / `download` without required operands **MUST** fail closed.
+13. Hang `dns` / `dns edit` / `dns delete` / `dns unset` / `ssh` / `download` / `upload` in non-interactive mode, or `$()` the dns field / user / folder `read` (**do-not-capture-read**). Non-interactive `dns` with no subcommand **MUST** list and return. Non-interactive `dns delete N` and `dns unset N field` **MUST NOT** prompt. Non-interactive `ssh` / `download` / `upload` without required operands **MUST** fail closed.  
+14. `out_die` (or exit non-zero) solely because a TTY numbered menu received an unknown or out-of-range choice. **MUST** warn and display **that same list** again (main, sudoers, dns action, Host pick, unset picker, download/upload folder pick).
 
 **Supporting non-interactive environments cleanly is mandatory for CIAO compliance.**
 
@@ -332,10 +335,14 @@ Mode-related work for sshd-cli is **not done** if any of the following fail:
 | TP family / ID | Suite | Status |
 |----------------|-------|--------|
 | **TP-SSH-07**, **TP-SSH-08** | `tests/test_ssh_download.sh` | have |
-| **TP-DL-04**, **TP-DL-05**, **TP-DL-10** .. **TP-DL-16** | `tests/test_ssh_download.sh` | have |
+| **TP-DL-04**, **TP-DL-05**, **TP-DL-10** .. **TP-DL-17** | `tests/test_ssh_download.sh` | have |
+| **TP-DNS-13**, **TP-DNS-20**, **TP-DNS-21**, **TP-DNS-44**, **TP-DNS-47** .. **TP-DNS-49** | `tests/test_dns.sh` | have |
+| **TP-SSHD-05**, **TP-SSHD-16** | `tests/test_cli.sh` | have |
+| **TP-CFG-17** | `tests/test_config_backup.sh` | have |
+| **TP-UL-01** .. **TP-UL-18** | `tests/test_ssh_download.sh` | **todo** |
 
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-09-12 (1.2.5: `download` accepts `~/folder`; DTV **TP-DL-14** .. **TP-DL-16**)  
+**Last Updated**: 2026-09-13 (TTY unknown menu choice redisplays that layer; DTV **TP-SSHD-16** · **TP-DNS-47..49** · **TP-CFG-17** · **TP-DL-17**)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

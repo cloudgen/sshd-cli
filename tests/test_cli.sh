@@ -262,7 +262,7 @@ run_test_cli() {
     _uid=$(id -u 2>/dev/null || echo 1)
     if [ "${_uid}" -eq 0 ]; then
         t_skip "TP-SSHD-03 non-root POSIX hide (suite running as root)"
-        t_skip "TP-SSHD-05 hidden choice 2 unknown (suite running as root)"
+        t_skip "TP-SSHD-05 hidden choice 2 unknown retry (suite running as root)"
     else
         _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u TERMUX_VERSION -u MSYSTEM -u WSL_DISTRO_NAME sh "${SCRIPT}" </dev/null 2>&1)
         _ec=$?
@@ -278,13 +278,28 @@ run_test_cli() {
         assert_contains "TP-SSHD-03 backup-config row 8" "$_out" "8. backup-config"
         assert_contains "TP-SSHD-03 sync-config row 9" "$_out" "9. sync-config"
         assert_contains "TP-SSHD-03 Exit 99" "$_out" "99. Exit"
-        _out=$(printf '%s\n' '2' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u TERMUX_VERSION -u MSYSTEM -u WSL_DISTRO_NAME sh "${SCRIPT}" 2>&1)
+        _out=$(printf '%s\n' '2' '99' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u TERMUX_VERSION -u MSYSTEM -u WSL_DISTRO_NAME sh "${SCRIPT}" 2>&1)
         _ec=$?
-        assert_eq "TP-SSHD-05 hidden 2 exit 1" 1 "$_ec"
+        assert_eq "TP-SSHD-05 hidden 2 then Exit 99 exit 0" 0 "$_ec"
         assert_contains "TP-SSHD-05 hidden 2 unknown" "$_out" "Unknown menu choice '2'"
+        _n=$(t_count_substr "$_out" "Choose a number, or type the command name:")
+        assert_eq "TP-SSHD-05 hidden 2 redisplays menu" "2" "$_n"
+        assert_not_contains "TP-SSHD-05 hidden 2 did not start" "$_out" "Re-run as root"
     fi
     ci_cleanup_env
-    unset _uid _out _ec
+    unset _uid _out _ec _n
+
+    # TP-SSHD-16 TTY unknown token warns and redisplays; then Exit
+    ci_isolated_env
+    _out=$(printf '%s\n' 'xyz' '99' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u TERMUX_VERSION -u MSYSTEM -u WSL_DISTRO_NAME sh "${SCRIPT}" 2>&1)
+    _ec=$?
+    assert_eq "TP-SSHD-16 unknown then Exit 99 exit 0" 0 "$_ec"
+    assert_contains "TP-SSHD-16 unknown token named" "$_out" "Unknown menu choice 'xyz'"
+    _n=$(t_count_substr "$_out" "Choose a number, or type the command name:")
+    assert_eq "TP-SSHD-16 redisplays menu" "2" "$_n"
+    assert_contains "TP-SSHD-16 still lists status" "$_out" "1. Show sshd status"
+    ci_cleanup_env
+    unset _out _ec _n
 
     # TP-SSHD-04 Termux mock TTY menu still shows 2/3/4; no non-root INFO
     ci_isolated_env

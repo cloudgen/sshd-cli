@@ -190,10 +190,18 @@ FAKESCP
     assert_contains "TP-CFG-16 json type" "${_j}" '"type":"sync-from-remote"'
     assert_contains "TP-CFG-16 json host" "${_j}" '"host":"host.example.test"'
 
+    # TP-CFG-17 TTY sudoers submenu unknown choice redisplays
+    _out=$(printf '%s\n' '10' '88' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u TERMUX_VERSION -u MSYSTEM -u WSL_DISTRO_NAME sh "${SCRIPT}" 2>&1)
+    _ec=$?
+    assert_eq "TP-CFG-17 sudoers unknown then Exit 9 exit 0" 0 "$_ec"
+    assert_contains "TP-CFG-17 unknown sudoers named" "${_out}" "Unknown sudoers choice '88'"
+    _n=$(t_count_substr "${_out}" "sudoers (grant and drafts)")
+    assert_eq "TP-CFG-17 redisplays sudoers menu" "2" "$_n"
+
     ci_cleanup_env
 
     if [ -n "${_store:-}" ] && [ -d "${_store}" ]; then
         rm -rf "${_store}"
     fi
-    unset _store _out _ec _err _mode _draft _jsonf _fake_scp _scp_log _pref _pmode _j
+    unset _store _out _ec _err _mode _draft _jsonf _fake_scp _scp_log _pref _pmode _j _n
 }
