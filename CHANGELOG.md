@@ -5,39 +5,11 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [2.0.3] - 2026-09-16
-
-### Fixed
-
-- **key-adm** (the one LPU): `setup` / `remove-lpu` Next names `sudo key-cli …`; Termux fail-closed; F6 is six product Cmnds. Tests **TP-CFG-25** .. **TP-CFG-27**.
-- Active Type 0 / class Implementation Notes retargeted from sshd-cli to **key-cli** (domain-sshd stays history).
-
-## [2.0.2] - 2026-09-16
-
-### Fixed
-
-- Requirement coverage vs live suite: `reviews/test-plan.md` and `reviews/requirement-test-matrix.md` now describe **key-cli** (dropped sshd/client TP families claimed as **have** after those suites were deleted).
-- `requirement-shell-termux-ish` core rules match the product: detect only; **no** `pkg install openssh`; **no** wake-lock. Pointer REQs no longer grant `backup-config`.
-- Restored Git Bash storage fail-soft tests **TP-CLI-19** · **TP-CLI-20**. Added domain coverage **TP-KEY-02..09** and archive/sudoers **TP-CFG-12..24** (Git Bash/Windows fail-closed, setup/remove-lpu root-only, sudoers/restore unknown redisplay, nested JSON, verify counts, dest `0700`, path-unsafe username).
-
-## [2.0.1] - 2026-09-14
+## [1.22.0] - 2026-09-16
 
 ### Changed
 
-- **`auth-keys add`** and **`restore`** (when dest `.ssh` exists) take a **global** `/var/key-cli/<user>/ssh-YYYYMMDD-N.tar.gz` backup first. Add then backups again so the store holds the new key. Fail closed on Termux / Git Bash / Windows cmd. Tests **TP-CFG-10** · **TP-CFG-11**.
-
-## [2.0.0] - 2026-09-14
-
-### Changed
-
-- Product is **key-cli**: backup and restore this login’s whole `~/.ssh` folder as `/var/key-cli/<user>/ssh-YYYYMMDD-N.tar.gz` (`root:root`, mode `0600`) via passwordless `sudo key-cli backup` / `restore`.
-- TTY tree is **1 keys** / **2 on-behalf** / **8 self-management** / **9 Exit**. Keys **11 backup**, **12 restore**, **13 auth-keys**, **14 sudoers**.
-- Least-privilege operator **key-adm** (UID 1666, home `/etc/key-adm`) may backup another user’s `.ssh` and append that user’s `authorized_keys` using sudo of the product command. Root `setup` / `remove-lpu`.
-
-### Removed
-
-- OpenSSH **sshd** install/start/stop/port/host-keys/status, Termux `pkg install openssh termux-auth`, Android wake lock, Windows ssh-server helper scripts.
-- OpenSSH **client** `dns` / `ssh` / `download` / `upload` / `sync-from-remote` / `backup-config` (config-only copy).
+- TTY numbered tree: after a **finished command** (self-update, about, status, dns, …) the **front board** (1 / 2 / 8 / 9) is shown again instead of the submenu that launched it. **0** Back and a wrong number stay on that layer. A typed command name on the front board also returns to the front board (does not exit). Tests **TP-CLI-22**.
 
 ## [1.21.0] - 2026-09-14
 

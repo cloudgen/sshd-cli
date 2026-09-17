@@ -4,9 +4,9 @@
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for how the key-cli **POSIX shell CLI** behaves in **interactive** (human + TTY) versus **non-interactive** (automation, `curl | sh`, CI/CD, pipes, `--json` / often `--quiet`) environments.
+This requirement is the **project Single Source of Truth** for how the sshd-cli **POSIX shell CLI** behaves in **interactive** (human + TTY) versus **non-interactive** (automation, `curl | sh`, CI/CD, pipes, `--json` / often `--quiet`) environments.
 
-It defines when `key-cli` may **ask** (real terminal) versus when it **must not wait** (pipe, CI, `--json` / `--quiet`). Mode lives in shell globals (`TTY`, `QUIET`, `JSON`) and `prompt_*` — not a second checker in every helper.
+It defines when `sshd-cli` may **ask** (real terminal) versus when it **must not wait** (pipe, CI, `--json` / `--quiet`). Mode lives in shell globals (`TTY`, `QUIET`, `JSON`) and `prompt_*` — not a second checker in every helper.
 
 **Scope:** Mode detection signals, prompt policy, auto-install vs confirm, force/skip rules, interaction with quiet/json/debug and output SSOT.  
 **Out of scope (cited, not re-owned):** Full command catalog (`requirement-shell-cli-interface.md`); output function catalog (`requirement-shell-output-requirements.md`); self-update integrity (`requirement-shell-self-management.md`); idempotency matrix (`requirement-shell-idempotency.md`).
@@ -17,8 +17,8 @@ It defines when `key-cli` may **ask** (real terminal) versus when it **must not 
 
 | Box | Meaning | Example |
 |-----|---------|---------|
-| You / this login | A person at a terminal, or a script / `curl \| sh` with nobody to answer | `key-cli` on a TTY vs `curl … \| sh` |
-| The other role | Machine flags (`--json`, `--quiet`) and `--force` for deliberate uninstall | `key-cli --json version` · `key-cli --force self-uninstall` |
+| You / this login | A person at a terminal, or a script / `curl \| sh` with nobody to answer | `sshd-cli` on a TTY vs `curl … \| sh` |
+| The other role | Machine flags (`--json`, `--quiet`) and `--force` for deliberate uninstall | `sshd-cli --json version` · `sshd-cli --force self-uninstall` |
 | Not this file | Empty-argv case table (peer); `out_*` printers; command catalog | `requirement-shell-cli-zero-arguments.md` |
 
 | Includes | Excludes |
@@ -28,14 +28,14 @@ It defines when `key-cli` may **ask** (real terminal) versus when it **must not 
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
-| `./key-cli` | Program file | `TTY` at startup; `prompt_*`; `inst_maybe_install` |
-| `key-cli --quiet` / `--json` | Flags | No prompts; first install must still place |
+| `./sshd-cli` | Program file | `TTY` at startup; `prompt_*`; `inst_maybe_install` |
+| `sshd-cli --quiet` / `--json` | Flags | No prompts; first install must still place |
 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
-| Install from a pipe | Nobody can type yes. The tool **places** the program and prints a short auto-install note. | `curl -fsSL …/key-cli \| /bin/sh` |
-| First install on a real terminal | No arguments opens the numbered list. To place the program, type `install`. | `key-cli` (no args, terminal) · `key-cli install` |
-| Uninstall without `--force` off a terminal | The tool **must not** delete. JSON says confirm is required. | `key-cli --json self-uninstall` |
+| Install from a pipe | Nobody can type yes. The tool **places** the program and prints a short auto-install note. | `curl -fsSL …/sshd-cli \| /bin/sh` |
+| First install on a real terminal | No arguments opens the numbered list. To place the program, type `install`. | `sshd-cli` (no args, terminal) · `sshd-cli install` |
+| Uninstall without `--force` off a terminal | The tool **must not** delete. JSON says confirm is required. | `sshd-cli --json self-uninstall` |
 
 Jargon: a **TTY** here means “this login has a real terminal on stdin and stdout.” Measure that **once** at startup (`TTY`); helpers **read `TTY`**.
 
@@ -134,10 +134,10 @@ interactive   non-interactive
 
 ### 2.5 Implementation Notes (this project)
 
-| Item | Value for key-cli |
+| Item | Value for sshd-cli |
 |------|------------------------|
-| **Product / binary** | `key-cli` |
-| **Implementation** | Repo root `./key-cli` |
+| **Product / binary** | `sshd-cli` |
+| **Implementation** | Repo root `./sshd-cli` |
 | **Mode globals** | `TTY`, `QUIET`, `JSON`, `DEBUG`, `FORCE`, `FORCE_REINSTALL` |
 | **TTY init** | `[ -t 0 ] && [ -t 1 ] && TTY=1` near config block |
 | **Flag parse SSOT** | `app_main` |
@@ -150,7 +150,7 @@ interactive   non-interactive
 | Command / path | Interactive (TTY, not quiet/json) | Non-interactive / quiet / json |
 |----------------|-----------------------------------|--------------------------------|
 | Zero-arg, **not** installed | Domain **menu** (`sshd_cmd_menu`); **no** install-ensure | Quiet/json: `inst_perform_install` without prompt. Non-TTY human path: auto-install message + install |
-| Zero-arg, **already** installed local or global | Domain **menu** (same as `key-cli menu`) | Install-ensure success no-op (“already installed”); **not** help; **not** menu; no re-download without force |
+| Zero-arg, **already** installed local or global | Domain **menu** (same as `sshd-cli menu`) | Install-ensure success no-op (“already installed”); **not** help; **not** menu; no re-download without force |
 | `install` | Install with human `out_*` messages | No prompt; honor force for reinstall; JSON structured results |
 | `self-uninstall` | `prompt_yes_no` unless `--force` | Without force: fail closed with explicit “requires --force” (JSON: `out_json_error` / `confirm_required`); never pretend user cancelled; with `--force`: remove without confirm |
 | `self-update` / `version-check` | Human status messages | No prompts; fail loud if `SCRIPT_URL` missing; JSON structured results |
@@ -165,7 +165,7 @@ interactive   non-interactive
 | `ssh` | Numbered Host pick if no operand; unknown Host **MUST** warn and redisplay. Then **user [default]** (Host User, else this login); then OpenSSH client (`exec` on TTY unless `SSHD_CLI_SSH` is set). `read` in-shell. | Needs `<n\|name>`; no prompt; JSON: one object, **no** session |
 | `download` | Host pick if no first operand; then **user [default]** (same as `ssh`); then numbered previous folders for that Host, or type a path (`~/folder` allowed). Out-of-range folder number **MUST** warn and redisplay. Empty folder still fail-closed. | Needs Host **and** folder; no prompt; JSON: one object after the transfer. `~/folder` allowed |
 | `upload` | Host pick if no first operand; then **user [default]** (same as `ssh` / `download`); then numbered previous **local** folders for that Host, or type a local path (`~/folder` is this login). Out-of-range folder number **MUST** warn and redisplay. Empty folder still fail-closed. | Needs Host **and** local folder; no prompt; JSON: one object after the transfer. Local `~/folder` allowed; folder **MUST** exist as a directory |
-| `menu` / sudoers submenu | Numbered list. Unknown / hidden-row number **MUST** warn and redisplay **that** list. Exit / empty still leave. Valid choice still one-shot. | **MUST NOT** hang. Non-TTY `menu` fails closed with a named-command hint |
+| `menu` / sudoers submenu | Numbered list. Unknown / hidden-row number **MUST** warn and redisplay **that** list. Exit / empty still leave. A valid leaf then redisplays the **front board** (not the submenu). | **MUST NOT** hang. Non-TTY `menu` fails closed with a named-command hint |
 
 #### `prompt_yes_no` contract (this project)
 
@@ -273,7 +273,7 @@ When the ship unit detects a **command line for normal user only** (Termux, Git 
 | Termux: named `pkg` as this login remains Type 0 | Recommend `sudo curl \| sh` as the install path |
 | Git Bash / Windows cmd: same privilege ceiling | Invoke Termux `pkg` because Git Bash or Windows cmd was detected |
 
-Helpers (this product): `key_is_termux`, `key_is_git_bash`, `key_is_windows_cmd`, `key_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface` · `requirement-shell-termux-ish`.
+Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`. Dual mention: `requirement-shell-cli-interface` · `requirement-shell-termux-ish`.
 
 **This requirement:** `inst_maybe_install` **MUST NOT** recommend `sudo curl | sh`; **MUST NOT** open a Type 1 password-sudo ladder on that class. **dns** field walk is this login’s `~/.ssh/config` only (Type 0).
 
@@ -304,7 +304,7 @@ Helpers (this product): `key_is_termux`, `key_is_git_bash`, `key_is_windows_cmd`
 
 ## 5. Definition of done (shell interactive vs non-interactive)
 
-Mode-related work for key-cli is **not done** if any of the following fail:
+Mode-related work for sshd-cli is **not done** if any of the following fail:
 
 1. No code path blocks on `read` under `--json`, `--quiet`, or non-TTY (except documented `INTERACTIVE=1` value prompt).  
 2. Destructive uninstall without `--force` does not silently proceed in non-interactive mode.  
@@ -326,7 +326,7 @@ Mode-related work for key-cli is **not done** if any of the following fail:
 | `docs/requirements/requirement-shell-self-management.md` | Uninstall confirm / force policy |
 | `docs/requirements/requirement-shell-idempotency.md` | Re-run safety under automation |
 | `docs/requirements/index.md` | Registry SSOT |
-| `./key-cli` | Implementation under test |
+| `./sshd-cli` | Implementation under test |
 
 ---
 
@@ -334,13 +334,15 @@ Mode-related work for key-cli is **not done** if any of the following fail:
 
 | TP family / ID | Suite | Status |
 |----------------|-------|--------|
-| **TP-CLI-07** · **TP-CLI-14** | `tests/test_cli.sh` | have |
-| **TP-KEY-08** · **TP-KEY-16** | `tests/test_cli.sh` | have |
-| **TP-LC-05** | `tests/test_local_lifecycle.sh` | have |
-| **TP-CFG-17** · **TP-CFG-22** | `tests/test_config_backup.sh` | have |
+| **TP-SSH-07**, **TP-SSH-08** | `tests/test_ssh_download.sh` | have |
+| **TP-DL-04**, **TP-DL-05**, **TP-DL-10** .. **TP-DL-17** | `tests/test_ssh_download.sh` | have |
+| **TP-DNS-13**, **TP-DNS-20**, **TP-DNS-21**, **TP-DNS-44**, **TP-DNS-47** .. **TP-DNS-49** | `tests/test_dns.sh` | have |
+| **TP-SSHD-05**, **TP-SSHD-16** | `tests/test_cli.sh` | have |
+| **TP-CFG-17** | `tests/test_config_backup.sh` | have |
+| **TP-UL-01** .. **TP-UL-18** | `tests/test_ssh_download.sh` | **have** |
 
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-09-16 (key-cli TTY unknown menu / sudoers / restore picker redisplay)  
-**Owner**: Cloudgen Wong  
+**Last Updated**: 2026-09-16 (finished TTY leaf redisplays the front board; **TP-CLI-22**. TTY unknown menu choice redisplays that layer; DTV **TP-SSHD-16** · **TP-DNS-47..49** · **TP-CFG-17** · **TP-DL-17**)  
+**Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

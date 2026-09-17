@@ -1,14 +1,12 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Superseded (Version 1.19.2 → replaced by `requirement-domain-key` 2.0.0)  
+**Status**: Active (Version 1.19.2)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-**Superseded.** The Active domain SSOT is `requirement-domain-key.md` (key-cli backup/restore of `~/.ssh`; no OpenSSH sshd/client). This file is kept as history only.
-
-This was the **one Active domain SSOT** for **sshd-cli**. The product **purpose** is to **simplify Termux to install sshd**. OpenSSH **sshd** (the SSH server) plus this login’s **authorized_keys** are the domain; Termux is the first home and ordinary POSIX Linux is the second. Type 0 install/self-update/self-uninstall stay on the shell lifecycle requirements. This file owns specialized subcommands, features, help rows, and about fields.
+This is the **one Active domain SSOT** for **sshd-cli**. The product **purpose** is to **simplify Termux to install sshd**. OpenSSH **sshd** (the SSH server) plus this login’s **authorized_keys** are the domain; Termux is the first home and ordinary POSIX Linux is the second. Type 0 install/self-update/self-uninstall stay on the shell lifecycle requirements. This file owns specialized subcommands, features, help rows, and about fields.
 
 Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, never on A.
 
@@ -230,7 +228,7 @@ If (2) is true and (3) is false: **warn** once per command, then use the OpenSSH
 1. **status** is read-only. Missing sshd is a warning, not a crash. Human mode **MUST** end with a recommended connect line `ssh -p <port> <user>@<lan-ipv4>` when a live IPv4 exists. **User** is `id -un`. **IPv4 SSOT:** `ifconfig wlan0` inet (Termux Wi-Fi). Then `wlan1`, then any `ifconfig` inet, then `ip` fallbacks. **MUST NOT** print a placeholder host (`<this-host>`, `<LAN-IPv4>`, `example.com`). If no usable IPv4: warn and say Next (turn on Wi-Fi, then `status`) — do not invent an address. JSON `connect` is that live string, or empty. **MUST NOT** freeze a session login or a sample home IP into product law. On a systemd host with a resolved unit, human **status** **MUST** print the unit name and active/inactive; JSON **MUST** add `sshd_systemd` (true/false), `sshd_unit` (name or `""`), `sshd_unit_active` (true/false).  
 1b. **menu numbers** are owned by `requirement-shell-cli-default-interaction` (front **1** client-side, **2** server-side, **8** self-management, **9** Exit; client **11** dns, **12** ssh, **13** download, **14** upload; server **21** status, **22–24** start/stop/restart; submenu **0** Back). This file owns the **handlers**. Choosing **11** (or typing `dns`) runs `sshd_cmd_dns`. Choosing **12** (or typing `ssh`) runs `sshd_cmd_ssh` (numbered Host pick, then **user** with default). Choosing **13** (or typing `download`) runs `sshd_cmd_download`. Choosing **14** (or typing `upload`) runs `sshd_cmd_upload` (Host pick, then **user** with default, then a **local** folder). `port` / `config` / `host-keys` / `auth-keys` stay typed. The Host pick **MUST NOT** reuse front Exit **9** (leave Host pick with **0**).  
 1c. **menu daemon rows (22/23/24):** On a **command line for normal user only** (Termux, Git Bash, Windows cmd), **MUST** print rows **22** / **23** / **24** for this login. On POSIX Linux (not that class), **MUST** print those rows **only** when this login is **root** (`id -u` is 0). When those rows are hidden, **MUST** print, **before** the server-side numbered choices: `start/stop/restart sshd features are not available for non-root in <OS-Name>`. **OS-Name** is `/etc/os-release` `NAME=` (quotes stripped), else `uname -s`, else `Linux`. **MUST NOT** hardcode Ubuntu. **MUST NOT** renumber **21** / **11**. Hidden **22** / **23** / **24** **MUST NOT** dispatch. They are an unknown TTY choice on the **server** list: **MUST** warn and **MUST** display that same list again (**MUST NOT** `out_die`). Typed `start` / `stop` / `restart` still run the handlers (fail-closed without root). **MUST NOT** wrap `sudo` to unhide the rows. Helper: `sshd_menu_show_daemon_rows` · `sshd_os_name`. Dual mention: `requirement-shell-cli-default-interaction`.  
-1d. **TTY menu retry (every numbered layer):** On the **main menu**, **sudoers** submenu, **dns action** menu, **Host pick**, **unset extra-settings** picker, and **download** / **upload** folder pick: an unknown or out-of-range numbered choice **MUST** print a warn that names the token, **MUST** display **that same list** again, and **MUST NOT** `out_die` or exit non-zero solely for that bad TTY choice. Empty / Exit / `q` / `exit` still leave that layer. A valid choice still runs the handler (one-shot; the main menu does not auto-loop after success). Non-interactive operand paths still fail closed (no hang). Dual mention: `requirement-shell-interactive-vs-noninteractive`.  
+1d. **TTY menu retry (every numbered layer):** On the **main menu**, **sudoers** submenu, **dns action** menu, **Host pick**, **unset extra-settings** picker, and **download** / **upload** folder pick: an unknown or out-of-range numbered choice **MUST** print a warn that names the token, **MUST** display **that same list** again, and **MUST NOT** `out_die` or exit non-zero solely for that bad TTY choice. Empty / Exit / `q` / `exit` still leave that layer. A valid **leaf** command runs the handler, then the **front board** redisplays (not the submenu). Dual mention: `requirement-shell-cli-default-interaction` · `requirement-shell-interactive-vs-noninteractive`. Non-interactive operand paths still fail closed (no hang).  
 2. **start** is idempotent: already running → success no-op. Missing host keys → generate when the host-key dir is writable (OpenSSH fallback only; systemd unit path does **not** generate host keys — the distro unit owns that). On the OpenSSH fallback, `sshd -t` must pass before launch; launch **MUST** be `"${SSHD_BIN}" -f "${SSHD_CONFIG}"`. **MUST NOT** pass `-D`. **MUST NOT** wrap the launch in `&` / `nohup`. On a systemd host with a loaded unit, launch **MUST** follow §2.2.1 (`systemctl start <unit>` as root) — **MUST NOT** `sshd -f` beside that unit. Human mode (not quiet/json) **MUST** describe **this host** per §2.2.1 (Termux: session daemon + Termux:Boot + `${APP_NAME} start` after reboot; systemd unit path: name the unit and `systemctl`; POSIX Linux fallback: do not deny systemd). On Termux, **start** (including already-running) **MUST** auto-acquire the Android wake lock (`sshd_wake_lock_acquire`). Missing helper: **warn** + Next naming `${APP_NAME} wake-lock`; **MUST NOT** fail start solely for that. Dual mention: `requirement-shell-termux-ish`. **MUST NOT** auto-unlock on `stop`.  
 3. **stop** is idempotent: already stopped → success no-op. systemd unit path: `systemctl stop <unit>` as root (**MUST NOT** `kill` MainPID). OpenSSH fallback: signal the sshd pid (pidfile, then process match).  
 4. **port set** rewrites the `Port` line (or appends one). Does not auto-restart; human mode tells the operator to `restart` when sshd is up.  
@@ -551,11 +549,20 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 
 | TP family / ID | Suite | Status |
 |----------------|-------|--------|
-| **TP-SSHD-*** · **TP-DNS-*** · **TP-SSH-*** · **TP-DL-*** · **TP-UL-*** | (suites deleted) | n/a — superseded by `requirement-domain-key` |
+| **TP-CLI-04**, **TP-CLI-06**, **TP-CLI-14**, **TP-CLI-15** | `tests/test_cli.sh` | have |
+| **TP-SSHD-01**, **TP-SSHD-03**, **TP-SSHD-04**, **TP-SSHD-05**, **TP-SSHD-06**, **TP-SSHD-07**, **TP-SSHD-08** | `tests/test_cli.sh` | have |
+| **TP-SSHD-09** .. **TP-SSHD-14**, **TP-SSHD-16** | `tests/test_cli.sh` | have |
+| **TP-SSHD-15** | `tests/test_local_lifecycle.sh` | have |
+| **TP-LC-16**, **TP-LC-17**, **TP-SSHD-02**, **TP-TX-09**, **TP-TX-13**, **TP-TX-16** | `tests/test_local_lifecycle.sh` | have |
+| **TP-DNS-01** .. **TP-DNS-49** | `tests/test_dns.sh` | have |
+| **TP-SSH-01** .. **TP-SSH-09** | `tests/test_ssh_download.sh` | have |
+| **TP-DL-01** .. **TP-DL-17** | `tests/test_ssh_download.sh` | have |
+| **TP-CFG-17** | `tests/test_config_backup.sh` | have |
+| **TP-UL-01** .. **TP-UL-18** | `tests/test_ssh_download.sh` | **have** |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-09-13 (1.19.2: TTY unknown menu choice redisplays that layer; **TP-SSHD-05** · **TP-SSHD-16** · **TP-DNS-47..49** · **TP-CFG-17** · **TP-DL-17**)  
+**Last Updated**: 2026-09-16 (finished TTY leaf redisplays the front board; **TP-CLI-22**. 1.19.2: TTY unknown menu choice redisplays that layer; **TP-SSHD-05** · **TP-SSHD-16** · **TP-DNS-47..49** · **TP-CFG-17** · **TP-DL-17**)  
 **Owner**: Cloudgen Wong  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
