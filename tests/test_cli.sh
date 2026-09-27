@@ -85,7 +85,20 @@ run_test_cli() {
     _ec=$?
     assert_eq "TP-CLI-06 about --json exit 0" 0 "$_ec"
     assert_contains "TP-CLI-06 type about" "$_out" '"type":"about"'
+    assert_contains "TP-CLI-06 cache_used" "$_out" '"cache_used"'
+    assert_contains "TP-CLI-06 cache_preferred" "$_out" '"cache_preferred"'
+    assert_contains "TP-CLI-06 cache_fallback" "$_out" '"cache_fallback"'
+    assert_contains "TP-CLI-06 cache_fallback_2" "$_out" '"cache_fallback_2"'
+    assert_contains "TP-CLI-06 persistence_storage" "$_out" '"persistence_storage"'
     assert_contains "TP-CLI-06 effective_storage" "$_out" '"effective_storage"'
+    _hum=$(sh "${SCRIPT}" about 2>/dev/null)
+    assert_contains "TP-CLI-06 human Cache folder used" "$_hum" "Cache folder used:"
+    assert_contains "TP-CLI-06 human Cache folder preferred" "$_hum" "Cache folder (preferred):"
+    assert_contains "TP-CLI-06 human Cache folder 1st fallback" "$_hum" "Cache folder (1st fallback):"
+    assert_contains "TP-CLI-06 human Cache folder 2nd fallback" "$_hum" "Cache folder (2nd fallback):"
+    assert_contains "TP-CLI-06 human Persistence storage" "$_hum" "Persistence storage:"
+    assert_not_contains "TP-CLI-06 no Storage (effective) label" "$_hum" "Storage (effective)"
+    assert_not_contains "TP-CLI-06 no Storage (fallback) label" "$_hum" "Storage (fallback)"
     assert_not_contains "TP-CLI-06 no backup_notation" "$_out" '"backup_notation"'
     assert_not_contains "TP-CLI-06 no deposit_dir" "$_out" '"deposit_dir"'
     assert_not_contains "TP-CLI-06 no restore_host_default" "$_out" '"restore_host_default"'
@@ -295,33 +308,89 @@ run_test_cli() {
     assert_eq "TP-CLI-11 env -u HOME version exit 0" 0 "$_ec"
     assert_contains "TP-CLI-11 env -u HOME version text" "$_out" "${PRODUCT_VERSION}"
 
-    # TP-CLI-12 storage isolation under temp HOME; preferred shm leaf is under /dev/shm/cache/
+    # TP-CLI-12 cache isolation under temp HOME (per login + process id)
     ci_isolated_env
+    _login=$(id -un 2>/dev/null || echo "unknown")
     _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" sh "${SCRIPT}" --json about 2>/dev/null)
-    assert_contains "TP-CLI-12 isolated about has app in storage" "$_out" "${APP_NAME}"
+    assert_contains "TP-CLI-12 isolated about has app in cache" "$_out" "${APP_NAME}"
+    _pref=$(printf '%s' "$_out" | sed -n 's/.*"cache_preferred":"\([^"]*\)".*/\1/p' | head -n1)
+    _pid="${_pref##*-}"
+    case "${_pref}" in
+        /dev/shm/cache/cache-"${APP_NAME}"-"${_login}"-[0-9]*)
+            t_pass "TP-CLI-12 cache_preferred is shm login process leaf"
+            ;;
+        *) t_fail "TP-CLI-12 cache_preferred unexpected: '${_pref:-empty}'" ;;
+    esac
+    _fb=$(printf '%s' "$_out" | sed -n 's/.*"cache_fallback":"\([^"]*\)".*/\1/p' | head -n1)
+    assert_eq "TP-CLI-12 cache_fallback 1st" "/tmp/cache/cache-${APP_NAME}-${_login}-${_pid}" "${_fb}"
+    _fb2=$(printf '%s' "$_out" | sed -n 's/.*"cache_fallback_2":"\([^"]*\)".*/\1/p' | head -n1)
+    assert_eq "TP-CLI-12 cache_fallback 2nd" "${CI_HOME}/.cache/cache-${APP_NAME}-${_pid}" "${_fb2}"
+    _used=$(printf '%s' "$_out" | sed -n 's/.*"cache_used":"\([^"]*\)".*/\1/p' | head -n1)
     _eff=$(printf '%s' "$_out" | sed -n 's/.*"effective_storage":"\([^"]*\)".*/\1/p' | head -n1)
+    assert_eq "TP-CLI-12 cache_used matches effective" "${_eff}" "${_used}"
     if [ -n "$_eff" ] && [ -d "$_eff" ]; then
-        t_pass "TP-CLI-12 effective_storage directory exists"
+        t_pass "TP-CLI-12 effective cache directory exists"
     else
-        t_fail "TP-CLI-12 effective_storage missing: '${_eff:-empty}'"
+        t_fail "TP-CLI-12 effective cache missing: '${_eff:-empty}'"
     fi
-    _want_shm="/dev/shm/cache/${APP_NAME}-$(id -un 2>/dev/null || echo unknown)"
-    if [ -d /dev/shm ]; then
-        assert_eq "TP-CLI-12 preferred shm cache leaf" "${_want_shm}" "${_eff}"
-        case "${_eff}" in
-            /dev/shm/cache/"${APP_NAME}"-*) t_pass "TP-CLI-12 effective is under /dev/shm/cache" ;;
-            *) t_fail "TP-CLI-12 effective is under /dev/shm/cache (got '${_eff:-empty}')" ;;
-        esac
+    case "${_eff}" in
+        /dev/shm/"${APP_NAME}"|/dev/shm/"${APP_NAME}"-*)
+            t_fail "TP-CLI-12 effective cache must not be ram-drive project shape: '${_eff}'"
+            ;;
+        *) t_pass "TP-CLI-12 effective cache is not a ram-drive project shape" ;;
+    esac
+    _err=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" SSHD_CLI_CACHE_SKIP=preferred \
+        sh "${SCRIPT}" about 2>&1 >/dev/null)
+    assert_not_contains "TP-CLI-12 silent cache fallback" "${_err}" "fallback"
+    assert_not_contains "TP-CLI-12 silent cache fallback error" "${_err}" "Cannot create cache"
+    _skip=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" SSHD_CLI_CACHE_SKIP=preferred \
+        sh "${SCRIPT}" --json about 2>/dev/null)
+    _skip_eff=$(printf '%s' "$_skip" | sed -n 's/.*"effective_storage":"\([^"]*\)".*/\1/p' | head -n1)
+    _skip_fb=$(printf '%s' "$_skip" | sed -n 's/.*"cache_fallback":"\([^"]*\)".*/\1/p' | head -n1)
+    assert_eq "TP-CLI-12 skipped preferred uses 1st fallback" "${_skip_fb}" "${_skip_eff}"
+    _gb=$(HOME="${CI_HOME}" SSHD_CLI_CACHE_HOST=gitbash sh "${SCRIPT}" --json about 2>/dev/null)
+    _gb_pref=$(printf '%s' "$_gb" | sed -n 's/.*"cache_preferred":"\([^"]*\)".*/\1/p' | head -n1)
+    _gb_pid="${_gb_pref##*-}"
+    assert_eq "TP-CLI-12 gitbash preferred" "/tmp/cache/cache-${APP_NAME}-${_login}-${_gb_pid}" "${_gb_pref}"
+    _gb_fb=$(printf '%s' "$_gb" | sed -n 's/.*"cache_fallback":"\([^"]*\)".*/\1/p' | head -n1)
+    assert_eq "TP-CLI-12 gitbash 1st fallback" "${CI_HOME}/AppData/Local/Temp/cache-${APP_NAME}-${_gb_pid}" "${_gb_fb}"
+    assert_contains "TP-CLI-12 gitbash json has cache_fallback_2" "${_gb}" '"cache_fallback_2":""'
+    _gb_fb2=$(printf '%s' "$_gb" | sed -n 's/.*"cache_fallback_2":"\([^"]*\)".*/\1/p' | head -n1)
+    assert_eq "TP-CLI-12 gitbash no 2nd fallback" "" "${_gb_fb2}"
+    _mac=$(HOME="${CI_HOME}" SSHD_CLI_CACHE_HOST=mac sh "${SCRIPT}" --json about 2>/dev/null)
+    _mac_pref=$(printf '%s' "$_mac" | sed -n 's/.*"cache_preferred":"\([^"]*\)".*/\1/p' | head -n1)
+    _mac_pid="${_mac_pref##*-}"
+    assert_eq "TP-CLI-12 mac preferred" "/tmp/cache/cache-${APP_NAME}-${_login}-${_mac_pid}" "${_mac_pref}"
+    _mac_fb=$(printf '%s' "$_mac" | sed -n 's/.*"cache_fallback":"\([^"]*\)".*/\1/p' | head -n1)
+    assert_eq "TP-CLI-12 mac 1st fallback" "${CI_HOME}/Library/Caches/cache-${APP_NAME}-${_mac_pid}" "${_mac_fb}"
+    _mac_fb2=$(printf '%s' "$_mac" | sed -n 's/.*"cache_fallback_2":"\([^"]*\)".*/\1/p' | head -n1)
+    assert_eq "TP-CLI-12 mac 2nd fallback" "${CI_HOME}/cache/cache-${APP_NAME}-${_mac_pid}" "${_mac_fb2}"
+    _mode=$(stat -c %a "${_eff}" 2>/dev/null || echo "")
+    assert_eq "TP-CLI-12 effective cache mode 0700" "700" "${_mode}"
+    _hum_l=$(HOME="${CI_HOME}" sh "${SCRIPT}" about 2>/dev/null)
+    assert_contains "TP-CLI-12 linux about used" "${_hum_l}" "Cache folder used:"
+    assert_contains "TP-CLI-12 linux about preferred path" "${_hum_l}" "/dev/shm/cache/cache-${APP_NAME}-${_login}-"
+    assert_contains "TP-CLI-12 linux about 2nd path" "${_hum_l}" "/.cache/cache-${APP_NAME}-"
+    _hum_gb=$(HOME="${CI_HOME}" SSHD_CLI_CACHE_HOST=gitbash sh "${SCRIPT}" about 2>/dev/null)
+    assert_contains "TP-CLI-12 gitbash about 1st" "${_hum_gb}" "AppData/Local/Temp/cache-${APP_NAME}-"
+    assert_not_contains "TP-CLI-12 gitbash about omits 2nd" "${_hum_gb}" "Cache folder (2nd fallback)"
+    _hum_mac=$(HOME="${CI_HOME}" SSHD_CLI_CACHE_HOST=mac sh "${SCRIPT}" about 2>/dev/null)
+    assert_contains "TP-CLI-12 mac about 1st" "${_hum_mac}" "Library/Caches/cache-${APP_NAME}-"
+    assert_contains "TP-CLI-12 mac about 2nd path" "${_hum_mac}" "Cache folder (2nd fallback): ${CI_HOME}/cache/cache-${APP_NAME}-"
+    _persist=$(printf '%s' "$_out" | sed -n 's/.*"persistence_storage":"\([^"]*\)".*/\1/p' | head -n1)
+    assert_eq "TP-CLI-12 persistence_storage path" "${CI_HOME}/.local/${APP_NAME}" "$_persist"
+    if [ -n "$_persist" ] && [ -d "$_persist" ]; then
+        t_pass "TP-CLI-12 persistence storage directory exists"
+    else
+        t_fail "TP-CLI-12 persistence storage missing: '${_persist:-empty}'"
     fi
-    unset _want_shm
+    case "${_persist}" in
+        */.local/bin|*/.local/bin/) t_fail "TP-CLI-12 persistence must not be USER_BIN: '${_persist}'" ;;
+        *) t_pass "TP-CLI-12 persistence is not the install bin directory" ;;
+    esac
     ci_cleanup_env
 
-    # TP-CLI-19 Git Bash: /dev/shm mkdir fail-soft → AppData Local Temp/cache; no ERROR
-    # Remove this-login shm leaf so a leftover dir cannot satisfy -d after stub mkdir fails.
-    _shm_leaf="/dev/shm/cache/${APP_NAME}-$(id -un 2>/dev/null || echo unknown)"
-    if [ -d "${_shm_leaf}" ]; then
-        rm -rf "${_shm_leaf}"
-    fi
+    # TP-CLI-19 Git Bash: preferred /tmp/cache mkdir fail-soft → AppData leaf; no ERROR
     ci_isolated_env
     mkdir -p "${CI_HOME}/AppData/Local/Temp"
     _stub="${CI_HOME}/stubbin"
@@ -331,16 +400,18 @@ run_test_cli() {
         "REAL_MKDIR='${_real_mkdir}'" \
         'for _a in "$@"; do' \
         '  case "${_a}" in' \
-        '    /dev/shm/*) exit 1 ;;' \
+        '    /tmp/cache|/tmp/cache/*) exit 1 ;;' \
         '  esac' \
         'done' \
         'exec "${REAL_MKDIR}" "$@"' > "${_stub}/mkdir"
     chmod +x "${_stub}/mkdir"
     _combined=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" PATH="${_stub}:${PATH}" MSYSTEM=MINGW64 env -u TERMUX_VERSION sh "${SCRIPT}" --json about 2>&1)
     _ec=$?
-    assert_eq "TP-CLI-19 git-bash shm fail-soft exit 0" 0 "$_ec"
-    assert_not_contains "TP-CLI-19 no storage ERROR" "${_combined}" "Cannot create storage"
-    assert_contains "TP-CLI-19 uses AppData Local Temp cache" "${_combined}" "AppData/Local/Temp/cache"
+    assert_eq "TP-CLI-19 git-bash tmp fail-soft exit 0" 0 "$_ec"
+    assert_not_contains "TP-CLI-19 no cache ERROR" "${_combined}" "Cannot create cache"
+    assert_not_contains "TP-CLI-19 no WARN on skipped tier" "${_combined}" "[WARN]"
+    assert_not_contains "TP-CLI-19 no ERROR tag on skipped tier" "${_combined}" "[ERROR]"
+    assert_contains "TP-CLI-19 uses AppData Local Temp leaf" "${_combined}" "AppData/Local/Temp/cache-${APP_NAME}-"
     _eff=$(printf '%s' "${_combined}" | sed -n 's/.*"effective_storage":"\([^"]*\)".*/\1/p' | head -n1)
     if [ -n "${_eff}" ] && [ -d "${_eff}" ]; then
         t_pass "TP-CLI-19 git-bash effective_storage directory exists"
@@ -348,18 +419,25 @@ run_test_cli() {
         t_fail "TP-CLI-19 git-bash effective_storage missing: '${_eff:-empty}'"
     fi
     case "${_eff}" in
-        *"${APP_NAME}"*) t_pass "TP-CLI-19 git-bash storage isolates APP_NAME" ;;
-        *) t_fail "TP-CLI-19 git-bash storage isolates APP_NAME (got '${_eff:-empty}')" ;;
+        "${CI_HOME}/AppData/Local/Temp/cache-${APP_NAME}-"[0-9]*)
+            t_pass "TP-CLI-19 git-bash effective is AppData home leaf"
+            ;;
+        *) t_fail "TP-CLI-19 git-bash effective is AppData home leaf (got '${_eff:-empty}')" ;;
     esac
-    unset _stub _real_mkdir _combined _ec _eff _shm_leaf
+    unset _stub _real_mkdir _combined _ec _eff
     ci_cleanup_env
 
-    # TP-CLI-20 static: resolver names Git Bash Temp; no mid-chain mkdir die
+    # TP-CLI-20 static: resolver names the new chains; no mid-chain mkdir die
     _src=$(cat "${SCRIPT}")
     assert_contains "TP-CLI-20 resolver names Git Bash Temp" "${_src}" 'AppData/Local/Temp'
     assert_contains "TP-CLI-20 resolver names /dev/shm/cache" "${_src}" '/dev/shm/cache/'
-    assert_contains "TP-CLI-20 fail-soft helper present" "${_src}" 'util_try_mkdir_storage'
+    assert_contains "TP-CLI-20 resolver names Mac Library Caches" "${_src}" 'Library/Caches'
+    assert_contains "TP-CLI-20 volatile leaf names cache-app-login" "${_src}" 'cache-${APP_NAME}-'
+    assert_contains "TP-CLI-20 fail-soft helper present" "${_src}" 'util_cache_try_dir'
+    assert_contains "TP-CLI-20 closed failure names cache folder" "${_src}" 'Cannot create cache folder'
     assert_not_contains "TP-CLI-20 no mid-chain mkdir die" "${_src}" 'out_die "Cannot create storage directory ${_storage_candidate}"'
+    assert_not_contains "TP-CLI-20 no STORAGE_DIR next step" "${_src}" 'set STORAGE_DIR to a writable folder'
+    assert_not_contains "TP-CLI-20 old fail-soft helper gone" "${_src}" 'util_try_mkdir_storage'
     unset _src
 
     # TP-CLI-13 trimmed parent folder-archive / setup verbs fail closed

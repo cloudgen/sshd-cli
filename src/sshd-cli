@@ -57,8 +57,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config / sync-from-remote).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.26.0"
-: "${VERSION:=1.26.0}"
+VERSION="1.27.0"
+: "${VERSION:=1.27.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -2753,179 +2753,216 @@ util_backup() {
 }
 
 # =============================================================================
-# util_try_mkdir_storage() - Fail-soft mkdir probe for one storage root
+# Cache folder paths — per login, per process, under cache/
 # =============================================================================
 #
-# GENERAL PURPOSE:
-# mkdir -p a candidate scratch/cache root, then re-test that it exists and is
-# writable. Used only by util_resolve_storage. A failed mkdir MUST NOT abort
-# the CLI — the resolver walks the next tier.
+# Linux (also Termux, and any host that is not Git Bash and not Mac):
+#   /dev/shm/cache/cache-${APP_NAME}-${login}-$$
+#   then /tmp/cache/cache-${APP_NAME}-${login}-$$
+#   then ${HOME}/.cache/cache-${APP_NAME}-$$
+# Git Bash:
+#   /tmp/cache/cache-${APP_NAME}-${login}-$$
+#   then ${HOME}/AppData/Local/Temp/cache-${APP_NAME}-$$
+# Mac:
+#   /tmp/cache/cache-${APP_NAME}-${login}-$$
+#   then ${HOME}/Library/Caches/cache-${APP_NAME}-$$
+#   then ${HOME}/cache/cache-${APP_NAME}-$$
+# $$ is this process id. Home tiers omit the login (HOME already isolates).
+# A missed tier is silent. On Termux the chosen folder is scratch only
+# (it may be noexec).
+# MUST NOT use /dev/shm/${APP_NAME} or /dev/shm/${APP_NAME}-${USERNAME}.
 #
-# ALIGNMENT (live requirements only):
-# - requirement-shell-cli-storage.md
+# ALIGNMENT: requirement-shell-cli-storage.md
+# Test-purpose: SSHD_CLI_CACHE_HOST=linux|gitbash|mac
+#               SSHD_CLI_CACHE_SKIP=preferred skips tier 1 with no message
 #
-# Last updated: 2026-09-11
+# Last updated: 2026-09-27
 # =============================================================================
-util_try_mkdir_storage() {
-    _try_dir="${1:-}"
-    if [ -z "${_try_dir}" ]; then
-        unset _try_dir
-        return 1
-    fi
-    mkdir -p "${_try_dir}" 2>/dev/null || true
-    if [ -d "${_try_dir}" ] && [ -w "${_try_dir}" ]; then
-        unset _try_dir
+util_cache_host_kind() {
+    case "${SSHD_CLI_CACHE_HOST:-}" in
+        linux|gitbash|mac)
+            printf '%s' "${SSHD_CLI_CACHE_HOST}"
+            return 0
+            ;;
+    esac
+    if [ -n "${MSYSTEM:-}" ]; then
+        printf '%s' "gitbash"
         return 0
     fi
-    unset _try_dir
-    return 1
+    case "$(uname -s 2>/dev/null)" in
+        MINGW*|MSYS*) printf '%s' "gitbash" ;;
+        Darwin) printf '%s' "mac" ;;
+        *) printf '%s' "linux" ;;
+    esac
+}
+
+util_cache_login() {
+    _clogin="${USERNAME:-unknown}"
+    case "${_clogin}" in
+        *[!A-Za-z0-9._-]*)
+            _clogin=$(printf '%s' "${_clogin}" | tr -c 'A-Za-z0-9._-' '_')
+            ;;
+    esac
+    [ -n "${_clogin}" ] || _clogin="unknown"
+    printf '%s' "${_clogin}"
+    unset _clogin
+}
+
+util_cache_volatile_leaf() {
+    : "${APP_NAME:=app}"
+    printf '%s' "cache-${APP_NAME}-$(util_cache_login)-$$"
+}
+
+util_cache_home_leaf() {
+    : "${APP_NAME:=app}"
+    printf '%s' "cache-${APP_NAME}-$$"
+}
+
+util_preferred_cache_dir() {
+    : "${APP_NAME:=app}"
+    : "${HOME:=/tmp}"
+    case "$(util_cache_host_kind)" in
+        gitbash|mac)
+            printf '%s' "/tmp/cache/$(util_cache_volatile_leaf)"
+            ;;
+        *)
+            printf '%s' "/dev/shm/cache/$(util_cache_volatile_leaf)"
+            ;;
+    esac
+}
+
+util_fallback_cache_dir() {
+    : "${APP_NAME:=app}"
+    : "${HOME:=/tmp}"
+    case "$(util_cache_host_kind)" in
+        gitbash)
+            printf '%s' "${HOME}/AppData/Local/Temp/$(util_cache_home_leaf)"
+            ;;
+        mac)
+            printf '%s' "${HOME}/Library/Caches/$(util_cache_home_leaf)"
+            ;;
+        *)
+            printf '%s' "/tmp/cache/$(util_cache_volatile_leaf)"
+            ;;
+    esac
+}
+
+util_fallback2_cache_dir() {
+    : "${APP_NAME:=app}"
+    : "${HOME:=/tmp}"
+    case "$(util_cache_host_kind)" in
+        gitbash)
+            printf '%s' ""
+            ;;
+        mac)
+            printf '%s' "${HOME}/cache/$(util_cache_home_leaf)"
+            ;;
+        *)
+            printf '%s' "${HOME}/.cache/$(util_cache_home_leaf)"
+            ;;
+    esac
+}
+
+# Create one cache tier. Silent on failure (caller tries the next tier).
+# Last updated: 2026-09-27
+util_cache_try_dir() {
+    _cdir="${1:-}"
+    if [ -z "${_cdir}" ]; then
+        unset _cdir
+        return 1
+    fi
+    _cparent=$(dirname "${_cdir}")
+    case "${_cparent}" in
+        /dev/shm/cache|/tmp/cache)
+            mkdir -m 1777 -p "${_cparent}" 2>/dev/null || mkdir -p "${_cparent}" 2>/dev/null || {
+                unset _cdir _cparent
+                return 1
+            }
+            ;;
+        *)
+            mkdir -p "${_cparent}" 2>/dev/null || {
+                unset _cdir _cparent
+                return 1
+            }
+            ;;
+    esac
+    mkdir -m 0700 -p "${_cdir}" 2>/dev/null || mkdir -p "${_cdir}" 2>/dev/null || {
+        unset _cdir _cparent
+        return 1
+    }
+    if [ ! -d "${_cdir}" ] || [ ! -w "${_cdir}" ]; then
+        unset _cdir _cparent
+        return 1
+    fi
+    unset _cdir _cparent
+    return 0
 }
 
 # =============================================================================
-# util_resolve_storage() - Storage resolver
+# util_resolve_storage() - Cache folder resolver
 # =============================================================================
 #
 # GENERAL PURPOSE:
-# Returns the best available volatile storage directory for prompt files.
-# Walks a documented chain. mkdir of each leaf is fail-soft (re-test -d/-w).
-# Isolation leaf is ${APP_NAME}-${USERNAME} under the chosen cache root.
-#
-# Live chain (requirement-shell-cli-storage):
-#   1. /dev/shm/cache/${APP_NAME}-${USERNAME}
-#   2a. Termux: ${PREFIX}/tmp/${APP_NAME}-${USERNAME}
-#   2b. Git Bash: $HOME/AppData/Local/Temp/cache/… else /c/Users/${USERNAME}/…
-#   3. $TEMP/cache/${APP_NAME}-${USERNAME}
-#   4. /tmp/cache/… else /tmp/${APP_NAME}-${USERNAME}
-#   5. STORAGE_DIR (XDG cache fallback)
-# Die only at the END if no root worked. Do not warn when leaving /dev/shm.
-# Parent /dev/shm/cache is created first (prefer 1777) so the leaf is not a
-# ram-drive project tree named /dev/shm/${APP_NAME}-${USERNAME}.
-#
-# CIAO PRINCIPLES APPLIED:
-# - Caution: Must work correctly when the same computer is used by multiple
-#   different users (normal user, sudo, root, shared servers, containers).
-# - Intentionality: Never allow one user's files to be readable/writable by
-#   another user. Every directory creation must be ownership-aware.
-# - Anti-fragile: Survive permission conflicts, Git Bash fake /dev/shm, and
-#   multi-user environments. mkdir fail-soft; next root.
-#
-# CRITICAL WARNING - MULTI-USER PROBLEM AI FREQUENTLY OVERLOOKS:
-# Many good applications on a computer are run by different users over time
-# (e.g. normal user → sudo → another login account).
-#
-# AI assistants often simply "add mkdir -p" when solving a storage task without
-# considering ownership and cross-user write privilege. This approach is
-# untested and problematic — it can create directories owned by one user that
-# another user cannot read/write, or allow unintended access between users.
-#
-# That is why we intentionally isolate folders per user (${APP_NAME}-${USERNAME})
-# and why any change to this function must preserve strict per-user isolation.
-# Rewriting this with a generic shared folder is forbidden and has caused
-# permission bugs in the past.
+# Returns the best available cache directory for scratch files.
+# Linux: shm leaf, then /tmp leaf, then ${HOME}/.cache leaf.
+# Git Bash: /tmp leaf, then AppData Local Temp leaf.
+# Mac: /tmp leaf, then Library/Caches leaf, then ${HOME}/cache leaf.
+# Volatile leaves are cache-${APP_NAME}-${login}-$$. Home leaves omit login.
+# A missed tier is silent (no warning, no error). Error only if every tier fails.
+# MUST NOT restore /dev/shm/${APP_NAME} or /dev/shm/${APP_NAME}-${USERNAME}.
 #
 # !!! DO NOT MODIFY OR SIMPLIFY THIS FUNCTION !!!
-# Designed to be reusable in other projects.
+# Dropping ${login} or $$ from a volatile leaf, or warning on a skipped tier,
+# is a cache isolation regression.
 #
 # ECHO EXCEPTION (class B – function return-via-stdout):
-# echo of storage paths is a data return for $(util_resolve_storage) capture,
-# not a product user message. Failures use out_die only after the full chain.
+# echo of cache paths is a data return for $(util_resolve_storage) capture,
+# not a product user message. Failures use out_die.
 # See requirement-shell-output-requirements.md §2.1.1.
 #
 # Lessons Learned (CIAO Reflection):
 # 2026-07-13: STORAGE_DIR was bare/unset on third fallback (INC-20260713-001 P1).
-# 2026-07-14: Third fallback uses XDG_CACHE_HOME / HOME/.cache / /tmp with
-#             per-user ${APP_NAME}-${USERNAME} isolation under set -u.
-# 2026-07-16: Create chosen tier root before echo (fail-closed) for all tiers;
-#             wire from app_main (EFFECTIVE_STORAGE_DIR + TMPDIR). SM-STOR-01.
-# 2026-09-11: Git Bash /dev/shm can look writable then mkdir fails; dying on
-#             that one leaf printed [ERROR] and skipped AppData Local Temp.
-#             mkdir is a probe (INC-20260911-001).
-# 2026-09-17: Preferred leaf is /dev/shm/cache/${APP_NAME}-${USERNAME}, not
-#             /dev/shm/${APP_NAME}-${USERNAME} (that looks like a project tree).
+# 2026-07-16: Create chosen tier root before echo (fail-closed) for all tiers.
+# 2026-09-11: Git Bash /dev/shm mkdir must not abort the chain (INC-20260911-001).
+# 2026-09-17: Preferred leaf moved under /dev/shm/cache/.
+# 2026-09-27: Leaf is cache-${APP_NAME}-${login}-$$ so logins do not share
+#             one directory. Tier misses stay silent.
 #
-# Last updated: 2026-09-17
+# Last updated: 2026-09-27
 # SSOT: requirement-shell-cli-storage.md
 # =============================================================================
 util_resolve_storage() {
-    # --- Safe Variable Defaults ----
-    # Defensive defaults - never assume globals are set
     : "${USERNAME:=unknown}"
     : "${APP_NAME:=app}"
     : "${HOME:=/tmp}"
-    : "${XDG_CACHE_HOME:=${HOME}/.cache}"
-    : "${PREFIX:=}"
-    : "${TEMP:=}"
 
-    _leaf="${APP_NAME}-${USERNAME}"
     _storage_candidate=""
-
-    # 1. RAM disk isolated child under /dev/shm/cache (fail-soft — Git Bash
-    # /dev/shm is often fake). Create the cache parent first (prefer 1777).
-    if [ -z "${_storage_candidate}" ] && [ -d "/dev/shm" ]; then
-        mkdir -m 1777 -p /dev/shm/cache 2>/dev/null || mkdir -p /dev/shm/cache 2>/dev/null || true
-        if [ -d /dev/shm/cache ]; then
-            if util_try_mkdir_storage "/dev/shm/cache/${_leaf}"; then
-                _storage_candidate="/dev/shm/cache/${_leaf}"
-            fi
+    _pref=""
+    _fb1=""
+    _fb2=""
+    if [ "${SSHD_CLI_CACHE_SKIP:-}" != "preferred" ]; then
+        _pref=$(util_preferred_cache_dir)
+        if util_cache_try_dir "${_pref}"; then
+            _storage_candidate="${_pref}"
         fi
     fi
-
-    # 2a. Termux this-login prefix tmp
     if [ -z "${_storage_candidate}" ]; then
-        if sshd_is_termux; then
-            if util_try_mkdir_storage "${PREFIX}/tmp/${_leaf}"; then
-                _storage_candidate="${PREFIX}/tmp/${_leaf}"
-            fi
+        _fb1=$(util_fallback_cache_dir)
+        if util_cache_try_dir "${_fb1}"; then
+            _storage_candidate="${_fb1}"
         fi
     fi
-
-    # 2b. Git Bash Windows user temp (parent must already exist)
     if [ -z "${_storage_candidate}" ]; then
-        if sshd_is_git_bash; then
-            _gb_parent=""
-            if [ -d "${HOME}/AppData/Local/Temp" ]; then
-                _gb_parent="${HOME}/AppData/Local/Temp"
-            elif [ -d "/c/Users/${USERNAME}/AppData/Local/Temp" ]; then
-                _gb_parent="/c/Users/${USERNAME}/AppData/Local/Temp"
-            fi
-            if [ -n "${_gb_parent}" ]; then
-                if util_try_mkdir_storage "${_gb_parent}/cache/${_leaf}"; then
-                    _storage_candidate="${_gb_parent}/cache/${_leaf}"
-                fi
-            fi
-            unset _gb_parent
+        _fb2=$(util_fallback2_cache_dir)
+        if [ -n "${_fb2}" ] && util_cache_try_dir "${_fb2}"; then
+            _storage_candidate="${_fb2}"
         fi
     fi
-
-    # 3. $TEMP/cache
-    if [ -z "${_storage_candidate}" ] && [ -n "${TEMP}" ] && [ -d "${TEMP}" ]; then
-        if util_try_mkdir_storage "${TEMP}/cache/${_leaf}"; then
-            _storage_candidate="${TEMP}/cache/${_leaf}"
-        fi
-    fi
-
-    # 4. /tmp/cache else /tmp isolated child
-    if [ -z "${_storage_candidate}" ] && [ -d "/tmp" ]; then
-        if util_try_mkdir_storage "/tmp/cache/${_leaf}"; then
-            _storage_candidate="/tmp/cache/${_leaf}"
-        elif util_try_mkdir_storage "/tmp/${_leaf}"; then
-            _storage_candidate="/tmp/${_leaf}"
-        fi
-    fi
-
-    # 5. Config / XDG cache (not the Git Bash volatile root when AppData exists)
     if [ -z "${_storage_candidate}" ]; then
-        : "${STORAGE_DIR:=${XDG_CACHE_HOME}/${_leaf}}"
-        if util_try_mkdir_storage "${STORAGE_DIR}"; then
-            _storage_candidate="${STORAGE_DIR}"
-        fi
-    fi
-
-    if [ -z "${_storage_candidate}" ]; then
-        out_die "Cannot create a writable storage folder for ${APP_NAME}. Next: set STORAGE_DIR to a writable folder and retry."
+        out_die "Cannot create cache folder"
     fi
     echo "${_storage_candidate}"
-    unset _storage_candidate _leaf
+    unset _storage_candidate _pref _fb1 _fb2
     return 0
 }
 
@@ -3121,7 +3158,9 @@ prompt_yes_no() {
 #
 # !!! DO NOT MODIFY OR SIMPLIFY THIS FUNCTION !!!
 # Designed to be reusable in other CIAO projects.
-# Last reviewed: April 2026
+# Last updated: 2026-09-27
+# Cache lines: used, preferred, 1st fallback, 2nd fallback when this host has one,
+# plus Persistence storage. A skipped cache tier prints no warning.
 # =============================================================================
 
 # =============================================================================
@@ -8074,13 +8113,18 @@ fi
     : "${SCRIPT_URL:=}"
     : "${USERNAME:=unknown}"
     : "${HOME:=/tmp}"
-    : "${XDG_CACHE_HOME:=${HOME}/.cache}"
 
-    # Storage (requirement-shell-cli-storage): resolve if main has not yet
+    # Cache + persistence (requirement-shell-cli-storage): resolve if main has not yet
     if [ -z "${EFFECTIVE_STORAGE_DIR:-}" ]; then
         EFFECTIVE_STORAGE_DIR=$(util_resolve_storage)
     fi
-    : "${STORAGE_DIR:=${XDG_CACHE_HOME}/${APP_NAME}-${USERNAME}}"
+    _cache_preferred=$(util_preferred_cache_dir)
+    _cache_fallback=$(util_fallback_cache_dir)
+    _cache_fallback_2=$(util_fallback2_cache_dir)
+    STORAGE_DIR="${_cache_fallback}"
+    if [ -z "${PERSISTENT_STORAGE_DIR:-}" ]; then
+        PERSISTENT_STORAGE_DIR=$(util_resolve_persistent_storage)
+    fi
 
     sshd_resolve
     SSHD_ABOUT_RUNNING="false"
@@ -8131,6 +8175,11 @@ fi
             "shell" "${current_shell}" \
             "interactive" "${interactive}" \
             "user" "${current_user}" \
+            "cache_used" "${EFFECTIVE_STORAGE_DIR}" \
+            "cache_preferred" "${_cache_preferred}" \
+            "cache_fallback" "${_cache_fallback}" \
+            "cache_fallback_2" "${_cache_fallback_2}" \
+            "persistence_storage" "${PERSISTENT_STORAGE_DIR}" \
             "effective_storage" "${EFFECTIVE_STORAGE_DIR}" \
             "storage_dir" "${STORAGE_DIR}" \
             "sshd_platform" "${SSHD_PLATFORM:-}" \
@@ -8204,8 +8253,13 @@ fi
     fi
 
     out_empty_line
-    out_info "Storage (effective): ${EFFECTIVE_STORAGE_DIR}"
-    out_info "Storage (fallback config field): ${STORAGE_DIR}"
+    out_info "Cache folder used: ${EFFECTIVE_STORAGE_DIR}"
+    out_info "Cache folder (preferred): ${_cache_preferred}"
+    out_info "Cache folder (1st fallback): ${_cache_fallback}"
+    if [ -n "${_cache_fallback_2}" ]; then
+        out_info "Cache folder (2nd fallback): ${_cache_fallback_2}"
+    fi
+    out_info "Persistence storage: ${PERSISTENT_STORAGE_DIR}"
 
     # --- DOMAIN_ABOUT_FIELDS (specializee injection) ---
     out_empty_line
@@ -8413,7 +8467,8 @@ app_help() {
 #     non-interactive / curl|sh / quiet / json → Type O install-ensure.
 #     SSOT: requirement-shell-cli-zero-arguments.md
 #
-# Last reviewed: 2026-09-05
+# Last updated: 2026-09-27
+# Cache resolve is per login and per process. A missed tier is silent.
 # =============================================================================
 
 app_main() {
@@ -8427,17 +8482,17 @@ app_main() {
     : "${FORCE:=0}"
     : "${FORCE_REINSTALL:=0}"
 
-    # Effective scratch/cache root for this run (requirement-shell-cli-storage).
-    # Chain: /dev/shm/cache → Termux PREFIX/tmp / Git Bash AppData Temp/cache →
-    # $TEMP/cache → /tmp/cache → STORAGE_DIR. mkdir of each leaf is fail-soft;
-    # die only if no root worked. Export TMPDIR so mktemp -t (install download
-    # stage) lands under the isolated product root.
+    # Cache folder for this run (requirement-shell-cli-storage).
+    # Linux: /dev/shm/cache leaf, then /tmp/cache, then ${HOME}/.cache.
+    # Git Bash: /tmp/cache, then AppData Local Temp. Mac adds ${HOME}/cache.
+    # A missed tier is silent. Die only if every tier failed.
+    # Export TMPDIR so mktemp -t lands under this process cache leaf.
     : "${USERNAME:=unknown}"
     : "${HOME:=/tmp}"
-    : "${XDG_CACHE_HOME:=${HOME}/.cache}"
-    : "${STORAGE_DIR:=${XDG_CACHE_HOME}/${APP_NAME}-${USERNAME}}"
     EFFECTIVE_STORAGE_DIR=$(util_resolve_storage)
-    export EFFECTIVE_STORAGE_DIR STORAGE_DIR
+    STORAGE_DIR=$(util_fallback_cache_dir)
+    PERSISTENT_STORAGE_DIR=$(util_resolve_persistent_storage)
+    export EFFECTIVE_STORAGE_DIR STORAGE_DIR PERSISTENT_STORAGE_DIR
     export TMPDIR="${EFFECTIVE_STORAGE_DIR}"
 
     # === ZERO-ARG ===

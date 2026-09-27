@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.26.0  
+**Product VERSION:** 1.27.0  
 **Last plan update:** 2026-09-27  
-**Last suite run:** PASS=759 FAIL=22 SKIP=0 (2026-09-27). Menu **7** / **71–75** passed (TP-CLI-14, TP-CFG-17, TP-SSHD-04). The 22 failures are TP-DL-* `tar xzf` on the fake download archive; the same 22 fail on unchanged HEAD.
+**Last suite run:** PASS=817 FAIL=22 SKIP=0 (`./tests/run.sh`, 2026-09-27). Menu **7** / **71–75** passed (TP-CLI-14, TP-CFG-17, TP-SSHD-04). Cache cases TP-CLI-06, TP-CLI-12, TP-CLI-19, and TP-CLI-20 passed. Install checks TP-LC-02 and TP-LC-04 passed against the published 1.27.0 copy. The 22 failures are pre-existing TP-DL-* `tar xzf` cases on the fake download archive (same class on unchanged HEAD).
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -19,8 +19,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | version / help / about human + JSON | have | TP-CLI-02..06 |
 | Empty argv: non-TTY CLI self-install / TTY menu | have | TP-CLI-07, TP-CLI-14, TP-CLI-22, TP-SI-01..06, TP-SSHD-03..05, TP-SSHD-16 |
 | Unknown + quiet + set -u HOME | have | TP-CLI-08..11 |
-| Storage isolation; preferred `/dev/shm/cache/${APP_NAME}-${USERNAME}` | have | TP-CLI-12 |
-| Git Bash `/dev/shm` mkdir fail-soft → AppData Temp/`cache` | have | TP-CLI-19, TP-CLI-20 |
+| Per-login per-process cache folder + persistence | have | TP-CLI-06, TP-CLI-12, TP-CLI-19, TP-CLI-20 |
 | `backup-config` / `sync-config` / `sync-from-remote` / sudoers grant | have | TP-CFG-01..17 |
 | Channel verbs routed (`self-update`, `version-check`); no public network in CI | have | TP-CLI-04, TP-CLI-10 |
 | Trimmed parent verbs fail closed | have | TP-CLI-13 |
@@ -52,7 +51,7 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-CLI-04 | help lists this-login + domain verbs; no backup/restore/sudoers; no CHECKSUM | test_cli | requirement-shell-cli-interface · requirement-domain-sshd · requirement-shell-automatic-checksum | **have** |
 | TP-CLI-18 | help lists `rc-test` under testers heading apart from operational verbs | test_cli | requirement-shell-cli-interface · requirement-shell-path-and-shell-support | **have** |
 | TP-CLI-05 | help JSON short | test_cli | requirement-shell-output-requirements | **have** |
-| TP-CLI-06 | about JSON storage + `sshd_platform`; no CHECKSUM | test_cli | requirement-shell-cli-storage · requirement-domain-sshd | **have** |
+| TP-CLI-06 | about JSON cache_used / cache_preferred / cache_fallback / cache_fallback_2 / persistence_storage + `sshd_platform`; human Cache folder used, preferred, 1st, 2nd + Persistence storage; no CHECKSUM | test_cli | requirement-shell-cli-storage · requirement-domain-sshd | **have** |
 | TP-CLI-07 | empty argv non-interactive CLI self-install | test_cli | requirement-shell-cli-zero-arguments · requirement-shell-cli-self-install · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-SI-01 | `self-install` copies from script `$0` (dead SCRIPT_URL) | test_cli | requirement-shell-cli-self-install | **have** |
 | TP-SI-02 | local dest mode **0700** after self-install | test_cli | requirement-shell-cli-self-install | **have** |
@@ -64,9 +63,9 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-CLI-09 | quiet suppresses version | test_cli | requirement-shell-output-requirements | **have** |
 | TP-CLI-10 | `self-update` / `version-check` are **known** commands (no network) | test_cli | requirement-shell-cli-interface · requirement-shell-self-management | **have** |
 | TP-CLI-11 | env -u HOME version | test_cli | class / requirement-shell-script-coding | **have** |
-| TP-CLI-12 | preferred `/dev/shm/cache/${APP_NAME}-${USERNAME}`; dir exists | test_cli | requirement-shell-cli-storage | **have** |
-| TP-CLI-19 | Git Bash: `/dev/shm` mkdir fail-soft → AppData Local Temp/`cache`; no storage ERROR | test_cli | requirement-shell-cli-storage | **have** |
-| TP-CLI-20 | static: resolver names Git Bash Temp; no mid-chain mkdir `out_die` | test_cli | requirement-shell-cli-storage · requirement-shell-script-coding | **have** |
+| TP-CLI-12 | Linux preferred `/dev/shm/cache/cache-${APP_NAME}-${login}-$$`; Git Bash and Mac chains and about lines; silent skip of preferred; leaf mode 0700; persistence `${HOME}/.local/${APP_NAME}`; live dir exists | test_cli | requirement-shell-cli-storage | **have** |
+| TP-CLI-19 | Git Bash: `/tmp/cache` mkdir fail-soft → `${HOME}/AppData/Local/Temp/cache-${APP_NAME}-$$`; no cache ERROR | test_cli | requirement-shell-cli-storage | **have** |
+| TP-CLI-20 | static: resolver names Git Bash Temp, shm cache, Mac Library/Caches; `util_cache_try_dir`; no mid-chain mkdir `out_die` | test_cli | requirement-shell-cli-storage · requirement-shell-script-coding | **have** |
 | TP-CFG-01 | Type 0 `backup-config` into `SSHD_CLI_ROOT` | test_config_backup | requirement-shell-config-backup | **have** |
 | TP-CFG-02 | `sync-config` dest mode 600 | test_config_backup | requirement-shell-config-backup | **have** |
 | TP-CFG-03 | missing source fail-closed + Next | test_config_backup | requirement-shell-config-backup | **have** |

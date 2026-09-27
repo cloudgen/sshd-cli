@@ -5,7 +5,7 @@
 **Always load first:** `reviews/lessons.md`
 
 **Last plan update:** 2026-09-27  
-**Ship unit VERSION:** 1.26.0  
+**Ship unit VERSION:** 1.27.0  
 **Suite baseline:** see `reviews/test-plan.md`
 
 ---
@@ -15,7 +15,7 @@
 | # | Check | Notes |
 |---|--------|-------|
 | P1 | Read `docs/requirements/index.md` | Class + 17 shell + domain sshd + 3 pointers (22 Active, including `requirement-shell-cli-self-install`) |
-| P2 | Confirm ship unit `src/sshd-cli` / `./sshd-cli` | `APP_NAME` / `VERSION` hard-assign (**1.26.0**); same bytes |
+| P2 | Confirm ship unit `src/sshd-cli` / `./sshd-cli` | `APP_NAME` / `VERSION` hard-assign (**1.27.0**); same bytes |
 | P3 | Load `reviews/lessons.md` and re-check open L-* that still apply | Skip L-SUDOERS / restore lessons as parent-only |
 | P4 | Run `./tests/run.sh` | Record PASS/FAIL/SKIP in report |
 | P5 | Confirm install **channel** is `cloudgen/sshd-cli` | `SCRIPT_URL` default raw GitHub |
@@ -38,7 +38,7 @@
 | Output SSOT | `requirement-shell-output-requirements.md` | `out_*`; JSON errors |
 | Modular design | `requirement-shell-modular-function-design.md` | domain prefix **`sshd_*`** |
 | Idempotency | `requirement-shell-idempotency.md` | Re-install / pipe re-run (not TTY empty argv); bashrc exact-PATH no-op |
-| Storage | `requirement-shell-cli-storage.md` | Preferred `/dev/shm/cache/${APP_NAME}-${USERNAME}`; Git Bash `/dev/shm` mkdir fail-soft → AppData Temp/`cache` |
+| Storage | `requirement-shell-cli-storage.md` | Per-login per-process cache (Linux shm → tmp → `~/.cache`; Git Bash tmp → AppData; Mac tmp → Library/Caches → `~/cache`); silent tier miss; persistence `${HOME}/.local/${APP_NAME}` |
 | Interactive vs non-interactive | `requirement-shell-interactive-vs-noninteractive.md` | TTY ask vs pipe never-wait; unknown TTY menu redisplay |
 | Script coding | `requirement-shell-script-coding.md` | `set -u`; do-not-capture-read |
 | Automatic checksum | `requirement-shell-automatic-checksum.md` | Companion link/value/result; CHECKSUM not on help |

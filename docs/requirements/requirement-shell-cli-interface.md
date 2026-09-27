@@ -134,7 +134,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | **Primary executable** | Repo root `./sshd-cli` (POSIX `/bin/sh`, single-file for `curl \| sh`) |
 | **Dispatcher** | `app_main` (always invoked at end of script: `app_main "$@"` — no `${0##*/}` / APP_NAME basename gate; required for `curl \| sh`) |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION` default `1.26.0` (script header / config block: `VERSION="1.26.0"`) |
+| **Version SSOT** | `VERSION` default `1.27.0` (script header / config block: `VERSION="1.27.0"`) |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`, or `${PREFIX}/bin` when Termux `PREFIX/bin` exists; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Interactive rc write path** | `BASHRC` default `${HOME}/.bashrc`. `install` PATH ensure creates/modifies this file. Tests/CI **MAY** set `BASHRC` to a file in a temp folder. Dual mention: `requirement-shell-path-and-shell-support`. |
 | **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`). **`help` Environment also lists `BASHRC`.** |
@@ -150,7 +150,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | `self-install` | Type 0 | `inst_self_install` | Place **this CLI only** (copy when `$0` is a script; download when piped). Dest **0700** local / **0755** global. **MUST NOT** `pkg` or start sshd. Dual mention: `requirement-shell-cli-self-install`. Sample: `sshd-cli self-install` |
 | `install` | Type 0 | `inst_perform_install` | Payload: **always** `inst_ensure_companion` (rc + Termux pkg); then **start sshd** (`sshd_start_after_install`). Also places the CLI if needed. Dual mention: `requirement-shell-self-management` · `requirement-shell-path-and-shell-support` · `requirement-domain-sshd` |
 | `version` | Type 0 | argv: `app_version`; TTY **82** / typed `version` on a board: `app_about` | Argv: print local version; JSON `"type":"version"` when `--json`. TTY numbered **82** and typed `version` run **about** (diagnostics), not a header reprint (**INC-20260914-001**). |
-| `about` | Type 0 | `app_about` | Diagnostics: install presence, global/local paths, user, shell, TTY; JSON when `--json`; **no `CHECKSUM` field** |
+| `about` | Type 0 | `app_about` | Diagnostics: install presence, global/local paths, user, shell, TTY; **Cache folder used**, **preferred**, **1st fallback**, **2nd fallback** when that host has one, and **Persistence storage** (`requirement-shell-cli-storage`); JSON when `--json`; **no `CHECKSUM` field** |
 | `version-check` | Type 0 | `ver_check` | Compare local vs remote `VERSION` from `SCRIPT_URL`; fail clearly if URL unset/unreachable |
 | `self-update` | Type 0 | `inst_self_update` | Fetch remote version; reinstall when policy allows; reuse install primitives. **CLI-only:** no auto-start sshd; no `sshd -t` of `/etc/ssh/sshd_config`. Dual mention: `requirement-shell-self-management` · `requirement-domain-sshd` |
 | `self-uninstall` | Type 0 | `inst_self_uninstall` | Remove managed binary; PATH cleanup only if `~/.local/bin` empty (user installs) |
@@ -340,6 +340,6 @@ This requirement is satisfied for the sshd-cli shell CLI when all of the followi
 
 ---
 
-**Last Updated**: 2026-09-13 (TTY unknown menu choice redisplays that layer; dual mention with domain)  
+**Last Updated**: 2026-09-27 (`about` cache lines follow `requirement-shell-cli-storage` 1.3.0; VERSION 1.27.0. Prior: 2026-09-13 TTY unknown menu choice redisplays that layer)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 5, 6, 10, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

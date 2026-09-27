@@ -2,6 +2,7 @@
 
 | Date | Report | Scope | Verdict | Suite |
 |------|--------|-------|---------|-------|
+| 2026-09-27 | Cache folder checklist | per-login per-process cache; `requirement-shell-cli-storage` 1.3.0; TP-CLI-06 · 12 · 19 · 20 | Pass | PASS=817 FAIL=22 SKIP=0 (`tests/run.sh`); 22 are pre-existing TP-DL-* |
 | 2026-09-12 | TTY download user prompt | `download` user walk vs `ssh`; TP-DL-10..13; INC-20260912-001 | closed | PASS=626 FAIL=0 SKIP=0 (`tests/run.sh`) |
 | 2026-09-07 | ssh-config dns-ip commit gate | write/pick fidelity; TP-DNS-13..19 | closed | PASS=218 FAIL=0 SKIP=0 (`tests/run.sh`) |
 | 2026-09-06 | ssh-config dns-ip | `dns` Host list / show / field walk / set; TP-DNS-01..12 | superseded | PASS=189 FAIL=0 SKIP=0 (`tests/run.sh`) |
