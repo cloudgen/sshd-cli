@@ -119,7 +119,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Primary language + toolchain policy | **this file** | posix-sh, unconstrained |
 | Package/build tool + lockfile | **this file** | none / not used |
 | Type 0 CLI surface / flags / dispatch | `requirement-shell-cli-interface` | Do not duplicate |
-| Empty argv TTY menu / non-TTY install-ensure | `requirement-shell-cli-zero-arguments` | Do not duplicate |
+| Empty argv TTY menu / non-TTY CLI self-install | `requirement-shell-cli-zero-arguments` · `requirement-shell-cli-self-install` | Do not duplicate |
 | Self-management lifecycle | `requirement-shell-self-management` | Do not duplicate |
 | PATH / profile / shell-rc sibling unify | `requirement-shell-path-and-shell-support` | Do not duplicate |
 | Automatic companion digest | `requirement-shell-automatic-checksum` | Do not duplicate |

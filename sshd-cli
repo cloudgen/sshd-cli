@@ -13,7 +13,8 @@
 # Project requirements (docs/requirements/ only — never cite templates here):
 # - requirement-shell-cli-interface.md
 # - requirement-shell-cli-default-interaction.md (TTY numbered tree 1/2/8)
-# - requirement-shell-cli-zero-arguments.md  (empty argv: TTY menu / non-TTY install-ensure)
+# - requirement-shell-cli-zero-arguments.md  (empty argv: TTY menu / non-TTY self-install)
+# - requirement-shell-cli-self-install.md    (CLI place; copy from script $0; dest 0700/0755)
 # - requirement-shell-cli-storage.md         (util_resolve_storage + about fields)
 # - requirement-shell-idempotency.md
 # - requirement-shell-self-management.md
@@ -56,8 +57,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config / sync-from-remote).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.22.0"
-: "${VERSION:=1.22.0}"
+VERSION="1.26.0"
+: "${VERSION:=1.26.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -985,11 +986,253 @@ inst_perform_install_atomic_install() {
 }
 
 # =============================================================================
+# inst_argv0_is_shell_interpreter() - $0 is sh/bash/zsh/… (pipe), not the ship unit
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Return 0 when process $0 is a shell interpreter (curl | sh). Return 1 when
+# $0 is the running script (./app self-install, sh /path/to/app).
+#
+# ALIGNMENT: requirement-shell-cli-self-install.md
+#
+# Last updated: 2026-09-17
+# =============================================================================
+inst_argv0_is_shell_interpreter() {
+    local _a0="${1:-}"
+    local _base="${_a0##*/}"
+    case "${_base}" in
+        -*) _base="${_base#-}" ;;
+    esac
+    case "${_base}" in
+        sh|bash|dash|ash|zsh|ksh|mksh|yash|posh|csh|tcsh|fish|busybox)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+# =============================================================================
+# inst_resolve_self_script() - Absolute path of the running script, or empty
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# If $0 is a readable regular file (not an interpreter), print its absolute
+# path. Basename-only invocations use command -v.
+#
+# PRINTF EXCEPTION (class B – function return-via-stdout): path or nothing.
+#
+# ALIGNMENT: requirement-shell-cli-self-install.md
+#
+# Last updated: 2026-09-17
+# =============================================================================
+inst_resolve_self_script() {
+    local _a0="${1:-}"
+    local _dir _found
+    if [ -z "${_a0}" ]; then
+        return 1
+    fi
+    if inst_argv0_is_shell_interpreter "${_a0}"; then
+        return 1
+    fi
+    if [ -f "${_a0}" ] && [ -r "${_a0}" ]; then
+        _dir=$(CDPATH= cd -- "$(dirname -- "${_a0}")" && pwd) || return 1
+        printf '%s\n' "${_dir}/${_a0##*/}"
+        return 0
+    fi
+    case "${_a0}" in
+        */*) return 1 ;;
+    esac
+    _found=$(command -v "${_a0}" 2>/dev/null) || return 1
+    if [ -f "${_found}" ] && [ -r "${_found}" ]; then
+        printf '%s\n' "${_found}"
+        return 0
+    fi
+    return 1
+}
+
+# =============================================================================
+# inst_cli_dest_mode() - 0755 global / 0700 local for self-install dest
+# =============================================================================
+#
+# ALIGNMENT: requirement-shell-cli-self-install.md
+#
+# Last updated: 2026-09-17
+# =============================================================================
+inst_cli_dest_mode() {
+    if [ "$(id -u 2>/dev/null || echo 1)" -eq 0 ]; then
+        printf '%s\n' "0755"
+    else
+        printf '%s\n' "0700"
+    fi
+}
+
+# =============================================================================
+# inst_self_install_copy_from_script() - Copy $0 to dest without download
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Stage as ${APP_NAME}-XXXXXX under TMPDIR/cache, chmod dest mode, atomic mv.
+#
+# ALIGNMENT: requirement-shell-cli-self-install.md
+#
+# Last updated: 2026-09-17
+# =============================================================================
+inst_self_install_copy_from_script() {
+    local _src="$1"
+    local _mode="$2"
+    local _tmp
+    : "${APP_NAME:=app}"
+    : "${JSON:=0}"
+    : "${INSTALL_PATH:=}"
+
+    _tmp=$(mktemp -t "${APP_NAME}-XXXXXX")
+    if [ -z "${_tmp}" ]; then
+        if [ "${JSON}" -eq 1 ]; then
+            out_json_error "Failed to create temporary file" "io_error"
+        else
+            out_error "Failed to create temporary file"
+        fi
+        return 1
+    fi
+    if ! cp "${_src}" "${_tmp}"; then
+        rm -f "${_tmp}" 2>/dev/null || true
+        if [ "${JSON}" -eq 1 ]; then
+            out_json_error "Failed to copy ${_src}" "io_error"
+        else
+            out_error "Failed to copy ${_src}"
+        fi
+        return 1
+    fi
+    chmod "${_mode}" "${_tmp}" 2>/dev/null || true
+    rm -f "${INSTALL_PATH}" 2>/dev/null
+    if ! mv "${_tmp}" "${INSTALL_PATH}" 2>/dev/null; then
+        rm -f "${_tmp}" 2>/dev/null || true
+        if [ "${JSON}" -eq 1 ]; then
+            out_json_error "Failed to move to ${INSTALL_PATH}" "io_error"
+        else
+            out_error "Failed to move to ${INSTALL_PATH}"
+        fi
+        return 1
+    fi
+    chmod "${_mode}" "${INSTALL_PATH}" 2>/dev/null || true
+    return 0
+}
+
+# =============================================================================
+# inst_self_install() - Place the CLI only (not payload)
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Type O-S CLI place/ensure. Non-interactive empty argv and the self-install
+# verb. Script $0 → copy without download. Interpreter $0 → channel download.
+# Dest mode 0755 global / 0700 local. PATH rc MAY. MUST NOT pkg or start sshd.
+#
+# ALIGNMENT: requirement-shell-cli-self-install.md
+#
+# Last updated: 2026-09-17
+# =============================================================================
+inst_self_install() {
+    : "${JSON:=0}"
+    : "${FORCE_REINSTALL:=0}"
+    : "${APP_NAME:=sshd-cli}"
+    : "${VERSION:=}"
+    : "${HOME:=/tmp}"
+    if [ -n "${PREFIX-}" ] && [ -d "${PREFIX}/bin" ]; then
+        : "${GLOBAL_BIN:=${PREFIX}/bin}"
+    else
+        : "${GLOBAL_BIN:=/usr/local/bin}"
+    fi
+    : "${USER_BIN:=${HOME}/.local/bin}"
+    : "${REMOTE_VERSION:=${VERSION}}"
+    : "${CHECKSUM:=}"
+    : "${SCRIPT_URL:=}"
+
+    if [ "$(id -u 2>/dev/null || echo 1)" -eq 0 ]; then
+        IS_ROOT=1
+        INSTALL_PATH="${GLOBAL_BIN}/${APP_NAME}"
+    else
+        IS_ROOT=0
+        INSTALL_PATH="${USER_BIN}/${APP_NAME}"
+    fi
+    local _mode _src _tmp _ck
+    _mode=$(inst_cli_dest_mode)
+
+    if [ "${JSON}" -eq 0 ]; then
+        out_info "Starting self-install of ${APP_NAME} ${REMOTE_VERSION}..."
+    fi
+
+    path_add_shell
+
+    if inst_is_installed && [ "${FORCE_REINSTALL}" -eq 0 ]; then
+        if [ "${JSON}" -eq 1 ]; then
+            out_json "out_success" "${APP_NAME} is already installed."
+        else
+            out_success "${APP_NAME} is already installed."
+            out_info "Use --force only to replace deliberately (or run: ${APP_NAME} self-update)."
+        fi
+        return 0
+    fi
+
+    if ! inst_perform_install_prepare_target; then
+        return 1
+    fi
+
+    _src=$(inst_resolve_self_script "$0") || _src=""
+    if [ -n "${_src}" ]; then
+        if [ "${JSON}" -eq 0 ]; then
+            out_info "Installing from local script ${_src} (no download)."
+        fi
+        if ! inst_self_install_copy_from_script "${_src}" "${_mode}"; then
+            return 1
+        fi
+        if [ "${JSON}" -eq 1 ]; then
+            out_json "out_success" "${APP_NAME} ${REMOTE_VERSION} successfully installed to ${INSTALL_PATH}" "path" "${INSTALL_PATH}"
+        else
+            out_success "${APP_NAME} ${REMOTE_VERSION} successfully installed to ${INSTALL_PATH}"
+        fi
+        return 0
+    fi
+
+    _tmp=$(mktemp -t "${APP_NAME}-XXXXXX")
+    if [ -z "${_tmp}" ]; then
+        if [ "${JSON}" -eq 1 ]; then
+            out_json_error "Failed to create temporary file" "io_error"
+        else
+            out_error "Failed to create temporary file"
+        fi
+        return 1
+    fi
+    _ck=0
+    : "${INST_AUTO_CHECKSUM_OK:=0}"
+    if [ -n "${CHECKSUM}" ]; then
+        if inst_perform_install_download_with_checksum "${_tmp}"; then
+            _ck=1
+        else
+            rm -f "${_tmp}" 2>/dev/null || true
+            return 1
+        fi
+    else
+        INST_AUTO_CHECKSUM_OK=0
+        if ! inst_perform_install_download_without_checksum "${_tmp}"; then
+            rm -f "${_tmp}" 2>/dev/null || true
+            return 1
+        fi
+        _ck=${INST_AUTO_CHECKSUM_OK:-0}
+    fi
+    if ! inst_perform_install_atomic_install "${_tmp}" "${_ck}"; then
+        rm -f "${_tmp}" 2>/dev/null || true
+        return 1
+    fi
+    chmod "${_mode}" "${INSTALL_PATH}" 2>/dev/null || true
+    return 0
+}
+
+# =============================================================================
 # inst_ensure_companion() - Login rc + Termux packages (install companion)
 # =============================================================================
 #
 # GENERAL PURPOSE:
-# Always-on companion of `install` / empty-argv install-ensure. Creates or
+# Always-on companion of `install` (payload). Creates or
 # modifies BASHRC (default this login's ~/.bashrc) PATH, creates ~/.profile
 # if missing, and on Termux runs `pkg install -y openssh termux-auth`.
 # Idempotent. Runs even when the CLI binary is already installed.
@@ -1122,7 +1365,7 @@ sshd_try_start_linux() {
 # =============================================================================
 #
 # Respects both --quiet and --json modes.
-# Quiet/JSON: no prompt — MUST call inst_perform_install (not return 0 skip).
+# Quiet/JSON: no prompt — MUST call inst_self_install (CLI place, not payload).
 # Interactive gate consumes process TTY (set once at startup), not a second [ -t.
 # Uses prompt_yes_no() as single source of truth for confirmation.
 #
@@ -1160,9 +1403,9 @@ inst_maybe_install() {
     if inst_is_installed && [ "${FORCE_REINSTALL}" -eq 0 ]; then
         return 0
     fi
-    # Quiet or JSON: place with no prompt (requirement-shell-cli-zero-arguments §2.4).
+    # Quiet or JSON: CLI place with no prompt (requirement-shell-cli-self-install).
     if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ]; then
-        inst_perform_install
+        inst_self_install
         return $?
     fi
     out_empty_line
@@ -1196,7 +1439,7 @@ inst_maybe_install() {
     fi
 
     if [ "${_maybe_should_install}" -eq 1 ]; then
-        inst_perform_install
+        inst_self_install
         return $?
     fi
     return 0
@@ -2548,13 +2791,15 @@ util_try_mkdir_storage() {
 # Isolation leaf is ${APP_NAME}-${USERNAME} under the chosen cache root.
 #
 # Live chain (requirement-shell-cli-storage):
-#   1. /dev/shm/${APP_NAME}-${USERNAME}
+#   1. /dev/shm/cache/${APP_NAME}-${USERNAME}
 #   2a. Termux: ${PREFIX}/tmp/${APP_NAME}-${USERNAME}
 #   2b. Git Bash: $HOME/AppData/Local/Temp/cache/… else /c/Users/${USERNAME}/…
 #   3. $TEMP/cache/${APP_NAME}-${USERNAME}
 #   4. /tmp/cache/… else /tmp/${APP_NAME}-${USERNAME}
 #   5. STORAGE_DIR (XDG cache fallback)
 # Die only at the END if no root worked. Do not warn when leaving /dev/shm.
+# Parent /dev/shm/cache is created first (prefer 1777) so the leaf is not a
+# ram-drive project tree named /dev/shm/${APP_NAME}-${USERNAME}.
 #
 # CIAO PRINCIPLES APPLIED:
 # - Caution: Must work correctly when the same computer is used by multiple
@@ -2595,8 +2840,10 @@ util_try_mkdir_storage() {
 # 2026-09-11: Git Bash /dev/shm can look writable then mkdir fails; dying on
 #             that one leaf printed [ERROR] and skipped AppData Local Temp.
 #             mkdir is a probe (INC-20260911-001).
+# 2026-09-17: Preferred leaf is /dev/shm/cache/${APP_NAME}-${USERNAME}, not
+#             /dev/shm/${APP_NAME}-${USERNAME} (that looks like a project tree).
 #
-# Last updated: 2026-09-11
+# Last updated: 2026-09-17
 # SSOT: requirement-shell-cli-storage.md
 # =============================================================================
 util_resolve_storage() {
@@ -2612,10 +2859,14 @@ util_resolve_storage() {
     _leaf="${APP_NAME}-${USERNAME}"
     _storage_candidate=""
 
-    # 1. RAM disk isolated child (fail-soft — Git Bash /dev/shm is often fake)
+    # 1. RAM disk isolated child under /dev/shm/cache (fail-soft — Git Bash
+    # /dev/shm is often fake). Create the cache parent first (prefer 1777).
     if [ -z "${_storage_candidate}" ] && [ -d "/dev/shm" ]; then
-        if util_try_mkdir_storage "/dev/shm/${_leaf}"; then
-            _storage_candidate="/dev/shm/${_leaf}"
+        mkdir -m 1777 -p /dev/shm/cache 2>/dev/null || mkdir -p /dev/shm/cache 2>/dev/null || true
+        if [ -d /dev/shm/cache ]; then
+            if util_try_mkdir_storage "/dev/shm/cache/${_leaf}"; then
+                _storage_candidate="/dev/shm/cache/${_leaf}"
+            fi
         fi
     fi
 
@@ -5032,21 +5283,21 @@ sshd_cmd_sudoers_menu() {
     fi
     while true; do
         out_info "$(printf '%s' "${APP_NAME}") — sudoers (grant and drafts)"
-        out_menu_choice "171" "generate-sudoer-request" "Write a JSON grant you can read"
-        out_menu_choice "172" "submit-sudoer-request" "Queue the JSON grant inbound"
-        out_menu_choice "173" "print-sudoers" "Emit sudoers draft"
-        out_menu_choice "174" "print-sudoers-install-script" "Write admin install script"
-        out_menu_choice "175" "remove-project-sudoers" "Remove sudoers draft only"
+        out_menu_choice "71" "generate-sudoer-request" "Write a JSON grant you can read"
+        out_menu_choice "72" "submit-sudoer-request" "Queue the JSON grant inbound"
+        out_menu_choice "73" "print-sudoers" "Emit sudoers draft"
+        out_menu_choice "74" "print-sudoers-install-script" "Write admin install script"
+        out_menu_choice "75" "remove-project-sudoers" "Remove sudoers draft only"
         out_plain "0. Back"
         out_msg_n "Choose a number, or type the command name: "
         _sc=""
         read -r _sc || true
         case "${_sc}" in
-            171|generate-sudoer-request) sshd_cmd_generate_sudoer_request; break ;;
-            172|submit-sudoer-request) sshd_cmd_submit_sudoer_request; break ;;
-            173|print-sudoers) sshd_cmd_print_sudoers; break ;;
-            174|print-sudoers-install-script) sshd_cmd_print_sudoers_install_script; break ;;
-            175|remove-project-sudoers) sshd_cmd_remove_project_sudoers; break ;;
+            71|generate-sudoer-request) sshd_cmd_generate_sudoer_request; break ;;
+            72|submit-sudoer-request) sshd_cmd_submit_sudoer_request; break ;;
+            73|print-sudoers) sshd_cmd_print_sudoers; break ;;
+            74|print-sudoers-install-script) sshd_cmd_print_sudoers_install_script; break ;;
+            75|remove-project-sudoers) sshd_cmd_remove_project_sudoers; break ;;
             0|q|exit|"") break ;;
             *)
                 out_warn "Unknown sudoers choice '${_sc}'. Choose a number from the list, or type the command name."
@@ -5247,11 +5498,17 @@ sshd_dns_records() {
         return 0
     fi
     awk '
-        function parse_line(line,    s) {
+        function parse_line(line,    s, commented) {
             key=""; val=""; lk=""
+            commented=0
             s=line
             sub(/^[[:space:]]+/, "", s)
-            if (s=="" || substr(s,1,1)=="#") return 0
+            if (s=="") return 0
+            if (substr(s,1,1)=="#") {
+                sub(/^#+[[:space:]]*/, "", s)
+                commented=1
+                if (s=="") return 0
+            }
             if (!match(s, /^[A-Za-z][A-Za-z0-9]*/)) return 0
             key=substr(s, RSTART, RLENGTH)
             s=substr(s, RSTART+RLENGTH)
@@ -5259,6 +5516,7 @@ sshd_dns_records() {
             sub(/^[[:space:]]+/, "", s)
             if (match(s, /^[^[:space:]]+/)) val=substr(s, RSTART, RLENGTH)
             lk=tolower(key)
+            if (commented && lk!="hostkeyalgorithms" && lk!="pubkeyacceptedalgorithms" && lk!="pubkeyacceptedkeytypes") return 0
             return 1
         }
         function is_concrete(p) {
@@ -5525,6 +5783,24 @@ sshd_dns_commit_tmp() {
 
 # Rewrite concrete Host stanza number n. Empty new_* means omit that keyword.
 # Keep extra Host aliases after the first pattern; canonicalize Key value form.
+# 1 on Termux: HostKeyAlgorithms / PubkeyAcceptedAlgorithms are comments.
+# An active keyword makes the Termux OpenSSH client error.
+sshd_dns_algo_comment_flag() {
+    if sshd_is_termux; then
+        printf '1'
+    else
+        printf '0'
+    fi
+}
+
+sshd_dns_old_openssh_hint() {
+    if sshd_is_termux; then
+        printf '%s' "Old OpenSSH on Termux writes HostKeyAlgorithms and PubkeyAcceptedAlgorithms as comments (an active line makes this ssh client error). ssh then passes -o HostKeyAlgorithms=+ssh-rsa."
+    else
+        printf '%s' "Old OpenSSH writes HostKeyAlgorithms and PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss."
+    fi
+}
+
 sshd_dns_rewrite() {
     _rw_n="$1"
     _new_dns="$2"
@@ -5545,18 +5821,25 @@ sshd_dns_rewrite() {
     sshd_dns_ensure_file
     sshd_dns_backup "${_cfg}" "dns-edit"
     _tmp=$(mktemp -t "${APP_NAME}.ssh_config.XXXXXX") || out_die "Could not create a temp file for ssh config."
-    awk -v target="${_rw_n}" -v newdns="${_new_dns}" -v newip="${_new_ip}" \
+    _algo_comment=$(sshd_dns_algo_comment_flag)
+    awk -v algocomment="${_algo_comment}" -v target="${_rw_n}" -v newdns="${_new_dns}" -v newip="${_new_ip}" \
         -v newuser="${_new_user}" -v newport="${_new_port}" \
         -v newidfile="${_new_idfile}" -v newidonly="${_new_idonly}" \
         -v newsai="${_new_sai}" -v newsacm="${_new_sacm}" \
         -v newtcpka="${_new_tcpka}" -v newipqos="${_new_ipqos}" \
         -v newhka="${_new_hka}" -v newpaa="${_new_paa}" \
         -v newciphers="${_new_ciphers}" -v newmacs="${_new_macs}" '
-        function parse_line(line,    s) {
+        function parse_line(line,    s, commented) {
             key=""; val=""; lk=""; host_rest=""
+            commented=0
             s=line
             sub(/^[[:space:]]+/, "", s)
-            if (s=="" || substr(s,1,1)=="#") return 0
+            if (s=="") return 0
+            if (substr(s,1,1)=="#") {
+                sub(/^#+[[:space:]]*/, "", s)
+                commented=1
+                if (s=="") return 0
+            }
             if (!match(s, /^[A-Za-z][A-Za-z0-9]*/)) return 0
             key=substr(s, RSTART, RLENGTH)
             s=substr(s, RSTART+RLENGTH)
@@ -5568,10 +5851,16 @@ sshd_dns_rewrite() {
                 host_rest=substr(s, RSTART+RLENGTH)
             }
             lk=tolower(key)
+            if (commented && lk!="hostkeyalgorithms" && lk!="pubkeyacceptedalgorithms" && lk!="pubkeyacceptedkeytypes") return 0
             return 1
         }
         function is_concrete(p) {
             return (p != "" && p !~ /[?*]/)
+        }
+        function emit_algo(key, val) {
+            if (val == "") return
+            if (algocomment+0 == 1) print "    # " key " " val
+            else print "    " key " " val
         }
         function reset_saw() {
             saw_hn=0; saw_user=0; saw_port=0
@@ -5592,8 +5881,8 @@ sshd_dns_rewrite() {
             if (!saw_sacm && newsacm != "") print "    ServerAliveCountMax " newsacm
             if (!saw_tcpka && newtcpka != "") print "    TCPKeepAlive " newtcpka
             if (!saw_ipqos && newipqos != "") print "    IPQoS " newipqos
-            if (!saw_hka && newhka != "") print "    HostKeyAlgorithms " newhka
-            if (!saw_paa && newpaa != "") print "    PubkeyAcceptedAlgorithms " newpaa
+            if (!saw_hka && newhka != "") emit_algo("HostKeyAlgorithms", newhka)
+            if (!saw_paa && newpaa != "") emit_algo("PubkeyAcceptedAlgorithms", newpaa)
         }
         BEGIN { n=0; in_match=0; in_target=0; reset_saw() }
         {
@@ -5688,12 +5977,12 @@ sshd_dns_rewrite() {
                 }
                 if (lk=="hostkeyalgorithms") {
                     saw_hka=1
-                    if (newhka != "") print "    HostKeyAlgorithms " newhka
+                    if (newhka != "") emit_algo("HostKeyAlgorithms", newhka)
                     next
                 }
                 if (lk=="pubkeyacceptedalgorithms" || lk=="pubkeyacceptedkeytypes") {
                     saw_paa=1
-                    if (newpaa != "") print "    PubkeyAcceptedAlgorithms " newpaa
+                    if (newpaa != "") emit_algo("PubkeyAcceptedAlgorithms", newpaa)
                     next
                 }
                 print raw
@@ -5709,7 +5998,7 @@ sshd_dns_rewrite() {
     sshd_dns_commit_tmp "${_tmp}" "${_cfg}"
     unset _rw_n _new_dns _new_ip _new_user _new_port _new_idfile _new_idonly
     unset _new_sai _new_sacm _new_tcpka _new_ipqos _new_hka _new_paa
-    unset _new_ciphers _new_macs _cfg _tmp
+    unset _new_ciphers _new_macs _cfg _tmp _algo_comment
 }
 
 # Insert a concrete Host before the first wildcard Host / Match (OpenSSH first-match).
@@ -5732,7 +6021,8 @@ sshd_dns_append() {
     sshd_dns_ensure_file
     sshd_dns_backup "${_cfg}" "dns-add"
     _tmp=$(mktemp -t "${APP_NAME}.ssh_config.XXXXXX") || out_die "Could not create a temp file for ssh config."
-    awk -v newdns="${_new_dns}" -v newip="${_new_ip}" \
+    _algo_comment=$(sshd_dns_algo_comment_flag)
+    awk -v algocomment="${_algo_comment}" -v newdns="${_new_dns}" -v newip="${_new_ip}" \
         -v newuser="${_new_user}" -v newport="${_new_port}" \
         -v newidfile="${_new_idfile}" -v newidonly="${_new_idonly}" \
         -v newsai="${_new_sai}" -v newsacm="${_new_sacm}" \
@@ -5753,6 +6043,11 @@ sshd_dns_append() {
             lk=tolower(key)
             return 1
         }
+        function emit_algo(key, val) {
+            if (val == "") return
+            if (algocomment+0 == 1) print "    # " key " " val
+            else print "    " key " " val
+        }
         function emit_stanza() {
             if (emitted) return
             if (had_output) print ""
@@ -5768,8 +6063,8 @@ sshd_dns_append() {
             if (newsacm != "") print "    ServerAliveCountMax " newsacm
             if (newtcpka != "") print "    TCPKeepAlive " newtcpka
             if (newipqos != "") print "    IPQoS " newipqos
-            if (newhka != "") print "    HostKeyAlgorithms " newhka
-            if (newpaa != "") print "    PubkeyAcceptedAlgorithms " newpaa
+            if (newhka != "") emit_algo("HostKeyAlgorithms", newhka)
+            if (newpaa != "") emit_algo("PubkeyAcceptedAlgorithms", newpaa)
             emitted=1
         }
         BEGIN { emitted=0; had_output=0 }
@@ -5790,7 +6085,7 @@ sshd_dns_append() {
     sshd_dns_commit_tmp "${_tmp}" "${_cfg}"
     unset _new_dns _new_ip _new_user _new_port _new_idfile _new_idonly
     unset _new_sai _new_sacm _new_tcpka _new_ipqos _new_hka _new_paa
-    unset _new_ciphers _new_macs _cfg _tmp
+    unset _new_ciphers _new_macs _cfg _tmp _algo_comment
 }
 
 # Drop concrete Host stanza number n (whole stanza, including extra aliases).
@@ -6094,7 +6389,7 @@ sshd_dns_walk_edit() {
     sshd_dns_prompt_field "identities-only" "${_idonly}" "$(sshd_dns_disp_opt "${_idonly}")"
     _idonly=$(sshd_dns_norm_idonly "${DNS_FIELD_VALUE}")
     _old_def=$(sshd_dns_disp_old "${_hka}" "${_paa}")
-    out_info "Old OpenSSH writes HostKeyAlgorithms and PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss."
+    out_info "$(sshd_dns_old_openssh_hint)"
     sshd_dns_prompt_yn "Old OpenSSH" "${_old_def}"
     if [ "${DNS_YN_VALUE}" = "yes" ]; then
         _hka="+ssh-rsa,ssh-dss"
@@ -6167,7 +6462,7 @@ sshd_dns_walk_add() {
         fi
         sshd_dns_prompt_field "identities-only" "${_idonly_def}" "$(sshd_dns_disp_opt "${_idonly_def}")"
         _idonly=$(sshd_dns_norm_idonly "${DNS_FIELD_VALUE}")
-        out_info "Old OpenSSH writes HostKeyAlgorithms and PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss."
+        out_info "$(sshd_dns_old_openssh_hint)"
         sshd_dns_prompt_yn "Old OpenSSH" "yes"
         if [ "${DNS_YN_VALUE}" = "yes" ]; then
             _hka="+ssh-rsa,ssh-dss"
@@ -6884,6 +7179,49 @@ EOF
     done
 }
 
+# Return 0 when this Host stanza comments HostKeyAlgorithms or
+# PubkeyAcceptedAlgorithms. OpenSSH ignores the comment; ssh must pass -o.
+sshd_ssh_host_algo_commented() {
+    _hac_host="${1-}"
+    _hac_cfg=$(sshd_dns_config_path)
+    if [ -z "${_hac_host}" ] || [ ! -r "${_hac_cfg}" ]; then
+        unset _hac_host _hac_cfg
+        return 1
+    fi
+    awk -v host="${_hac_host}" '
+        function first_pat(rest,    n, a) {
+            n=split(rest, a, /[[:space:]]+/)
+            if (n < 1) return ""
+            return a[1]
+        }
+        BEGIN { inhost=0; found=0 }
+        {
+            s=$0
+            sub(/\r$/, "", s)
+            sub(/^[[:space:]]+/, "", s)
+            if (tolower(s) ~ /^host[[:space:]]/) {
+                rest=s
+                sub(/^[Hh][Oo][Ss][Tt][[:space:]]+/, "", rest)
+                if (first_pat(rest) == host) inhost=1
+                else inhost=0
+                next
+            }
+            if (tolower(s) ~ /^match[[:space:]]/) { inhost=0; next }
+            if (!inhost) next
+            if (substr(s,1,1) != "#") next
+            sub(/^#+[[:space:]]*/, "", s)
+            lk=tolower(s)
+            if (lk ~ /^hostkeyalgorithms([[:space:]=]|$)/) found=1
+            if (lk ~ /^pubkeyacceptedalgorithms([[:space:]=]|$)/) found=1
+            if (lk ~ /^pubkeyacceptedkeytypes([[:space:]=]|$)/) found=1
+        }
+        END { exit found ? 0 : 1 }
+    ' "${_hac_cfg}"
+    _hac_ec=$?
+    unset _hac_host _hac_cfg
+    return "${_hac_ec}"
+}
+
 sshd_cmd_ssh() {
     : "${JSON:=0}"
     : "${TTY:=0}"
@@ -6917,22 +7255,38 @@ sshd_cmd_ssh() {
     if [ -z "${_bin}" ] || [ ! -x "${_bin}" ]; then
         out_die "Cannot ssh: OpenSSH client not found. Next: install openssh-client, then ${APP_NAME} ssh ${_dns}"
     fi
-    _cmd="ssh ${_dns}"
-    if [ -n "${_user}" ]; then
-        _cmd="ssh -l ${_user} ${_dns}"
+    _legacy=0
+    if sshd_ssh_host_algo_commented "${_dns}"; then
+        _legacy=1
     fi
+    _cmd="ssh"
+    if [ "${_legacy}" -eq 1 ]; then
+        _cmd="${_cmd} -o HostKeyAlgorithms=+ssh-rsa"
+    fi
+    if [ -n "${_user}" ]; then
+        _cmd="${_cmd} -l ${_user}"
+    fi
+    _cmd="${_cmd} ${_dns}"
     if [ "${JSON}" -eq 1 ]; then
         _json_user="${_user}"
         if [ -z "${_json_user}" ]; then
             _json_user="${DNS_R_USER}"
         fi
         out_json "ssh" "ok" "n" "${_n}" "dns" "${_dns}" "user" "${_json_user}" "command" "${_cmd}"
-        unset _sel _row _dns _n _user _bin _cmd _json_user
+        unset _sel _row _dns _n _user _bin _cmd _json_user _legacy
         return 0
     fi
     out_info "Connecting to ${_dns} as ${_user:-${DNS_R_USER:-this login}} (OpenSSH client; Host from $(sshd_dns_config_path))"
     if [ -n "${SSHD_CLI_SSH}" ]; then
-        if [ -n "${_user}" ]; then
+        if [ "${_legacy}" -eq 1 ] && [ -n "${_user}" ]; then
+            if ! "${_bin}" -o HostKeyAlgorithms=+ssh-rsa -l "${_user}" "${_dns}"; then
+                out_die "ssh ${_dns} failed. Next: ssh -o HostKeyAlgorithms=+ssh-rsa ${_dns}"
+            fi
+        elif [ "${_legacy}" -eq 1 ]; then
+            if ! "${_bin}" -o HostKeyAlgorithms=+ssh-rsa "${_dns}"; then
+                out_die "ssh ${_dns} failed. Next: ssh -o HostKeyAlgorithms=+ssh-rsa ${_dns}"
+            fi
+        elif [ -n "${_user}" ]; then
             if ! "${_bin}" -l "${_user}" "${_dns}"; then
                 out_die "ssh ${_dns} failed. Next: ssh ${_dns}"
             fi
@@ -6942,18 +7296,30 @@ sshd_cmd_ssh() {
             fi
         fi
         out_success "ssh ${_dns} complete."
-        unset _sel _row _dns _n _user _bin _cmd
+        unset _sel _row _dns _n _user _bin _cmd _legacy
         return 0
     fi
     if [ "${TTY}" -eq 1 ]; then
-        if [ -n "${_user}" ]; then
+        if [ "${_legacy}" -eq 1 ] && [ -n "${_user}" ]; then
+            exec "${_bin}" -o HostKeyAlgorithms=+ssh-rsa -l "${_user}" "${_dns}"
+        elif [ "${_legacy}" -eq 1 ]; then
+            exec "${_bin}" -o HostKeyAlgorithms=+ssh-rsa "${_dns}"
+        elif [ -n "${_user}" ]; then
             exec "${_bin}" -l "${_user}" "${_dns}"
         else
             exec "${_bin}" "${_dns}"
         fi
         out_die "Could not start ssh ${_dns}. Next: ssh ${_dns}"
     fi
-    if [ -n "${_user}" ]; then
+    if [ "${_legacy}" -eq 1 ] && [ -n "${_user}" ]; then
+        if ! "${_bin}" -o HostKeyAlgorithms=+ssh-rsa -o BatchMode=yes -o ConnectTimeout=15 -l "${_user}" "${_dns}"; then
+            out_die "ssh ${_dns} failed. Next: ssh -o HostKeyAlgorithms=+ssh-rsa ${_dns}"
+        fi
+    elif [ "${_legacy}" -eq 1 ]; then
+        if ! "${_bin}" -o HostKeyAlgorithms=+ssh-rsa -o BatchMode=yes -o ConnectTimeout=15 "${_dns}"; then
+            out_die "ssh ${_dns} failed. Next: ssh -o HostKeyAlgorithms=+ssh-rsa ${_dns}"
+        fi
+    elif [ -n "${_user}" ]; then
         if ! "${_bin}" -o BatchMode=yes -o ConnectTimeout=15 -l "${_user}" "${_dns}"; then
             out_die "ssh ${_dns} failed. Next: ssh ${_dns}"
         fi
@@ -6962,7 +7328,7 @@ sshd_cmd_ssh() {
             out_die "ssh ${_dns} failed. Next: ssh ${_dns}"
         fi
     fi
-    unset _sel _row _dns _n _user _bin _cmd
+    unset _sel _row _dns _n _user _bin _cmd _legacy
     return 0
 }
 
@@ -7381,6 +7747,7 @@ sshd_menu_typed_leaf() {
         wake-lock) sshd_cmd_wake_lock; return 0 ;;
         wake-unlock) sshd_cmd_wake_unlock; return 0 ;;
         install) inst_perform_install; return 0 ;;
+        self-install) inst_self_install; return 0 ;;
         version) app_about; return 0 ;;
         about) app_about; return 0 ;;
         version-check) ver_check; return 0 ;;
@@ -7411,7 +7778,6 @@ sshd_cmd_menu_client() {
         if [ "${_show_cfg}" -eq 1 ]; then
             out_menu_choice "15" "backup-config" "copy this login ~/.ssh/config to /var/sshd-cli"
             out_menu_choice "16" "sync-config" "copy /var/sshd-cli/config into this login ~/.ssh/config"
-            out_menu_choice "17" "sudoers" "grant and drafts for passwordless sudo"
             out_plain "   (or type sync-from-remote [user@host]: copy /var/sshd-cli/config from another host)"
         else
             out_menu_choice "18" "sync-from-remote" "copy /var/sshd-cli/config from user@host (or host)"
@@ -7456,15 +7822,6 @@ sshd_cmd_menu_client() {
             16)
                 if [ "${_show_cfg}" -eq 1 ]; then
                     sshd_cmd_sync_config
-                    unset _choice _show_cfg
-                    return 0
-                fi
-                out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
-                continue
-                ;;
-            17)
-                if [ "${_show_cfg}" -eq 1 ]; then
-                    sshd_cmd_sudoers_menu
                     unset _choice _show_cfg
                     return 0
                 fi
@@ -7585,6 +7942,7 @@ sshd_cmd_menu_self() {
         out_menu_choice "84" "version-check" "compare local vs remote version"
         out_menu_choice "85" "self-update" "update ${APP_NAME} to a newer remote version"
         out_menu_choice "86" "self-uninstall" "remove ${APP_NAME} (safe PATH cleanup)"
+        out_menu_choice "87" "self-install" "place this CLI only (copy this file, or download when piped)"
         out_plain "0. Back"
         out_msg_n "Choose a number, or type the command name: "
         _choice=""
@@ -7623,6 +7981,11 @@ sshd_cmd_menu_self() {
                 unset _choice
                 return 0
                 ;;
+            87|self-install)
+                inst_self_install
+                unset _choice
+                return 0
+                ;;
             0|q|"")
                 unset _choice
                 return 0
@@ -7639,33 +8002,48 @@ sshd_cmd_menu_self() {
     done
 }
 
-# Last updated: 2026-09-16
+# Last updated: 2026-09-27
 # ALIGNMENT: requirement-shell-cli-default-interaction · requirement-shell-cli-zero-arguments
-# Front board loops until Exit. Category rows open a submenu. A finished leaf
-# (from a submenu or a typed name here) redisplays this board. Unknown choice
-# retries this layer.
+# Front board loops until Exit. Category rows open a submenu. POSIX Linux
+# row 7 opens sudoers (71-75). A finished leaf redisplays this board.
+# Unknown choice retries this layer. Row 7 stays reserved when hidden.
 sshd_cmd_menu() {
     if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ] || [ "${TTY}" -ne 1 ]; then
         out_die "menu needs a terminal. Run a named command instead, for example: ${APP_NAME} status"
+    fi
+    _show_sudoers=1
+    if sshd_is_normal_user_only_cli; then
+        _show_sudoers=0
     fi
     while true; do
         out_info "**${APP_NAME}**(*${VERSION}*)"
         out_menu_choice "1" "client-side" "this login OpenSSH client (~/.ssh/config, ssh, folders)"
         out_menu_choice "2" "server-side" "this host OpenSSH sshd (listen, keys, port)"
+        if [ "${_show_sudoers}" -eq 1 ]; then
+            out_menu_choice "7" "sudoers" "grant and drafts for passwordless sudo"
+        fi
         out_menu_choice "8" "self-management" "this CLI install, version, update, uninstall"
         out_plain "9. Exit"
         out_msg_n "Choose a number, or type the command name: "
         _choice=""
         if ! read -r _choice; then
-            unset _choice
+            unset _choice _show_sudoers
             return 0
         fi
         case "${_choice}" in
             1|client-side) sshd_cmd_menu_client; continue ;;
             2|server-side) sshd_cmd_menu_server; continue ;;
+            7)
+                if [ "${_show_sudoers}" -eq 1 ]; then
+                    sshd_cmd_sudoers_menu
+                    continue
+                fi
+                out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
+                continue
+                ;;
             8|self-management) sshd_cmd_menu_self; continue ;;
             9|99|999|exit|"")
-                unset _choice
+                unset _choice _show_sudoers
                 return 0
                 ;;
             *)
@@ -7891,7 +8269,7 @@ app_help() {
     if [ "${JSON}" -eq 1 ]; then
         out_json "success" "Help text available in human-readable mode. Run without --json." \
             "command" "help" \
-            "note" "Use --json with version, about, version-check, install, self-update, self-uninstall, rc-test."
+            "note" "Use --json with version, about, version-check, install, self-install, self-update, self-uninstall, rc-test."
         return 0
     fi
 
@@ -7908,7 +8286,8 @@ app_help() {
     out_empty_line
 
     out_info "Self-management (this login):"
-    out_plain "  install              Place ${APP_NAME}; ensure rc + Termux openssh/termux-auth; start sshd"
+    out_plain "  self-install         Place this CLI only (copy this file when run as a script; download when piped)"
+    out_plain "  install              Ensure rc + Termux openssh/termux-auth; start sshd (payload)"
     out_plain "  version              Show current version (TTY menu 82 runs about)"
     out_plain "  about                Show detailed diagnostics"
     out_plain "  version-check        Compare local vs remote version (needs SCRIPT_URL)"
@@ -7928,7 +8307,7 @@ app_help() {
     out_plain "  host-keys [list|generate]  List or create host keys"
     out_plain "  auth-keys [list|add <file>]  This login authorized_keys"
     out_plain "  dns [list|show N|edit N|set N …|add …|delete N|unset N field …]  This login ~/.ssh/config Host list (dns-ip; as Termux / identity-file / Old OpenSSH; unset drops extra settings, not dns or ip)"
-    out_plain "  ssh [N|name]         OpenSSH client to a Host from this login ~/.ssh/config (TTY: numbered pick, then user with default)"
+    out_plain "  ssh [N|name]         OpenSSH client to a Host from this login ~/.ssh/config (TTY: numbered pick, then user with default; commented HostKeyAlgorithms passes -o HostKeyAlgorithms=+ssh-rsa)"
     out_plain "  download [N|name] [folder]  tar.gz a remote folder over ssh and extract it here (TTY: pick Host, then user with default, then numbered previous folders or type a path; ~/folder allowed)"
     out_plain "  upload [N|name] [folder]  tar.gz a local folder over ssh and extract it under the remote login home (TTY: pick Host, then user with default, then numbered previous local folders or type a path; ~/folder is this login)"
     out_plain "  backup-config        Copy this login ~/.ssh/config into /var/sshd-cli (passwordless sudo sshd-cli backup-config after sudoer-adm)"
@@ -7939,7 +8318,7 @@ app_help() {
     out_plain "  generate-sudoer-request [path]  Independently write a JSON grant (backup-config verb)"
     out_plain "  submit-sudoer-request [file]  Queue a JSON sudoers-grant request via sudoer-cli"
     out_plain "  remove-project-sudoers [path]  Delete project-sudoers-file draft only"
-    out_plain "  menu                 Numbered tree: 1 client-side, 2 server-side, 8 self-management, 9 Exit. Client 11… dns/ssh/download/upload; server 21… status/start/stop/restart; self-management 81… install/version/about. Submenus 0 Back. Alias: main"
+    out_plain "  menu                 Numbered tree: 1 client-side, 2 server-side, 8 self-management, 9 Exit. Client 11… dns/ssh/download/upload; server 21… status/start/stop/restart; self-management 81… install/version/about, 87 self-install. Submenus 0 Back. Alias: main"
     out_empty_line
     out_info "Termux (Android wake lock):"
     out_plain "  wake-lock            Acquire the Android wake lock so sshd can keep listening with the screen off (idempotent; acquire again if Android dropped it)"
@@ -8049,7 +8428,7 @@ app_main() {
     : "${FORCE_REINSTALL:=0}"
 
     # Effective scratch/cache root for this run (requirement-shell-cli-storage).
-    # Chain: /dev/shm → Termux PREFIX/tmp / Git Bash AppData Temp/cache →
+    # Chain: /dev/shm/cache → Termux PREFIX/tmp / Git Bash AppData Temp/cache →
     # $TEMP/cache → /tmp/cache → STORAGE_DIR. mkdir of each leaf is fail-soft;
     # die only if no root worked. Export TMPDIR so mktemp -t (install download
     # stage) lands under the isolated product root.
@@ -8063,24 +8442,16 @@ app_main() {
 
     # === ZERO-ARG ===
     # Interactive (TTY=1, not quiet/json): domain menu (sshd_cmd_menu).
-    # Non-interactive (pipe / curl|sh / quiet / json / no TTY): Type O install-ensure.
-    # Consume process TTY (measured once at startup). JSON/QUIET env still force install.
-    # SSOT: docs/requirements/requirement-shell-cli-zero-arguments.md
+    # Non-interactive (pipe / curl|sh / quiet / json / no TTY): CLI self-install
+    # (not payload install). SSOT: requirement-shell-cli-self-install.md ·
+    # requirement-shell-cli-zero-arguments.md
     if [ $# -eq 0 ]; then
         if [ "${TTY}" -eq 1 ] && [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
             sshd_cmd_menu
             exit $?
         fi
-        if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ]; then
-            inst_perform_install
-            exit $?
-        elif inst_is_installed; then
-            inst_perform_install
-            exit $?
-        else
-            inst_maybe_install
-            exit $?
-        fi
+        inst_self_install
+        exit $?
     fi
 
     # === Argument parsing: flags and commands (order-independent) ===
@@ -8115,7 +8486,7 @@ app_main() {
             # --- DOMAIN_DISPATCH_FLAGS (specializee injection) ---
             # Specialized products MAY parse domain-only flags here (e.g. --no-cloudflare).
             # --- end DOMAIN_DISPATCH_FLAGS ---
-            version|about|help|version-check|self-update|self-uninstall|install|rc-test)
+            version|about|help|version-check|self-update|self-uninstall|self-install|install|rc-test)
                 COMMAND="$1"
                 ;;
             # --- DOMAIN_DISPATCH_COMMANDS (specializee injection) ---
@@ -8188,6 +8559,9 @@ app_main() {
             ;;
         self-uninstall)
             inst_self_uninstall
+            ;;
+        self-install)
+            inst_self_install
             ;;
         install)
             inst_perform_install
@@ -8277,7 +8651,8 @@ app_main() {
 # Always invoke the single dispatcher. Do NOT gate on ${0##*/} matching APP_NAME:
 # under curl | sh / stdin pipe, $0 is the shell (sh/bash/…), not the product
 # filename — a basename gate causes silent no-op and breaks one-liner install.
-# Product law: requirement-shell-cli-zero-arguments.md (TTY menu / non-TTY install) +
+# Product law: requirement-shell-cli-zero-arguments.md (TTY menu) +
+# requirement-shell-cli-self-install.md (non-TTY CLI place) +
 # requirement-shell-cli-interface.md (single app_main entry). Historical: INC-20260712-001.
 #
 # Single-file install CLI: source-as-library is unsupported; main always runs.

@@ -5,6 +5,37 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.26.0] - 2026-09-27
+
+### Changed
+
+- On Termux, `old-openssh yes` writes `HostKeyAlgorithms +ssh-rsa,ssh-dss` and `PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss` as **comments**. An active keyword makes the Termux OpenSSH client error. `dns show` still reports `old-openssh: yes` for those comments.
+- Menu **12** / `ssh`, before it connects, reads that Host stanza. Commented `HostKeyAlgorithms` or `PubkeyAcceptedAlgorithms` adds `-o HostKeyAlgorithms=+ssh-rsa`. Active lines do not add that option. Tests **TP-DNS-50** · **TP-DNS-51** · **TP-SSH-10**.
+
+## [1.25.0] - 2026-09-27
+
+### Changed
+
+- TTY **sudoers** moves from client **17** to the front board **7** (`grant and drafts for passwordless sudo`). POSIX Linux shows it; Termux / Git Bash / Windows cmd keep the row hidden. Choosing hidden **7** warns and reprints the front board.
+- Sudoers verbs follow the new parent: **71** `generate-sudoer-request`, **72** `submit-sudoer-request`, **73** `print-sudoers`, **74** `print-sudoers-install-script`, **75** `remove-project-sudoers`. Typed verb names are unchanged. Client board keeps **15** `backup-config` and **16** `sync-config`. Tests **TP-CLI-14** · **TP-CFG-17** · **TP-SSHD-04**.
+
+## [1.24.0] - 2026-09-17
+
+### Added
+
+- **`self-install`**: place this CLI only. When `$0` is the script (not `sh`/`bash`/`zsh`), copy it into cache as `sshd-cli-<random>`, mode **0700** (local) or **0755** (global), then move to bin — no download. TTY self-management **87**. Tests **TP-SI-01** .. **TP-SI-06**. Law: `requirement-shell-cli-self-install`.
+
+### Changed
+
+- Non-interactive empty argv (`curl | sh`, quiet, json) **self-installs the CLI** and does **not** run payload `install` (Termux `pkg` / start sshd). Payload stays `sshd-cli install`.
+- Portable catalogs: **well-known-cli-verb** (`self-install` = CLI place; `install` = local place or payload) and **well-known-menu** (TTY **81** `install`, **87** `self-install`).
+
+## [1.23.0] - 2026-09-17
+
+### Changed
+
+- Preferred scratch/cache leaf is **`/dev/shm/cache/${APP_NAME}-${USERNAME}`** (for example `/dev/shm/cache/sshd-cli-adm01`). `about` **Storage (effective)** no longer uses `/dev/shm/sshd-cli-<user>` (that looks like a ram-drive project folder). Parent `/dev/shm/cache` is created first (prefer mode 1777). Fallback chain is unchanged. Law: `requirement-shell-cli-storage` **1.2.0**. Tests **TP-CLI-12** · **TP-CLI-19** · **TP-CLI-20**.
+
 ## [1.22.0] - 2026-09-16
 
 ### Changed

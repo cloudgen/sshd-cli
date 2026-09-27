@@ -693,6 +693,30 @@ EOF
     _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show "${H_B}" 2>&1)
     assert_contains "TP-DNS-49 user still set after leave" "$_out" "user: ${USER_A}"
 
+    # TP-DNS-50 Termux old-openssh yes comments the algorithm lines; show stays yes
+    _dns_fixture
+    _out=$(HOME="${CI_HOME}" TERMUX_VERSION=1 sh "${SCRIPT}" dns add dns "${H_OLD}" ip "${IP_OLD}" old-openssh yes 2>&1)
+    _ec=$?
+    assert_eq "TP-DNS-50 termux old-openssh add exit 0" 0 "$_ec"
+    _ob=$(awk -v h="${H_OLD}" 'BEGIN{p=0} $0 ~ "^Host " h "( |$)" {p=1; next} /^Host /{p=0} p{print}' "${CI_HOME}/.ssh/config")
+    assert_contains "TP-DNS-50 commented HostKeyAlgorithms" "${_ob}" "# HostKeyAlgorithms +ssh-rsa,ssh-dss"
+    assert_contains "TP-DNS-50 commented PubkeyAcceptedAlgorithms" "${_ob}" "# PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss"
+    _active=$(printf '%s\n' "${_ob}" | grep -E '^[[:space:]]*HostKeyAlgorithms' || true)
+    assert_eq "TP-DNS-50 no active HostKeyAlgorithms" "" "${_active}"
+    _active=$(printf '%s\n' "${_ob}" | grep -E '^[[:space:]]*PubkeyAcceptedAlgorithms' || true)
+    assert_eq "TP-DNS-50 no active PubkeyAcceptedAlgorithms" "" "${_active}"
+    _out=$(HOME="${CI_HOME}" TERMUX_VERSION=1 sh "${SCRIPT}" dns show "${H_OLD}" 2>&1)
+    assert_contains "TP-DNS-50 show old-openssh yes" "${_out}" "old-openssh: yes"
+
+    # TP-DNS-51 Termux old-openssh no removes the commented lines
+    _out=$(HOME="${CI_HOME}" TERMUX_VERSION=1 sh "${SCRIPT}" dns set "${H_OLD}" old-openssh no 2>&1)
+    _ec=$?
+    assert_eq "TP-DNS-51 termux old-openssh no exit 0" 0 "$_ec"
+    _ob=$(awk -v h="${H_OLD}" 'BEGIN{p=0} $0 ~ "^Host " h "( |$)" {p=1; next} /^Host /{p=0} p{print}' "${CI_HOME}/.ssh/config")
+    assert_not_contains "TP-DNS-51 comments stripped" "${_ob}" "HostKeyAlgorithms"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show "${H_OLD}" 2>&1)
+    assert_contains "TP-DNS-51 show old-openssh no" "${_out}" "old-openssh: no"
+
     # TP-DNS-38 suite source has no dotted IPv4 (mint at run time; PP-C-21)
     _hits=$(grep -E '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' "${TESTS_ROOT}/test_dns.sh" | grep -v '127\.0\.0\.1' || true)
     assert_eq "TP-DNS-38 no IPv4 literals in suite source" "" "${_hits}"

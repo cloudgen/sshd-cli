@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.22.0  
-**Last plan update:** 2026-09-16  
-**Last suite run:** PASS=750 FAIL=0 SKIP=0 (2026-09-16)
+**Product VERSION:** 1.26.0  
+**Last plan update:** 2026-09-27  
+**Last suite run:** PASS=759 FAIL=22 SKIP=0 (2026-09-27). Menu **7** / **71–75** passed (TP-CLI-14, TP-CFG-17, TP-SSHD-04). The 22 failures are TP-DL-* `tar xzf` on the fake download archive; the same 22 fail on unchanged HEAD.
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -17,9 +17,9 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 |------|--------|----------|
 | Syntax `sh -n` | have | TP-CLI-01 |
 | version / help / about human + JSON | have | TP-CLI-02..06 |
-| Empty argv: non-TTY install-ensure / TTY menu | have | TP-CLI-07, TP-CLI-14, TP-CLI-22, TP-SSHD-03..05, TP-SSHD-16 |
+| Empty argv: non-TTY CLI self-install / TTY menu | have | TP-CLI-07, TP-CLI-14, TP-CLI-22, TP-SI-01..06, TP-SSHD-03..05, TP-SSHD-16 |
 | Unknown + quiet + set -u HOME | have | TP-CLI-08..11 |
-| Storage isolation | have | TP-CLI-12 |
+| Storage isolation; preferred `/dev/shm/cache/${APP_NAME}-${USERNAME}` | have | TP-CLI-12 |
 | Git Bash `/dev/shm` mkdir fail-soft → AppData Temp/`cache` | have | TP-CLI-19, TP-CLI-20 |
 | `backup-config` / `sync-config` / `sync-from-remote` / sudoers grant | have | TP-CFG-01..17 |
 | Channel verbs routed (`self-update`, `version-check`); no public network in CI | have | TP-CLI-04, TP-CLI-10 |
@@ -53,12 +53,18 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-CLI-18 | help lists `rc-test` under testers heading apart from operational verbs | test_cli | requirement-shell-cli-interface · requirement-shell-path-and-shell-support | **have** |
 | TP-CLI-05 | help JSON short | test_cli | requirement-shell-output-requirements | **have** |
 | TP-CLI-06 | about JSON storage + `sshd_platform`; no CHECKSUM | test_cli | requirement-shell-cli-storage · requirement-domain-sshd | **have** |
-| TP-CLI-07 | empty argv non-interactive install-ensure | test_cli | requirement-shell-cli-zero-arguments · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-CLI-07 | empty argv non-interactive CLI self-install | test_cli | requirement-shell-cli-zero-arguments · requirement-shell-cli-self-install · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-SI-01 | `self-install` copies from script `$0` (dead SCRIPT_URL) | test_cli | requirement-shell-cli-self-install | **have** |
+| TP-SI-02 | local dest mode **0700** after self-install | test_cli | requirement-shell-cli-self-install | **have** |
+| TP-SI-03 | NI empty argv is self-install (not payload banner) | test_cli | requirement-shell-cli-self-install · requirement-shell-cli-zero-arguments | **have** |
+| TP-SI-04 | interpreter `$0` (`cat \| sh`) uses channel download | test_cli | requirement-shell-cli-self-install | **have** |
+| TP-SI-05 | second `self-install` already-installed no-op | test_cli | requirement-shell-cli-self-install | **have** |
+| TP-SI-06 | help lists `self-install` | test_cli | requirement-shell-cli-self-install · requirement-shell-cli-interface | **have** |
 | TP-CLI-08 | unknown fail-closed | test_cli | requirement-shell-cli-interface | **have** |
 | TP-CLI-09 | quiet suppresses version | test_cli | requirement-shell-output-requirements | **have** |
 | TP-CLI-10 | `self-update` / `version-check` are **known** commands (no network) | test_cli | requirement-shell-cli-interface · requirement-shell-self-management | **have** |
 | TP-CLI-11 | env -u HOME version | test_cli | class / requirement-shell-script-coding | **have** |
-| TP-CLI-12 | storage isolation | test_cli | requirement-shell-cli-storage | **have** |
+| TP-CLI-12 | preferred `/dev/shm/cache/${APP_NAME}-${USERNAME}`; dir exists | test_cli | requirement-shell-cli-storage | **have** |
 | TP-CLI-19 | Git Bash: `/dev/shm` mkdir fail-soft → AppData Local Temp/`cache`; no storage ERROR | test_cli | requirement-shell-cli-storage | **have** |
 | TP-CLI-20 | static: resolver names Git Bash Temp; no mid-chain mkdir `out_die` | test_cli | requirement-shell-cli-storage · requirement-shell-script-coding | **have** |
 | TP-CFG-01 | Type 0 `backup-config` into `SSHD_CLI_ROOT` | test_config_backup | requirement-shell-config-backup | **have** |
@@ -77,9 +83,9 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-CFG-14 | preferred-remote saved mode 600 | test_config_backup | requirement-shell-config-backup | **have** |
 | TP-CFG-15 | TTY empty Enter uses stored default | test_config_backup | requirement-shell-config-backup | **have** |
 | TP-CFG-16 | `--json` type/host fields | test_config_backup | requirement-shell-config-backup | **have** |
-| TP-CFG-17 | TTY sudoers submenu unknown choice warns and redisplays | test_config_backup | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-CFG-17 | TTY front **7** sudoers submenu unknown choice warns and redisplays; verbs **71–75** | test_config_backup | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-CLI-13 | backup/restore/sudoers verbs unknown | test_cli | requirement-shell-cli-interface | **have** |
-| TP-CLI-14 | empty argv interactive → front 1/2/8/9 (no install); client 11 dns / 12 ssh / 13 download / 14 upload | test_cli | requirement-shell-cli-default-interaction · requirement-shell-cli-zero-arguments · requirement-domain-sshd | **have** |
+| TP-CLI-14 | empty argv interactive → front 1/2/7/8/9 (sudoers **7**; no install); client 11 dns / 12 ssh / 13 download / 14 upload; no client **17** | test_cli | requirement-shell-cli-default-interaction · requirement-shell-cli-zero-arguments · requirement-domain-sshd | **have** |
 | TP-CLI-21 | TTY **82** / typed `version` run about; argv `version` stays thin JSON type | test_cli | requirement-shell-cli-default-interaction · requirement-shell-cli-interface · **INC-20260914-001** | **have** |
 | TP-CLI-22 | Finished TTY leaf redisplays the **front board** (not the submenu); typed leaf on front stays on front | test_cli | requirement-shell-cli-default-interaction | **have** |
 | TP-CLI-15 | status Connect: live ssh -p user@ipv4; no `<this-host>` | test_cli | requirement-domain-sshd | **have** |
@@ -137,6 +143,8 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-DNS-26 | JSON delete one object; other stanzas kept | test_dns | requirement-domain-sshd · requirement-shell-output-requirements | **have** |
 | TP-DNS-27 | non-interactive `add termux yes` writes Port 8022 + keep-alive / IPQoS + Ciphers/MACs bundle | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-28 | `old-openssh yes` writes HostKeyAlgorithms / PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-50 | Termux `old-openssh yes` writes those lines as comments; show stays yes | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-51 | Termux `old-openssh no` removes the commented algorithm lines | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-29 | `identity-file` + `identities-only` written and shown | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-30 | INTERACTIVE add default as Termux (Y) + Old OpenSSH (Y) | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-DNS-31 | INTERACTIVE add Termux n prompts Port; Old OpenSSH n omits algorithms | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
@@ -171,7 +179,8 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-SSH-06 | JSON `ssh` does not start a session | test_ssh_download | requirement-domain-sshd · requirement-shell-output-requirements | **have** |
 | TP-SSH-07 | TTY pick Host 1; user default `-l` | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-SSH-08 | TTY user override `-l otheruser` | test_ssh_download | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
-| TP-SSH-09 | TTY menu numbers ssh 6 / download 7 | test_ssh_download | requirement-domain-sshd | **have** |
+| TP-SSH-09 | TTY menu numbers ssh **12** / download **13** | test_ssh_download | requirement-domain-sshd | **have** |
+| TP-SSH-10 | Commented HostKeyAlgorithms on the Host → `ssh -o HostKeyAlgorithms=+ssh-rsa` | test_ssh_download | requirement-domain-sshd | **have** |
 
 ### TP-DL (remote folder download)
 

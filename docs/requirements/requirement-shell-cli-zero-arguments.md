@@ -1,19 +1,19 @@
 **file**: docs/requirements/requirement-shell-cli-zero-arguments.md  
-**Status**: Active (Version 1.3.2)  
+**Status**: Active (Version 1.4.0)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
 
-When you run `sshd-cli` with **nothing after the name**, a **terminal** opens the numbered sshd list; a **pipe** (`curl … | sh`) installs the program (or says it is already there). It must not print help.
+When you run `sshd-cli` with **nothing after the name**, a **terminal** opens the numbered sshd list; a **pipe** (`curl … | sh`) **places the CLI** (or says it is already there). It must not print help and must not install OpenSSH / start sshd (that is `install`).
 
-Catalog: interactive empty argv → menu; non-interactive → Type O install-ensure (not Type N help).
+Catalog: interactive empty argv → menu; non-interactive → Type O **CLI self-install** (not Type N help; not payload). Dual mention: `requirement-shell-cli-self-install.md`.
 
 ### 1.0 Product type (template dual-model)
 
 | Field | Value for sshd-cli |
 |-------|------------------------|
-| **Empty-argv type** | **Split:** interactive → domain **menu**; non-interactive → **Type O install-ensure** (not Type N help) |
-| **Rationale** | Product advertises `curl … \| sh` one-liner install (pipe = no TTY). On a real terminal, no arguments opens the numbered sshd list. |
+| **Empty-argv type** | **Split:** interactive → domain **menu**; non-interactive → **Type O CLI self-install** (not Type N help; not payload `install`) |
+| **Rationale** | Product advertises `curl … \| sh` one-liner **CLI place** (pipe = no TTY). Payload (packages / start sshd) is `sshd-cli install`. On a real terminal, no arguments opens the numbered sshd list. |
 
 Type N (non-online-install → empty argv = help) does **not** apply to this product.
 
@@ -83,7 +83,7 @@ Jargon: **Type O** (letter) means “no arguments = install-ensure” for **non-
 ### 2.2 Split meaning of empty argv
 
 1. When **argv is empty** and the run is **interactive** (`TTY=1`, `JSON=0`, `QUIET=0`), `app_main` **MUST** call `sshd_cmd_menu` — **MUST NOT** install-ensure and **MUST NOT** route to `app_help`.  
-2. When **argv is empty** and the run is **non-interactive** (no TTY, or `JSON=1`, or `QUIET=1`), `app_main` **MUST** run **install-ensure** — **MUST NOT** open the menu and **MUST NOT** route to `app_help`.  
+2. When **argv is empty** and the run is **non-interactive** (no TTY, or `JSON=1`, or `QUIET=1`), `app_main` **MUST** run **CLI self-install** (`inst_self_install`) — **MUST NOT** open the menu, **MUST NOT** route to `app_help`, and **MUST NOT** run payload `inst_perform_install`. Depth: `requirement-shell-cli-self-install.md`.  
 3. Explicit `sshd-cli help` remains the only full-usage path for help text. Explicit `sshd-cli menu` remains the named menu verb (same handler).  
 4. Bootstrap **MUST** always call `app_main "$@"` so pipe one-liners reach this contract (no `${0##*/}` product-name gate).  
 5. Non-interactive empty argv **MUST NOT** require the user to pass `install` or `install --force` merely because a previous ensure already succeeded.
@@ -177,8 +177,8 @@ Empty-argv quiet/json in `app_main` is **not** a license for the helper to no-op
 | **Ship unit** | Repo root `./sshd-cli` |
 | **Dispatcher** | `app_main` — empty-argv block **before** flag/command parse default help |
 | **Interactive empty argv** | `TTY=1` and not quiet/json → `sshd_cmd_menu` |
-| **Install ensure** | `inst_perform_install` (quiet/json and already-installed no-op) — **non-interactive** empty argv |
-| **Friendly first install** | `inst_maybe_install` (non-TTY auto) when not installed and not quiet/json. Quiet/JSON **MUST** call `inst_perform_install` (SM-BUG-01 fixed 2026-09-02). |
+| **CLI self-install** | `inst_self_install` — **non-interactive** empty argv (copy when `$0` is a script) |
+| **Payload `install`** | `inst_perform_install` — explicit verb only |
 | **Detect SSOT** | `inst_is_installed` ← `inst_get_version` |
 | **Global path** | `GLOBAL_BIN` default `/usr/local/bin` |
 | **Local path** | `USER_BIN` default `${HOME}/.local/bin` |
@@ -197,16 +197,8 @@ if [ $# -eq 0 ]; then
         sshd_cmd_menu
         exit $?
     fi
-    if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ]; then
-        inst_perform_install
-        exit $?
-    elif inst_is_installed; then
-        inst_perform_install
-        exit $?
-    else
-        inst_maybe_install
-        exit $?
-    fi
+    inst_self_install
+    exit $?
 fi
 ```
 
@@ -331,11 +323,12 @@ This requirement is satisfied when all of the following hold:
 | 2026-08-11 | v1.2.0: Specializee contract — empty argv stays Type O; domain setup uses explicit verbs; test GLOBAL_BIN isolation | Grok |
 | 2026-09-05 | v1.3.0: Interactive empty argv → domain menu; non-interactive empty argv stays Type O install-ensure | Grok (owner request) |
 | 2026-09-05 | v1.3.1: Section **Under command line for normal user only** (Type O ensure stays Type 0 on Termux/Git Bash) | Grok (owner request) |
+| 2026-09-17 | v1.4.0: Non-interactive empty argv = CLI self-install (`inst_self_install`), not payload `install` | Grok (owner request) |
 | 2026-09-06 | v1.3.2: People-language Purpose; DTV points at live `tests/test_local_lifecycle.sh` (drop ghost `test_install_lifecycle.sh` / `TP-INST-MAYBE-01`) | Grok |
 
 ---
 
-**Last Updated**: 2026-09-06  
+**Last Updated**: 2026-09-17  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 6, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
 

@@ -60,7 +60,7 @@ Off detect: **MUST NOT** invoke `pkg`; **MUST NOT** wrap `apt` / `dnf` / `yum`. 
 
 ### 2.3 Invoke
 
-`install` and **non-interactive** empty-argv install-ensure **MUST** call `sshd_pkg_ensure` (via `inst_ensure_companion`) **before** the already-installed binary no-op. Dual mention: `requirement-shell-self-management` (call site) · `requirement-domain-sshd` (package names + start after) · `requirement-shell-cli-interface` (`install` row).
+`install` **MUST** call `sshd_pkg_ensure` (via `inst_ensure_companion`) **before** the already-installed binary no-op. Dual mention: `requirement-shell-self-management` (call site) · `requirement-domain-sshd` (package names + start after) · `requirement-shell-cli-interface` (`install` row). **Non-interactive empty argv** and `self-install` **MUST NOT** call `sshd_pkg_ensure` (`requirement-shell-cli-self-install`).
 
 | Host | MUST | MUST NOT |
 |------|------|----------|

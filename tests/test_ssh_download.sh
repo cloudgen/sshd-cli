@@ -101,6 +101,7 @@ run_test_ssh_download() {
     _log=$(cat "${_ssh_log}")
     assert_contains "TP-SSH-02 log has alias" "$_log" "${H_SSH}"
     assert_not_contains "TP-SSH-02 log has no HostName" "$_log" "${IP_SSH}"
+    assert_not_contains "TP-SSH-02 no legacy HostKeyAlgorithms" "$_log" "HostKeyAlgorithms"
 
     # TP-SSH-03 ssh by number
     : > "${_ssh_log}"
@@ -160,6 +161,21 @@ EOF
     _log=$(cat "${_ssh_log}")
     assert_contains "TP-SSH-08 log -l otheruser" "$_log" "-l otheruser"
     assert_contains "TP-SSH-08 log alias" "$_log" "${H_SSH}"
+
+    # TP-SSH-10 commented algorithm lines → -o HostKeyAlgorithms=+ssh-rsa
+    _out=$(HOME="${CI_HOME}" TERMUX_VERSION=1 sh "${SCRIPT}" dns set "${H_SSH}" old-openssh yes 2>&1)
+    _ec=$?
+    assert_eq "TP-SSH-10 termux comment write exit 0" 0 "$_ec"
+    : > "${_ssh_log}"
+    _out=$(HOME="${CI_HOME}" SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SSH_LOG="${_ssh_log}" \
+        sh "${SCRIPT}" ssh "${H_SSH}" 2>&1)
+    _ec=$?
+    assert_eq "TP-SSH-10 ssh with comment exit 0" 0 "$_ec"
+    _log=$(cat "${_ssh_log}")
+    assert_contains "TP-SSH-10 passes HostKeyAlgorithms=+ssh-rsa" "${_log}" "HostKeyAlgorithms=+ssh-rsa"
+    assert_contains "TP-SSH-10 still uses alias" "${_log}" "${H_SSH}"
+    _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" --json ssh "${H_SSH}" 2>/dev/null)
+    assert_contains "TP-SSH-10 json command has -o" "${_out}" "HostKeyAlgorithms=+ssh-rsa"
 
     # TP-SSH-09 TTY menu numbers ssh / download
     _out=$(printf '%s\n' '1' '0' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 TERMUX_VERSION=1 \

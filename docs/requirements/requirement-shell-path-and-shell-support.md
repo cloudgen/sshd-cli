@@ -171,7 +171,7 @@ Helpers: `path_add_shell` (orchestrator), `path_add_bashrc`, `path_add_zshrc`, `
 | **Exact PATH line** | `export PATH="<USER_BIN>:$PATH"` |
 | **Installer comment** | `# Added by sshd-cli installer (<VERSION>)` |
 | **Profile sample** | `# BEGIN sshd-cli profile source-bashrc` … source `${HOME}/.bashrc` … `# END sshd-cli profile source-bashrc` |
-| **Companion call site** | `inst_ensure_companion` on `install` / non-interactive empty-argv (including already-installed binary no-op) |
+| **Companion call site** | `inst_ensure_companion` on `install` (including already-installed binary no-op). `self-install` / NI empty argv **MAY** call `path_add_shell` only (`requirement-shell-cli-self-install`). |
 | **Privilege** | Type 0 this-login only |
 
 #### Compliance notes (implementation status)

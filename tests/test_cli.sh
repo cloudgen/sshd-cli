@@ -2,9 +2,10 @@
 # tests/test_cli.sh — CLI surface (local-only; no network)
 # =============================================================================
 # Primary REQs: requirement-shell-cli-interface, requirement-shell-cli-zero-arguments,
-# requirement-shell-cli-default-interaction, requirement-shell-output-requirements,
-# requirement-shell-cli-storage, requirement-domain-sshd (TP-SSHD-01, TP-SSHD-03..08)
-# TP family: TP-CLI-* · TP-SSHD-01 · TP-SSHD-03..08 · TP-CLI-22
+# requirement-shell-cli-self-install, requirement-shell-cli-default-interaction,
+# requirement-shell-output-requirements, requirement-shell-cli-storage,
+# requirement-domain-sshd (TP-SSHD-01, TP-SSHD-03..08)
+# TP family: TP-CLI-* · TP-SI-01..06 · TP-SSHD-01 · TP-SSHD-03..08 · TP-CLI-22
 # =============================================================================
 
 # shellcheck source=helpers.sh
@@ -40,6 +41,7 @@ run_test_cli() {
     _ec=$?
     assert_eq "TP-CLI-04 help exit 0" 0 "$_ec"
     assert_contains "TP-CLI-04 help install" "$_out" "install"
+    assert_contains "TP-CLI-04 help self-install" "$_out" "self-install"
     assert_contains "TP-CLI-04 help self-update" "$_out" "self-update"
     assert_contains "TP-CLI-04 help self-uninstall" "$_out" "self-uninstall"
     assert_contains "TP-CLI-04 help version-check" "$_out" "version-check"
@@ -90,7 +92,7 @@ run_test_cli() {
     assert_not_contains "TP-CLI-06 no CHECKSUM" "$_out" "CHECKSUM"
     assert_contains "TP-CLI-06 sshd_platform" "$_out" '"sshd_platform"'
 
-    # TP-CLI-07 empty argv non-interactive = Type O install-ensure (not help, not menu)
+    # TP-CLI-07 empty argv non-interactive = Type O CLI self-install (not help, not menu)
     ci_isolated_env
     _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" sh "${SCRIPT}" 2>&1)
     _ec=$?
@@ -99,6 +101,54 @@ run_test_cli() {
     assert_not_contains "TP-CLI-07 empty argv is not help" "$_out" "Usage:"
     assert_not_contains "TP-CLI-07 empty argv is not menu" "$_out" "Choose a number"
     ci_cleanup_env
+
+    # TP-SI-01 script $0 copies without download (dead SCRIPT_URL)
+    ci_isolated_env
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" SCRIPT_URL="http://127.0.0.1:1/no-such-${APP_NAME}" sh "${SCRIPT}" self-install 2>&1)
+    _ec=$?
+    assert_eq "TP-SI-01 self-install copy exit 0" 0 "$_ec"
+    assert_file_exists "TP-SI-01 binary at USER_BIN" "${CI_USER_BIN}/${APP_NAME}"
+    assert_contains "TP-SI-01 copy from local script" "$_out" "Installing from local script"
+    assert_not_contains "TP-SI-01 no companion download" "$_out" "Companion link:"
+    assert_not_contains "TP-SI-01 no payload start message" "$_out" "Starting installation of"
+
+    # TP-SI-02 local dest mode 0700
+    _mode=$(stat -c '%a' "${CI_USER_BIN}/${APP_NAME}" 2>/dev/null || stat -f '%OLp' "${CI_USER_BIN}/${APP_NAME}" 2>/dev/null || echo "")
+    case "${_mode}" in
+        700|0700) assert_eq "TP-SI-02 local dest mode 0700" "0700" "0700" ;;
+        *) assert_eq "TP-SI-02 local dest mode 0700" "0700" "${_mode}" ;;
+    esac
+
+    # TP-SI-05 already-installed no-op
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" sh "${SCRIPT}" self-install 2>&1)
+    _ec=$?
+    assert_eq "TP-SI-05 second self-install exit 0" 0 "$_ec"
+    assert_contains "TP-SI-05 already installed" "$_out" "already installed"
+    ci_cleanup_env
+
+    # TP-SI-03 NI empty argv is self-install (copy), not payload install
+    ci_isolated_env
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" SCRIPT_URL="http://127.0.0.1:1/no-such-${APP_NAME}" sh "${SCRIPT}" 2>&1)
+    _ec=$?
+    assert_eq "TP-SI-03 empty argv copy exit 0" 0 "$_ec"
+    assert_file_exists "TP-SI-03 empty argv placed binary" "${CI_USER_BIN}/${APP_NAME}"
+    assert_contains "TP-SI-03 empty argv self-install banner" "$_out" "Starting self-install"
+    assert_not_contains "TP-SI-03 empty argv is not payload install banner" "$_out" "Starting installation of"
+    assert_not_contains "TP-SI-03 empty argv is not menu" "$_out" "Choose a number"
+    ci_cleanup_env
+
+    # TP-SI-04 interpreter $0 (stdin pipe) uses channel download
+    ci_isolated_env
+    _out=$(cat "${SCRIPT}" | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" SCRIPT_URL="file://${REPO_ROOT}/sshd-cli" sh 2>&1)
+    _ec=$?
+    assert_eq "TP-SI-04 pipe self-install exit 0" 0 "$_ec"
+    assert_file_exists "TP-SI-04 pipe placed binary" "${CI_USER_BIN}/${APP_NAME}"
+    assert_contains "TP-SI-04 pipe uses companion download" "$_out" "Companion link:"
+    ci_cleanup_env
+
+    # TP-SI-06 help lists self-install (also TP-CLI-04)
+    _out=$(sh "${SCRIPT}" help 2>/dev/null)
+    assert_contains "TP-SI-06 help lists self-install" "$_out" "self-install"
 
     # TP-CLI-14 empty argv interactive (TTY=1) = domain menu, not install
     ci_isolated_env
@@ -110,6 +160,8 @@ run_test_cli() {
     assert_contains "TP-CLI-14 interactive empty argv server-side" "$_out" "server-side"
     assert_contains "TP-CLI-14 interactive empty argv self-management" "$_out" "self-management"
     assert_contains "TP-CLI-14 interactive empty argv Exit 9" "$_out" "9. Exit"
+    assert_contains "TP-CLI-14 front sudoers row 7" "$_out" "7."
+    assert_contains "TP-CLI-14 front sudoers short" "$_out" "sudoers"
     assert_not_contains "TP-CLI-14 front board has no dns row 5" "$_out" "5. SSH names"
     assert_not_contains "TP-CLI-14 front board has no backup-config row" "$_out" "backup-config"
     _out=$(printf '%s\n' '1' '0' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
@@ -121,6 +173,7 @@ run_test_cli() {
     assert_contains "TP-CLI-14 client upload short" "$_out" "upload"
     assert_contains "TP-CLI-14 client backup-config row 15" "$_out" "15."
     assert_contains "TP-CLI-14 client sync-config row 16" "$_out" "16."
+    assert_not_contains "TP-CLI-14 client has no sudoers row 17" "$_out" "17."
     assert_contains "TP-CLI-14 client Back 0" "$_out" "0. Back"
     assert_not_contains "TP-CLI-14 no numbered port row" "$_out" "Show listen port"
     assert_not_contains "TP-CLI-14 no numbered config row" "$_out" "Show sshd config"
@@ -242,7 +295,7 @@ run_test_cli() {
     assert_eq "TP-CLI-11 env -u HOME version exit 0" 0 "$_ec"
     assert_contains "TP-CLI-11 env -u HOME version text" "$_out" "${PRODUCT_VERSION}"
 
-    # TP-CLI-12 storage isolation under temp HOME
+    # TP-CLI-12 storage isolation under temp HOME; preferred shm leaf is under /dev/shm/cache/
     ci_isolated_env
     _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" sh "${SCRIPT}" --json about 2>/dev/null)
     assert_contains "TP-CLI-12 isolated about has app in storage" "$_out" "${APP_NAME}"
@@ -252,11 +305,20 @@ run_test_cli() {
     else
         t_fail "TP-CLI-12 effective_storage missing: '${_eff:-empty}'"
     fi
+    _want_shm="/dev/shm/cache/${APP_NAME}-$(id -un 2>/dev/null || echo unknown)"
+    if [ -d /dev/shm ]; then
+        assert_eq "TP-CLI-12 preferred shm cache leaf" "${_want_shm}" "${_eff}"
+        case "${_eff}" in
+            /dev/shm/cache/"${APP_NAME}"-*) t_pass "TP-CLI-12 effective is under /dev/shm/cache" ;;
+            *) t_fail "TP-CLI-12 effective is under /dev/shm/cache (got '${_eff:-empty}')" ;;
+        esac
+    fi
+    unset _want_shm
     ci_cleanup_env
 
     # TP-CLI-19 Git Bash: /dev/shm mkdir fail-soft → AppData Local Temp/cache; no ERROR
     # Remove this-login shm leaf so a leftover dir cannot satisfy -d after stub mkdir fails.
-    _shm_leaf="/dev/shm/${APP_NAME}-$(id -un 2>/dev/null || echo unknown)"
+    _shm_leaf="/dev/shm/cache/${APP_NAME}-$(id -un 2>/dev/null || echo unknown)"
     if [ -d "${_shm_leaf}" ]; then
         rm -rf "${_shm_leaf}"
     fi
@@ -295,6 +357,7 @@ run_test_cli() {
     # TP-CLI-20 static: resolver names Git Bash Temp; no mid-chain mkdir die
     _src=$(cat "${SCRIPT}")
     assert_contains "TP-CLI-20 resolver names Git Bash Temp" "${_src}" 'AppData/Local/Temp'
+    assert_contains "TP-CLI-20 resolver names /dev/shm/cache" "${_src}" '/dev/shm/cache/'
     assert_contains "TP-CLI-20 fail-soft helper present" "${_src}" 'util_try_mkdir_storage'
     assert_not_contains "TP-CLI-20 no mid-chain mkdir die" "${_src}" 'out_die "Cannot create storage directory ${_storage_candidate}"'
     unset _src
@@ -373,6 +436,7 @@ run_test_cli() {
     assert_contains "TP-SSHD-04 restart row 24" "$_out" "24."
     assert_contains "TP-SSHD-04 dns row 11" "$_out" "11."
     assert_contains "TP-SSHD-04 backup-config INFO" "$_out" "backup-config and sync-config not available for termux"
+    assert_not_contains "TP-SSHD-04 Termux omits sudoers" "$_out" "sudoers"
     assert_contains "TP-SSHD-04 Termux sync-from-remote row 18" "$_out" "18."
     assert_contains "TP-SSHD-04 Termux Exit 9" "$_out" "9. Exit"
     assert_not_contains "TP-SSHD-04 no non-root INFO" "$_out" "not available for non-root"

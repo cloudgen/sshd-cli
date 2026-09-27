@@ -1,6 +1,6 @@
 # sshd-cli - Simplify Termux to install sshd
 
-![Version](https://img.shields.io/badge/Version-1.22.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.26.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/sshd-cli?style=flat-square)](https://github.com/cloudgen/sshd-cli)
@@ -24,20 +24,20 @@
 | Start sshd | OpenSSH **forks itself** so a laptop can connect. Default Termux port is often **8022**. This is not a boot service. | `sshd-cli start` then `ssh -p 8022 user@host` |
 | After a reboot | The daemon is gone. Start again. Termux:Boot is **your** hook if you want listen-after-reboot. | `sshd-cli start` |
 
-Runtime version SSOT: `VERSION="1.22.0"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
+Runtime version SSOT: `VERSION="1.26.0"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
 
 ## Features
 
 - One file you can run or install with `curl | sh` / `wget`
 - Places itself for this login (`~/.local/bin`) or, on a **root login**, under `/usr/local/bin` (Termux: `$PREFIX/bin`)
-- On a **terminal**, no arguments opens a numbered **menu**; under a **pipe** (`curl | sh`, quiet, json) it **installs itself** (not help)
+- On a **terminal**, no arguments opens a numbered **menu**; under a **pipe** (`curl | sh`, quiet, json) it **places itself** (`self-install` — not help, not OpenSSH payload). From a checkout, `./sshd-cli self-install` **copies that file** (no download)
 - Purpose: **simplify Termux to install sshd** (`status`, `start`, `stop`, `restart`, `port`, `config`, `host-keys`, `auth-keys`)
-- On POSIX Linux (not Termux / Git Bash / Windows cmd), the TTY menu shows **start / stop / restart** (rows **2** / **3** / **4**) **only as root**. A non-root login sees an INFO line naming this OS, then rows **1**, **5**, **6** (`ssh`), **7** (`download`), **8**–**10**, **99**. Typed `start` / `stop` / `restart` still fail closed without wrapping `sudo`
+- On POSIX Linux (not Termux / Git Bash / Windows cmd), server rows **22** / **23** / **24** (`start` / `stop` / `restart`) show **only as root**. A non-root login sees an INFO line naming this OS, then **21** `status` and **0** Back. Typed `start` / `stop` / `restart` still fail closed without wrapping `sudo`. Termux shows **22–24** for this login. The front board is **1** client-side, **2** server-side, **7** sudoers (POSIX Linux), **8** self-management, **9** Exit. Termux / Git Bash / Windows cmd omit **7**
 - `start` launches OpenSSH sshd as a **background daemon** (`sshd -f`) on Termux and on Linux with **no** distro unit. On POSIX Linux with a loaded `ssh.service` / `sshd.service`, `start` / `stop` / `restart` call **`systemctl`** as a **root login** (no in-tool `sudo`; no `sshd-cli systemctl` verb)
 - On Termux, `start` also acquires an **Android wake lock** so sshd can keep listening with the screen off. Acquire again with `sshd-cli wake-lock` if Android dropped it. `wake-unlock` is optional and does **not** run on `stop`
 - After a reboot on Termux, run `sshd-cli start` again. Listen-after-reboot on Termux is **Termux:Boot** (you own `~/.termux/boot/`) — not a `sshd-cli` verb. On POSIX Linux, listen-after-reboot is the distro sshd unit
-- This login’s `~/.ssh/config` **Host** list (`dns`, TTY menu row **5**): action menu **Edit / Add / Delete / Unset**, then a Host pick; TTY **as Termux (Y/n)** (Port 8022, simpler Ciphers/MACs, keep-alives — some Termux sshd versions otherwise **corrupt** the session), **identity-file** / **identities-only**, **Old OpenSSH (Y/n)** (`ssh-rsa` / `ssh-dss`); `""` means empty; `dns unset <name> user` drops extra settings (not the Host name or address); `--json` / pipes list or `set` / `delete` / `unset` without hanging
-- **`ssh`** (TTY menu row **6**): pick a Host from that numbered list, then **user** with default (Host `User`, else this login). **`download`** (row **7**): pick a Host, then **user** with the same default, then a remote folder (numbered previous paths for that Host, or type a new path — absolute, relative, or `~/folder`); tar.gz over ssh and extract into the current directory
+- This login’s `~/.ssh/config` **Host** list (`dns`, client **11**): action menu **111 Edit / 112 Add / 113 Delete / 114 Unset**, then a Host pick; TTY **as Termux (Y/n)** (Port 8022, simpler Ciphers/MACs, keep-alives — some Termux sshd versions otherwise **corrupt** the session), **identity-file** / **identities-only**, **Old OpenSSH (Y/n)** (`ssh-rsa` / `ssh-dss`); `""` means empty; `dns unset <name> user` drops extra settings (not the Host name or address); `--json` / pipes list or `set` / `delete` / `unset` without hanging
+- **`ssh`** (client **12**): pick a Host from that numbered list, then **user** with default (Host `User`, else this login). **`download`** (**13**): pick a Host, then **user** with the same default, then a remote folder (numbered previous paths for that Host, or type a new path — absolute, relative, or `~/folder`); tar.gz over ssh and extract into the current directory. **`upload`** (**14**): same Host and user prompts, then a **local** folder; tar.gz over ssh and extract under that remote login’s home
 - On POSIX Linux, `backup-config` copies this login `~/.ssh/config` to `/var/sshd-cli`; `sync-config` copies it back (mode 600). `sync-from-remote` scp’s that store from another host. Termux / Git Bash / Windows cmd hide those rows and print an INFO line
 - Termux-first paths (`PREFIX`); Linux system sshd is a second home and asks for a **root login** instead of wrapping `sudo`
 - Online install / self-update fetches a SHA-256 sidecar (`${SCRIPT_URL}.sha256`) and tells you link, value, and result
@@ -87,9 +87,11 @@ In this repository the companion file is **`sshd-cli.sha256`**. Same-channel SHA
 
 ```sh
 chmod +x ./sshd-cli
-./sshd-cli install
+./sshd-cli self-install
 sshd-cli about
 ```
+
+Payload (Termux OpenSSH packages + start sshd) is a separate step: `sshd-cli install`.
 
 On Termux, `install` also ensures OpenSSH and `termux-auth` (`pkg install -y openssh termux-auth`), creates `~/.bashrc` if missing (PATH), and creates `~/.profile` if missing so an SSH login sources `~/.bashrc`. If you will use a password to SSH in, set one with `passwd`. Tests/CI may set `BASHRC` to a file path (default `~/.bashrc`) so PATH ensure does not touch this login's real interactive rc. The test-purpose verb `sshd-cli rc-test --root <dir> --file bashrc --case create` proves the same helpers against a throw-away folder.
 
@@ -97,38 +99,101 @@ After install, on a terminal (no arguments opens the menu). Front board (every h
 
 ```text
 $ sshd-cli
-[INFO] **sshd-cli**(*1.22.0*)
+[INFO] **sshd-cli**(*1.26.0*)
 1. **client-side**: *this login OpenSSH client (~/.ssh/config, ssh, folders)*
 2. **server-side**: *this host OpenSSH sshd (listen, keys, port)*
+7. **sudoers**: *grant and drafts for passwordless sudo*
 8. **self-management**: *this CLI install, version, update, uninstall*
 9. Exit
 Choose a number, or type the command name:
 ```
 
-`1` opens client-side (Termux class):
+`7` opens sudoers (POSIX Linux). Termux / Git Bash / Windows cmd omit this row. The sudoers header is the program name only:
 
 ```text
-[INFO] **sshd-cli**(*1.22.0*) — client-side
+[INFO] sshd-cli — sudoers (grant and drafts)
+71. **generate-sudoer-request**: *Write a JSON grant you can read*
+72. **submit-sudoer-request**: *Queue the JSON grant inbound*
+73. **print-sudoers**: *Emit sudoers draft*
+74. **print-sudoers-install-script**: *Write admin install script*
+75. **remove-project-sudoers**: *Remove sudoers draft only*
+0. Back
+```
+
+`1` opens client-side. POSIX Linux:
+
+```text
+[INFO] **sshd-cli**(*1.26.0*) — client-side
+11. **dns**: *this login ~/.ssh/config Host list*
+12. **ssh**: *OpenSSH client to a Host from this login ~/.ssh/config*
+13. **download**: *tar.gz a remote folder into this directory*
+14. **upload**: *tar.gz a local folder onto a Host (extract under that ssh user home)*
+15. **backup-config**: *copy this login ~/.ssh/config to /var/sshd-cli*
+16. **sync-config**: *copy /var/sshd-cli/config into this login ~/.ssh/config*
+   (or type sync-from-remote [user@host]: copy /var/sshd-cli/config from another host)
+0. Back
+```
+
+Termux / Git Bash / Windows cmd (no **15** / **16**; **18** is numbered):
+
+```text
+[INFO] **sshd-cli**(*1.26.0*) — client-side
 [INFO] backup-config and sync-config not available for termux
 11. **dns**: *this login ~/.ssh/config Host list*
 12. **ssh**: *OpenSSH client to a Host from this login ~/.ssh/config*
 13. **download**: *tar.gz a remote folder into this directory*
+14. **upload**: *tar.gz a local folder onto a Host (extract under that ssh user home)*
 18. **sync-from-remote**: *copy /var/sshd-cli/config from user@host (or host)*
 0. Back
 ```
 
-POSIX Linux client-side numbers **15 backup-config**, **16 sync-config**, **17 sudoers** (type `sync-from-remote`). `11` then opens dns **111 Edit / 112 Add / 113 Delete / 114 Unset**, **0** Back.
-
-`2` opens server-side (Termux class shows **22 start / 23 stop / 24 restart**). POSIX Linux non-root:
+`11` opens dns (empty list shown; a saved Host prints on the line above the actions):
 
 ```text
-[INFO] **sshd-cli**(*1.22.0*) — server-side
+[INFO] SSH names (dns) in ~/.ssh/config
+    (empty)
+111. **Edit**: *change this Host (dns, ip, user, Termux, identity, Old OpenSSH). Enter keeps the current value*
+112. **Add**: *new Host in this login ~/.ssh/config*
+113. **Delete**: *remove a Host*
+114. **Unset**: *drop extra settings (user, port, …) — not dns or ip*
+0. Back
+```
+
+`2` opens server-side. POSIX Linux non-root (the INFO line names this OS; example **Ubuntu**):
+
+```text
+[INFO] **sshd-cli**(*1.26.0*) — server-side
 [INFO] start/stop/restart sshd features are not available for non-root in Ubuntu
 21. **status**: *running, port, and paths*
 0. Back
 ```
 
-`8` opens self-management (**81 install** … **86 self-uninstall**). **0** goes back. After a command finishes, the **front board** is shown again (not the submenu). **9** on the front board leaves. A wrong number reprints **that** list.
+Termux (and a POSIX Linux **root** login) also shows **22–24**:
+
+```text
+[INFO] **sshd-cli**(*1.26.0*) — server-side
+21. **status**: *running, port, and paths*
+22. **start**: *launch the OpenSSH daemon (background, not a boot service)*
+23. **stop**: *end the running daemon*
+24. **restart**: *stop then start*
+0. Back
+```
+
+`8` opens self-management:
+
+```text
+[INFO] **sshd-cli**(*1.26.0*) — self-management
+81. **install**: *place sshd-cli; ensure rc + Termux openssh/termux-auth; start sshd*
+82. **version**: *show version and detailed diagnostics (about)*
+83. **about**: *show detailed diagnostics*
+84. **version-check**: *compare local vs remote version*
+85. **self-update**: *update sshd-cli to a newer remote version*
+86. **self-uninstall**: *remove sshd-cli (safe PATH cleanup)*
+87. **self-install**: *place this CLI only (copy this file, or download when piped)*
+0. Back
+```
+
+**0** goes back. After a command finishes, the **front board** is shown again (not the submenu). **9** on the front board leaves. A wrong number reprints **that** list.
 
 ## Usage
 
@@ -159,6 +224,9 @@ sshd-cli ssh 1
 sshd-cli download
 sshd-cli download phone /opt/app
 sshd-cli download phone ~/box/app
+sshd-cli upload
+sshd-cli upload phone ./app
+sshd-cli self-install
 sshd-cli backup-config
 sshd-cli sync-config
 sshd-cli sync-from-remote
@@ -166,7 +234,9 @@ sshd-cli sync-from-remote user@host
 sshd-cli menu
 ```
 
-Self-management (this login, no OS package manager): `install`, `version-check`, `self-update`, `self-uninstall`.
+On Termux, `old-openssh yes` writes `HostKeyAlgorithms` and `PubkeyAcceptedAlgorithms` as comments (an active line makes that ssh client error). Menu **12** / `ssh` reads the Host stanza and, when those lines are comments, runs `ssh -o HostKeyAlgorithms=+ssh-rsa`.
+
+Self-management (this login, no OS package manager): `self-install` (this file only), `install` (payload), `version-check`, `self-update`, `self-uninstall`.
 
 Global flags: `--quiet` / `-q`, `--json`, `--debug`, `--force`.
 
@@ -204,6 +274,7 @@ sshd-cli dns unset 1 user
 sshd-cli ssh phone
 sshd-cli download phone /opt/app
 sshd-cli download phone ~/box/app
+sshd-cli upload phone ./app
 sshd-cli backup-config
 sshd-cli sync-config
 sshd-cli sync-from-remote user@host
@@ -269,4 +340,4 @@ MIT. See [`LICENSE.md`](./LICENSE.md). Copyright (c) 2026 Cloudgen Wong.
 
 ## Last Update
 
-2026-09-16 — 1.22.0: after a finished TTY command the front board is shown again (not the submenu). 2026-09-14 — 1.20.0: TTY menu is a tree (1 client-side, 2 server-side, 8 self-management; children keep the parent number; 0 Back). 2026-09-13 — 1.19.2: a wrong TTY menu number warns and shows the same list again. 2026-09-12 — 1.19.1: `download` accepts `~/folder` (remote login home). 2026-09-12 — 1.19.0: TTY `download` asks user with default (same as `ssh`). 2026-09-12 — 1.18.0: TTY menu numbers `ssh` (6) and `download` (7); `ssh` asks user with default. 2026-09-12 — 1.17.0: `ssh` picks a Host from this login `~/.ssh/config`; `download` tar.gz a remote folder into the current directory (remembers paths per Host). 2026-09-12 — 1.16.0: `dns unset` drops extra `~/.ssh/config` settings (user, port, …) without deleting the Host or HostName. 2026-09-11 — 1.15.0: `sync-from-remote` pulls `/var/sshd-cli/config` via scp and remembers last user@host. 2026-09-11 — 1.14.0: `backup-config` / `sync-config` for this-login `~/.ssh/config` (`/var/sshd-cli`); sudoers grant `sudo sshd-cli backup-config`; Termux/Git Bash/Windows cmd hide + INFO. 2026-09-11 — 1.13.4: Git Bash `/dev/shm` mkdir fail-soft; use AppData Local Temp/`cache` with no extra `[ERROR]`. 2026-09-10 — 1.13.3: Windows companion `setup-windows-ssh-server.ps1` (+ Git Bash `.sh` launcher); Git Bash detect is `MSYSTEM`/`uname` (not `$0` or `/c/`); `winpty grok` for Windows consoles. 2026-09-09 — 1.13.2: dns tests mint Host/IP (do not copy this-login LAN identity). 1.13.1: `self-update` is CLI-only (does not fail on `/etc/ssh/sshd_config` / `/run/sshd`). 1.13.0: `rc-test` proves PATH/profile ensure in a temp folder; uninstall keeps a shared PATH while other tools remain.
+2026-09-27 — 1.26.0: on Termux, Old OpenSSH `HostKeyAlgorithms` / `PubkeyAcceptedAlgorithms` are comments; `ssh` (menu **12**) passes `-o HostKeyAlgorithms=+ssh-rsa` when that Host has those comments. 2026-09-27 — 1.25.0: TTY **sudoers** is front **7** (verbs **71** generate-sudoer-request, **72** submit-sudoer-request, **73** print-sudoers, **74** print-sudoers-install-script, **75** remove-project-sudoers). Client board no longer numbers it **17**. 2026-09-17 — 1.24.0: pipe / `self-install` places the CLI only (copy when you run the file; dest 0700 local). Payload stays `install`. 2026-09-17 — 1.23.0: preferred cache is `/dev/shm/cache/sshd-cli-<user>` (not `/dev/shm/sshd-cli-<user>`). 2026-09-16 — 1.22.0: after a finished TTY command the front board is shown again (not the submenu). 2026-09-14 — 1.20.0: TTY menu is a tree (1 client-side, 2 server-side, 8 self-management; children keep the parent number; 0 Back). 2026-09-13 — 1.19.2: a wrong TTY menu number warns and shows the same list again. 2026-09-12 — 1.19.1: `download` accepts `~/folder` (remote login home). 2026-09-12 — 1.19.0: TTY `download` asks user with default (same as `ssh`). 2026-09-12 — 1.18.0: TTY menu numbers `ssh` (6) and `download` (7); `ssh` asks user with default. 2026-09-12 — 1.17.0: `ssh` picks a Host from this login `~/.ssh/config`; `download` tar.gz a remote folder into the current directory (remembers paths per Host). 2026-09-12 — 1.16.0: `dns unset` drops extra `~/.ssh/config` settings (user, port, …) without deleting the Host or HostName. 2026-09-11 — 1.15.0: `sync-from-remote` pulls `/var/sshd-cli/config` via scp and remembers last user@host. 2026-09-11 — 1.14.0: `backup-config` / `sync-config` for this-login `~/.ssh/config` (`/var/sshd-cli`); sudoers grant `sudo sshd-cli backup-config`; Termux/Git Bash/Windows cmd hide + INFO. 2026-09-11 — 1.13.4: Git Bash `/dev/shm` mkdir fail-soft; use AppData Local Temp/`cache` with no extra `[ERROR]`. 2026-09-10 — 1.13.3: Windows companion `setup-windows-ssh-server.ps1` (+ Git Bash `.sh` launcher); Git Bash detect is `MSYSTEM`/`uname` (not `$0` or `/c/`); `winpty grok` for Windows consoles. 2026-09-09 — 1.13.2: dns tests mint Host/IP (do not copy this-login LAN identity). 1.13.1: `self-update` is CLI-only (does not fail on `/etc/ssh/sshd_config` / `/run/sshd`). 1.13.0: `rc-test` proves PATH/profile ensure in a temp folder; uninstall keeps a shared PATH while other tools remain.

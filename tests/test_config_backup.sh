@@ -190,13 +190,24 @@ FAKESCP
     assert_contains "TP-CFG-16 json type" "${_j}" '"type":"sync-from-remote"'
     assert_contains "TP-CFG-16 json host" "${_j}" '"host":"host.example.test"'
 
-    # TP-CFG-17 TTY sudoers submenu unknown choice redisplays
-    _out=$(printf '%s\n' '1' '17' '88' '0' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u TERMUX_VERSION -u MSYSTEM -u WSL_DISTRO_NAME sh "${SCRIPT}" 2>&1)
+    # TP-CFG-17 TTY sudoers submenu unknown choice redisplays (front 7; verbs 71-75)
+    _out=$(printf '%s\n' '7' '88' '0' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u TERMUX_VERSION -u MSYSTEM -u WSL_DISTRO_NAME sh "${SCRIPT}" 2>&1)
     _ec=$?
     assert_eq "TP-CFG-17 sudoers unknown then Back then Exit 9 exit 0" 0 "$_ec"
     assert_contains "TP-CFG-17 unknown sudoers named" "${_out}" "Unknown sudoers choice '88'"
     _n=$(t_count_substr "${_out}" "sudoers (grant and drafts)")
     assert_eq "TP-CFG-17 redisplays sudoers menu" "2" "$_n"
+    _n=$(printf '%s\n' "${_out}" | grep -cE '(^|[^0-9])71[.]' || true)
+    assert_eq "TP-CFG-17 prints verb 71" "2" "${_n}"
+    _n=$(printf '%s\n' "${_out}" | grep -cE '(^|[^0-9])75[.]' || true)
+    assert_eq "TP-CFG-17 prints verb 75" "2" "${_n}"
+    _n=$(printf '%s\n' "${_out}" | grep -cE '(^|[^0-9])171[.]' || true)
+    assert_eq "TP-CFG-17 does not print 171" "0" "${_n}"
+    _out=$(printf '%s\n' '1' '17' '0' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u TERMUX_VERSION -u MSYSTEM -u WSL_DISTRO_NAME sh "${SCRIPT}" 2>&1)
+    _ec=$?
+    assert_eq "TP-CFG-17 client 17 is not sudoers exit 0" 0 "$_ec"
+    assert_contains "TP-CFG-17 client 17 unknown" "${_out}" "Unknown menu choice '17'"
+    assert_not_contains "TP-CFG-17 client 17 did not open sudoers" "${_out}" "sudoers (grant and drafts)"
 
     ci_cleanup_env
 

@@ -149,7 +149,7 @@ interactive   non-interactive
 
 | Command / path | Interactive (TTY, not quiet/json) | Non-interactive / quiet / json |
 |----------------|-----------------------------------|--------------------------------|
-| Zero-arg, **not** installed | Domain **menu** (`sshd_cmd_menu`); **no** install-ensure | Quiet/json: `inst_perform_install` without prompt. Non-TTY human path: auto-install message + install |
+| Zero-arg, **not** installed | Domain **menu** (`sshd_cmd_menu`); **no** CLI place | Quiet/json / no TTY: `inst_self_install` (CLI only; copy when `$0` is a script). Payload stays `install`. |
 | Zero-arg, **already** installed local or global | Domain **menu** (same as `sshd-cli menu`) | Install-ensure success no-op (“already installed”); **not** help; **not** menu; no re-download without force |
 | `install` | Install with human `out_*` messages | No prompt; honor force for reinstall; JSON structured results |
 | `self-uninstall` | `prompt_yes_no` unless `--force` | Without force: fail closed with explicit “requires --force” (JSON: `out_json_error` / `confirm_required`); never pretend user cancelled; with `--force`: remove without confirm |

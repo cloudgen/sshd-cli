@@ -18,7 +18,7 @@ It defines a **normal user privilege** (workshop **Type 0**) **self-managed shel
 | Box | Meaning | Example |
 |-----|---------|---------|
 | You / this login | The person who types the command | `sshd-cli help` · `sshd-cli version` |
-| The other role | Empty argv (install-ensure) and lifecycle safety | `requirement-shell-cli-zero-arguments.md` · `requirement-shell-self-management.md` |
+| The other role | Empty argv (TTY menu / pipe CLI self-install) and lifecycle safety | `requirement-shell-cli-zero-arguments.md` · `requirement-shell-cli-self-install.md` · `requirement-shell-self-management.md` |
 | Not this file | Checksum, storage paths, `out_*` internals | Peer requirements |
 
 | Includes | Excludes |
@@ -47,7 +47,7 @@ Every CIAO-Lite shell CLI **MUST** expose a documented command set. Commands **M
 | Category | Privilege | Meaning | Portable examples |
 |----------|-----------|---------|-------------------|
 | **Type 0 – Normal user privilege – Self-management / CLI lifecycle** | Invoking user (no elevation required for user-owned install) | Manage the CLI binary and diagnostics | `version`, `about`, `help`, `version-check`, `self-update`, `self-uninstall` |
-| **Type 0 – Normal user privilege – Install CLI binary** | Invoking user (root → global path; non-root → user path) | First-time or explicit placement of the CLI | `install`; **non-interactive** empty argv **Type O install-ensure** — `requirement-shell-cli-zero-arguments.md` |
+| **Type 0 – Normal user privilege – Install CLI binary** | Invoking user (root → global path; non-root → user path) | First-time or explicit **CLI** placement | `self-install`; **non-interactive** empty argv — `requirement-shell-cli-self-install.md` |
 | **Type 1 – Admin privilege – Host preparation** | Elevated (internal escalation when designed) | Passwordless `sudo sshd-cli backup-config` into `/var/sshd-cli` after sudoer-adm | *Used for `backup-config` deposit on POSIX Linux. On a command line for normal user only (Termux, Git Bash, Windows cmd) MUST stay unused — do not implement/enable.* |
 | **Type 2 – Dedicated system user privilege – App ops under system user** | Dedicated least-privilege system user | App install/configure/runtime under app identity | *Unused on this product. On a command line for normal user only (Termux, Git Bash, Windows cmd) MUST stay unused — do not implement/enable.* |
 
@@ -73,7 +73,7 @@ Additional flags **MAY** be added only when documented here (or a superseding re
 
 1. **Single entry:** A single main dispatcher (e.g. `app_main`) **MUST** parse global flags and route commands.
 2. **Unknown command:** **MUST** fail loudly with a clear error and pointer to `help` (via output SSOT).
-3. **Zero-arg split:** Empty argv **MUST NOT** mean help. **Interactive** (`TTY=1`, not quiet/json) → domain **menu**. **Non-interactive** → install-ensure (not installed → install; already installed → success no-op). Full contract: `requirement-shell-cli-zero-arguments.md`.
+3. **Zero-arg split:** Empty argv **MUST NOT** mean help. **Interactive** (`TTY=1`, not quiet/json) → domain **menu**. **Non-interactive** → **CLI self-install** (`inst_self_install`; not payload). Full contract: `requirement-shell-cli-zero-arguments.md` · `requirement-shell-cli-self-install.md`.
 4. **Idempotent install skip:** Install **MUST** no-op when already installed unless force/reinstall policy is set.
 5. **No raw user I/O:** User-facing messages **MUST** go through the centralized `out_*` system (see output template/term).
 
@@ -134,7 +134,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | **Primary executable** | Repo root `./sshd-cli` (POSIX `/bin/sh`, single-file for `curl \| sh`) |
 | **Dispatcher** | `app_main` (always invoked at end of script: `app_main "$@"` — no `${0##*/}` / APP_NAME basename gate; required for `curl \| sh`) |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION` default `1.21.0` (script header / config block: `VERSION="1.21.0"`) |
+| **Version SSOT** | `VERSION` default `1.26.0` (script header / config block: `VERSION="1.26.0"`) |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`, or `${PREFIX}/bin` when Termux `PREFIX/bin` exists; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Interactive rc write path** | `BASHRC` default `${HOME}/.bashrc`. `install` PATH ensure creates/modifies this file. Tests/CI **MAY** set `BASHRC` to a file in a temp folder. Dual mention: `requirement-shell-path-and-shell-support`. |
 | **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`). **`help` Environment also lists `BASHRC`.** |
@@ -146,8 +146,9 @@ When specializing product **B** from this bootstrap (**A → B only**):
 
 | Command | Type | Handler (current) | Required behavior |
 |---------|------|-------------------|-------------------|
-| *(no args — empty argv)* | Type 0 | `app_main` → `sshd_cmd_menu` (TTY) or `inst_perform_install` / `inst_maybe_install` (non-TTY) | Interactive: domain menu. Non-interactive: **Type O install-ensure**. Never help. See `requirement-shell-cli-zero-arguments.md` |
-| `install` | Type 0 | `inst_perform_install` | Place binary; **always** `inst_ensure_companion` (rc + Termux pkg); then **start sshd** (`sshd_start_after_install`). Idempotent unless force reinstall of the binary. Dual mention: `requirement-shell-self-management` · `requirement-shell-path-and-shell-support` · `requirement-domain-sshd` |
+| *(no args — empty argv)* | Type 0 | `app_main` → `sshd_cmd_menu` (TTY) or `inst_self_install` (non-TTY) | Interactive: domain menu. Non-interactive: **CLI self-install**. Never help. Never payload. See `requirement-shell-cli-zero-arguments.md` · `requirement-shell-cli-self-install.md` |
+| `self-install` | Type 0 | `inst_self_install` | Place **this CLI only** (copy when `$0` is a script; download when piped). Dest **0700** local / **0755** global. **MUST NOT** `pkg` or start sshd. Dual mention: `requirement-shell-cli-self-install`. Sample: `sshd-cli self-install` |
+| `install` | Type 0 | `inst_perform_install` | Payload: **always** `inst_ensure_companion` (rc + Termux pkg); then **start sshd** (`sshd_start_after_install`). Also places the CLI if needed. Dual mention: `requirement-shell-self-management` · `requirement-shell-path-and-shell-support` · `requirement-domain-sshd` |
 | `version` | Type 0 | argv: `app_version`; TTY **82** / typed `version` on a board: `app_about` | Argv: print local version; JSON `"type":"version"` when `--json`. TTY numbered **82** and typed `version` run **about** (diagnostics), not a header reprint (**INC-20260914-001**). |
 | `about` | Type 0 | `app_about` | Diagnostics: install presence, global/local paths, user, shell, TTY; JSON when `--json`; **no `CHECKSUM` field** |
 | `version-check` | Type 0 | `ver_check` | Compare local vs remote `VERSION` from `SCRIPT_URL`; fail clearly if URL unset/unreachable |
@@ -185,7 +186,8 @@ Every routed verb is named **here** and on a topic-owner. Help/`app_help` is **n
 
 | Verb | Topic-owner | Sample on owner |
 |------|-------------|-----------------|
-| empty argv | `requirement-shell-cli-zero-arguments` | `sshd-cli` (TTY menu / pipe install-ensure) |
+| empty argv | `requirement-shell-cli-zero-arguments` · `requirement-shell-cli-self-install` | `sshd-cli` (TTY menu / pipe CLI self-install) |
+| `self-install` | `requirement-shell-cli-self-install` | `sshd-cli self-install` |
 | `install` | `requirement-shell-self-management` · `requirement-shell-path-and-shell-support` · `requirement-domain-sshd` · `requirement-shell-termux-ish` | `sshd-cli install` |
 | `version` | `requirement-shell-output-requirements` | `sshd-cli version` |
 | `about` | `requirement-shell-self-management` · `requirement-shell-cli-storage` | `sshd-cli about` |
@@ -211,22 +213,14 @@ Every routed verb is named **here** and on a topic-owner. Help/`app_help` is **n
 #### Dispatcher sample (this project — empty argv + test-purpose + domain)
 
 ```sh
-# Empty argv: TTY menu vs Type O install-ensure. Always app_main "$@" (no basename gate).
+# Empty argv: TTY menu vs CLI self-install. Always app_main "$@" (no basename gate).
 if [ $# -eq 0 ]; then
     if [ "${TTY}" -eq 1 ] && [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
         sshd_cmd_menu
         exit $?
     fi
-    if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ]; then
-        inst_perform_install
-        exit $?
-    elif inst_is_installed; then
-        inst_perform_install
-        exit $?
-    else
-        inst_maybe_install
-        exit $?
-    fi
+    inst_self_install
+    exit $?
 fi
 # rc-test operands accumulate then: set -- ${RC_TEST_OPERANDS}; path_rc_test "$@"
 # Domain verbs (status|start|stop|restart|port|config|host-keys|auth-keys|dns|ssh|download|upload|menu|main|wake-lock|wake-unlock)

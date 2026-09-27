@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-storage.md  
-**Status**: Active (Version 1.1.0)  
+**Status**: Active (Version 1.2.0)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
@@ -50,7 +50,7 @@ Walk the chain. Parent **must exist** before `mkdir` of a `cache` leaf (except T
 
 | Order | Condition | Path shape |
 |-------|-----------|------------|
-| 1 | `/dev/shm` exists | `/dev/shm/${APP_NAME}-${USERNAME}` (mkdir fail-soft) |
+| 1 | `/dev/shm` exists | `/dev/shm/cache/${APP_NAME}-${USERNAME}` (mkdir fail-soft; parent `/dev/shm/cache` prefer mode **1777**) |
 | 2a | Termux (`sshd_is_termux`) | `${PREFIX}/tmp/${APP_NAME}-${USERNAME}` |
 | 2b | Git Bash (`sshd_is_git_bash`) | `${HOME}/AppData/Local/Temp/cache/${APP_NAME}-${USERNAME}` when that Temp parent exists; else `/c/Users/${USERNAME}/AppData/Local/Temp/cache/${APP_NAME}-${USERNAME}` |
 | 3 | `$TEMP` defined and exists | `${TEMP}/cache/${APP_NAME}-${USERNAME}` |
@@ -84,7 +84,8 @@ Walk the chain. Parent **must exist** before `mkdir` of a `cache` leaf (except T
 | **Config fallback** | `: "${STORAGE_DIR:=${XDG_CACHE_HOME}/${APP_NAME}-${USERNAME}}"` |
 | **Call sites** | `app_main` (resolve + TMPDIR); `app_about` (human + JSON) |
 | **Not used for** | Domain project trees (bootstrap has none) |
-| **Tests** | `tests/test_cli.sh` — about storage fields, isolation, dir exists; Git Bash `/dev/shm` mkdir fail-soft → AppData Local Temp/cache (**TP-CLI-19** · **TP-CLI-20**) |
+| **Preferred cache** | `/dev/shm/cache/${APP_NAME}-${USERNAME}` |
+| **Tests** | `tests/test_cli.sh` — preferred `/dev/shm/cache/` leaf, isolation, dir exists (**TP-CLI-12**); Git Bash `/dev/shm` mkdir fail-soft → AppData Local Temp/cache (**TP-CLI-19** · **TP-CLI-20**) |
 
 ### 2.6 Why This Requirement Exists (CIAO)
 
@@ -132,8 +133,9 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 6. Bypass Output SSOT for storage failure messages.  
 7. Put CHECKSUM in about storage diagnostics.  
 8. Strip the **Under command line for normal user only** section, or resolve scratch into `/etc` on that class.  
-9. `out_die` / print `[ERROR]` because `mkdir` of `/dev/shm/${APP_NAME}-${USERNAME}` (or any one cache leaf) failed while later roots remain untried.  
+9. `out_die` / print `[ERROR]` because `mkdir` of `/dev/shm/cache/${APP_NAME}-${USERNAME}` (or any one cache leaf) failed while later roots remain untried.  
 10. Use `$HOME/.cache` as the Git Bash volatile root when `$HOME/AppData/Local/Temp` or `/c/Users/${USERNAME}/AppData/Local/Temp` exists.  
+11. Use `/dev/shm/${APP_NAME}` or `/dev/shm/${APP_NAME}-${USERNAME}` as the preferred cache (those look like ram-drive project folders). Preferred **MUST** be `/dev/shm/cache/${APP_NAME}-${USERNAME}`.  
 
 **Violating this rule is a critical storage isolation regression.**
 
@@ -144,7 +146,7 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 Storage resolve work for sshd-cli is **not done** if any of the following fail:
 
 1. Exactly one authoritative resolver (`util_resolve_storage`) returns the chosen path on stdout after `mkdir -p` of that root.  
-2. Resolve priority matches this requirement (`/dev/shm` fail-soft → Termux `$PREFIX/tmp` / Git Bash AppData Temp/`cache` → `$TEMP/cache` → `/tmp/cache` → `STORAGE_DIR`). Mid-chain mkdir failure does not abort.  
+2. Resolve priority matches this requirement (`/dev/shm/cache/${APP_NAME}-${USERNAME}` fail-soft → Termux `$PREFIX/tmp` / Git Bash AppData Temp/`cache` → `$TEMP/cache` → `/tmp/cache` → `STORAGE_DIR`). Mid-chain mkdir failure does not abort.  
 3. Paths include `${APP_NAME}` and `${USERNAME}` isolation; no shared world-writable single dump for all users.  
 4. `app_main` sets `EFFECTIVE_STORAGE_DIR` / exports `TMPDIR` from the resolver once early.  
 5. `app_about` human + JSON expose effective storage fields and **omit** `CHECKSUM`.  
@@ -167,6 +169,6 @@ Storage resolve work for sshd-cli is **not done** if any of the following fail:
 
 ---
 
-**Last Updated**: 2026-09-11  
+**Last Updated**: 2026-09-17  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 4, 5, 11, 19, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

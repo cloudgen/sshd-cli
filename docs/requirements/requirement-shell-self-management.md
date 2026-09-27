@@ -137,7 +137,7 @@ Root may write global install path; non-root uses user path. Do not assume root 
 | **Force reinstall** | `FORCE_REINSTALL`; CLI `--force` required by CLI interface requirement |
 | **Uninstall steps** | `inst_self_uninstall_determine_bin` → `inst_self_uninstall_confirm_and_remove` → `inst_self_uninstall_cleanup_path` |
 | **PATH / login rc** | **Call site only:** `inst_ensure_companion` → `path_add_shell`. Bodies, exact PATH line, sibling unify, scoped uninstall, `BASHRC` env, and `rc-test`: `requirement-shell-path-and-shell-support` |
-| **Companion orchestrator** | `inst_ensure_companion` then `sshd_start_after_install` on `install` / non-interactive empty-argv (including already-installed binary no-op) |
+| **Companion orchestrator** | `inst_ensure_companion` then `sshd_start_after_install` on `install` (including already-installed binary no-op). **Not** on `self-install` / NI empty argv (`requirement-shell-cli-self-install`). |
 | **Termux packages** | Invoke contract: `requirement-shell-termux-ish` (`sshd_pkg_ensure`); package names: `requirement-domain-sshd`; this file owns the call site |
 | **Privilege** | Type 0 only for self-management surface; no dedicated system user |
 | **Version SSOT** | `VERSION` default `1.6.0` in script config block (`VERSION="1.6.0"`) |
@@ -157,7 +157,7 @@ SKIP_DOMAIN_START=1
 inst_perform_install
 ```
 
-**Companion before already-installed no-op** (`inst_ensure_companion` then start): `install` / non-interactive empty argv always call `inst_ensure_companion` (rc + Termux `pkg`) **before** returning success on an already-placed binary. Uninstall confirm: `if prompt_yes_no "…"; then` in the current shell — **MUST NOT** `$()`.
+**Companion before already-installed no-op** (`inst_ensure_companion` then start): `install` always calls `inst_ensure_companion` (rc + Termux `pkg`) **before** returning success on an already-placed binary. `self-install` / NI empty argv **MUST NOT**. Uninstall confirm: `if prompt_yes_no "…"; then` in the current shell — **MUST NOT** `$()`.
 
 #### Normative acceptance behaviors (this project)
 
