@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-modular-function-design.md  
-**Status**: Active (Version 1.1.1)  
+**Status**: Active (Version 1.1.2)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -63,7 +63,7 @@ Optional multi-file layout under `src/` for future authoring **MAY** exist only 
 | `out_` | Output system | All user-facing and machine-readable output | `out_text`, `out_info`, `out_success`, `out_json`, `out_die` |
 | `inst_` | Installation & self-management | Install, self-update, self-uninstall, install detect | `inst_perform_install`, `inst_self_update`, `inst_is_installed` |
 | `util_` | General utilities | Reusable helpers (backup, path resolve, storage) | `util_backup`, `util_resolve_storage`, `util_get_install_bin_path` |
-| `app_` | General app CLI surface (product-neutral) | Entry, dispatch, about/help/version presentation | `app_main`, `app_about`, `app_help`, `app_version` |
+| `app_` | General app CLI surface (product-neutral) | Entry, dispatch, about/help/version presentation, numbered menu | `app_main`, `app_about`, `app_help`, `app_version`, `app_cmd_menu` |
 | `ver_` | Version comparison | Semantic version handling | `ver_gt`, `ver_check` |
 | `path_` | Shell PATH & environment | PATH manipulation and shell config (bashrc/profile) | `path_add_shell`, `path_add_bashrc`, `path_ensure_profile` |
 | `prompt_` | Interactive prompts | TTY-safe confirmations and questions | `prompt_yes_no`, `prompt_ask` |
@@ -71,7 +71,7 @@ Optional multi-file layout under `src/` for future authoring **MAY** exist only 
 
 **`app_*` vs domain prefix:**
 
-- **`app_*`** — cross-cutting CLI surface every shell CLI needs (main, help, about, version routing).  
+- **`app_*`** — cross-cutting CLI surface every shell CLI needs (main, help, about, version routing, numbered menu `app_cmd_menu*`).  
 - **`sshd_*`** — domain business logic only (OpenSSH sshd + Termux detect).  
 - Do **not** put domain ops under `app_*`.  
 - Do **not** put generic about/help/main under the domain prefix unless a specialized requirement explicitly requires product-prefixed aliases.
@@ -171,7 +171,7 @@ function_name() {
 | **Product / binary** | `sshd-cli` (`APP_NAME`) |
 | **Single shipped script** | Repo root `./sshd-cli` (`#!/bin/sh`); authoring copy `src/sshd-cli` (same bytes) |
 | **`src/` directory** | Holds the same single-file ship unit (`src/sshd-cli`); **not** a multi-file runtime layout |
-| **Domain prefix `sshd_*`** | Domain ops: `sshd_cmd_*`, `sshd_resolve`, `sshd_pkg_ensure` |
+| **Domain prefix `sshd_*`** | Domain ops: `sshd_cmd_*` (OpenSSH verbs), `sshd_resolve`, `sshd_pkg_ensure`. Numbered menu handlers are `app_cmd_menu*`. |
 | **Bootstrap** | Direct execution when `${0##*/}` is `sshd-cli` or `sshd-cli.sh` → `app_main "$@"` |
 
 #### Live prefix inventory (authoritative categories)
@@ -184,8 +184,8 @@ function_name() {
 | `path_` | `path_add_bashrc`, `path_ensure_profile`, `path_add_zshrc`, `path_add_fish`, `path_add_shell`, `path_rc_test` |
 | `util_` | `util_json_escape`, `util_sha256_file`, `util_fetch_remote_version`, `util_get_install_bin_path`, `util_backup`, `util_cache_host_kind`, `util_preferred_cache_dir`, `util_fallback_cache_dir`, `util_fallback2_cache_dir`, `util_cache_try_dir`, `util_resolve_storage` (**wired** from `app_main` / `app_about`; silent tier miss; SSOT: `requirement-shell-cli-storage.md`), `util_resolve_persistent_storage` (preferred-remote leaf), `util_sudo` (**backup-config** re-exec; SSOT: `requirement-shell-sudo-command.md`), `util_get_current_shell` |
 | `prompt_` | `prompt_ask`, `prompt_yes_no` |
-| `app_` | `app_about`, `app_version` (dispatcher routes `version` here), `app_help`, `app_main` |
-| `sshd_` | `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`, `sshd_os_name`, `sshd_menu_show_daemon_rows`, `sshd_is_systemd_host`, `sshd_systemd_unit`, `sshd_systemd_is_active`, `sshd_systemd_main_pid`, `sshd_resolve`, `sshd_pkg_ensure`, `sshd_start_after_install`, `sshd_try_start_linux`, `sshd_ifconfig_ipv4`, `sshd_lan_ipv4`, `sshd_connect_cmd`, `sshd_cmd_status` / `start` / `stop` / `restart` / `port` / `config` / `host_keys` / `auth_keys` / `menu` |
+| `app_` | `app_about`, `app_version` (dispatcher routes `version` here), `app_help`, `app_main`, `app_cmd_menu`, `app_cmd_menu_client`, `app_cmd_menu_server`, `app_cmd_menu_self` |
+| `sshd_` | `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`, `sshd_os_name`, `sshd_menu_show_daemon_rows`, `sshd_is_systemd_host`, `sshd_systemd_unit`, `sshd_systemd_is_active`, `sshd_systemd_main_pid`, `sshd_resolve`, `sshd_pkg_ensure`, `sshd_start_after_install`, `sshd_try_start_linux`, `sshd_ifconfig_ipv4`, `sshd_lan_ipv4`, `sshd_connect_cmd`, `sshd_cmd_status` / `start` / `stop` / `restart` / `port` / `config` / `host_keys` / `auth_keys` |
 
 #### Structural notes (implementation status)
 
@@ -298,6 +298,6 @@ A modular-structure change for sshd-cli is **not done** if any of the following 
 
 ---
 
-**Last Updated**: 2026-09-27  
+**Last Updated**: 2026-09-28 (1.1.2 numbered menu handlers are `app_cmd_menu*`)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 6, 7, 8, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

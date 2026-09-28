@@ -7796,11 +7796,11 @@ sshd_menu_typed_leaf() {
     esac
 }
 
-# Last updated: 2026-09-16
+# Last updated: 2026-09-28
 # ALIGNMENT: requirement-shell-cli-default-interaction
 # A valid leaf (or nested action board) returns to the front board. Unknown
 # choice retries this layer. 0 / empty / EOF is Back.
-sshd_cmd_menu_client() {
+app_cmd_menu_client() {
     _show_cfg=1
     if sshd_is_normal_user_only_cli; then
         _show_cfg=0
@@ -7892,11 +7892,11 @@ sshd_cmd_menu_client() {
     done
 }
 
-# Last updated: 2026-09-16
+# Last updated: 2026-09-28
 # ALIGNMENT: requirement-shell-cli-default-interaction
 # A valid leaf returns to the front board. Unknown choice retries this layer.
 # 0 / empty / EOF is Back.
-sshd_cmd_menu_server() {
+app_cmd_menu_server() {
     _show_daemon=0
     if sshd_menu_show_daemon_rows; then
         _show_daemon=1
@@ -7968,11 +7968,11 @@ sshd_cmd_menu_server() {
     done
 }
 
-# Last updated: 2026-09-16
+# Last updated: 2026-09-28
 # ALIGNMENT: requirement-shell-cli-default-interaction
 # A valid leaf returns to the front board. Unknown choice retries this layer.
 # 0 / empty / EOF is Back.
-sshd_cmd_menu_self() {
+app_cmd_menu_self() {
     while true; do
         out_info "**${APP_NAME}**(*${VERSION}*) — self-management"
         out_menu_choice "81" "install" "place ${APP_NAME}; ensure rc + Termux openssh/termux-auth; start sshd"
@@ -8041,12 +8041,12 @@ sshd_cmd_menu_self() {
     done
 }
 
-# Last updated: 2026-09-27
+# Last updated: 2026-09-28
 # ALIGNMENT: requirement-shell-cli-default-interaction · requirement-shell-cli-zero-arguments
 # Front board loops until Exit. Category rows open a submenu. POSIX Linux
 # row 7 opens sudoers (71-75). A finished leaf redisplays this board.
 # Unknown choice retries this layer. Row 7 stays reserved when hidden.
-sshd_cmd_menu() {
+app_cmd_menu() {
     if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ] || [ "${TTY}" -ne 1 ]; then
         out_die "menu needs a terminal. Run a named command instead, for example: ${APP_NAME} status"
     fi
@@ -8070,8 +8070,8 @@ sshd_cmd_menu() {
             return 0
         fi
         case "${_choice}" in
-            1|client-side) sshd_cmd_menu_client; continue ;;
-            2|server-side) sshd_cmd_menu_server; continue ;;
+            1|client-side) app_cmd_menu_client; continue ;;
+            2|server-side) app_cmd_menu_server; continue ;;
             7)
                 if [ "${_show_sudoers}" -eq 1 ]; then
                     sshd_cmd_sudoers_menu
@@ -8080,7 +8080,7 @@ sshd_cmd_menu() {
                 out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
                 continue
                 ;;
-            8|self-management) sshd_cmd_menu_self; continue ;;
+            8|self-management) app_cmd_menu_self; continue ;;
             9|99|999|exit|"")
                 unset _choice _show_sudoers
                 return 0
@@ -8505,7 +8505,7 @@ app_main() {
     export TMPDIR="${EFFECTIVE_STORAGE_DIR}"
 
     # === ZERO-CLI-VERB (no-token fast path) ===
-    # Interactive (TTY=1, not quiet/json): domain menu (sshd_cmd_menu).
+    # Interactive (TTY=1, not quiet/json): main menu (app_cmd_menu).
     # Non-interactive (pipe / curl|sh / quiet / json / no TTY): CLI self-install
     # (not payload install). The same split runs after flag parse when no
     # routed-verb remains (switches are not a verb).
@@ -8514,7 +8514,7 @@ app_main() {
     # requirement-shell-cli-self-install.md
     if [ $# -eq 0 ]; then
         if [ "${TTY}" -eq 1 ] && [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
-            sshd_cmd_menu
+            app_cmd_menu
             exit $?
         fi
         inst_self_install
@@ -8614,7 +8614,7 @@ app_main() {
     # requirement-shell-cli-zero-arguments.md
     if [ -z "${COMMAND}" ]; then
         if [ "${TTY}" -eq 1 ] && [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
-            sshd_cmd_menu
+            app_cmd_menu
             exit $?
         fi
         inst_self_install
@@ -8686,7 +8686,7 @@ app_main() {
             set -- ${DOMAIN_OPERANDS}
             sshd_cmd_upload "$@"
             ;;
-        menu|main) sshd_cmd_menu ;;
+        menu|main) app_cmd_menu ;;
         wake-lock) sshd_cmd_wake_lock ;;
         wake-unlock) sshd_cmd_wake_unlock ;;
         backup-config) sshd_cmd_backup_config ;;

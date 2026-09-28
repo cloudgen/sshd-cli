@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.26.2)  
+**Status**: Active (Version 1.26.3)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -71,7 +71,7 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 | `ssh` | optional `<n\|name>` | `sshd_cmd_ssh` | This login OpenSSH **client** `ssh` using a concrete Host alias | Missing n / empty list / ssh missing → `out_die` |
 | `download` | optional `<n\|name>` then optional `folder` | `sshd_cmd_download` | This login: remote `tar czf` over `ssh`, extract into **cwd** | Missing n / folder / bad folder / ssh or tar missing / ssh fail → `out_die` |
 | `upload` | optional `<n\|name>` then optional `folder` | `sshd_cmd_upload` | This login: local `tar czf` piped over `ssh`, extract under the remote login **home** | Missing n / folder / missing local dir / bad folder / ssh or tar missing / ssh fail → `out_die` |
-| `menu` / `main` | none | `sshd_cmd_menu` | TTY only | `--json` / quiet / non-TTY → `out_die` with named-command hint |
+| `menu` / `main` | none | `app_cmd_menu` | TTY only | `--json` / quiet / non-TTY → `out_die` with named-command hint |
 | `backup-config` | none | `sshd_cmd_backup_config` | POSIX Linux: this login then `sudo -n {{GLOBAL_BIN}}/sshd-cli backup-config`. Termux / Git Bash / Windows cmd unused | Missing `~/.ssh/config` / sudo refused / this-login-only host → `out_die` |
 | `sync-config` | none | `sshd_cmd_sync_config` | This login, no sudo | Store missing / this-login-only host → `out_die` |
 | `sync-from-remote` | optional SPEC | `sshd_cmd_sync_from_remote` | This login `scp`; all hosts | Missing/invalid SPEC / scp fail → `out_die` |
@@ -86,7 +86,7 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 **MUST:** `backup-config` / `sync-config` ops SSOT is `requirement-shell-config-backup` (depends on `requirement-shell-sudoer`). Sudoers JSON, print/generate/submit, and `util_sudo` SSOT is `requirement-shell-sudoer`. This domain file **points**; it does not re-own copy or grant emit.  
 **MUST:** On Termux / Git Bash / Windows cmd, the client layer’s **menu-hidden message** **MUST** print `[INFO] backup-config and sync-config not available for termux` (or `gitbash` / `windows-cmd`) **before** the **client** numbered list. That cause omits backup-config and sync-config. Client **14** is **upload**. Termux class numbers **18** sync-from-remote. POSIX Linux numbers **15** backup-config, **16** sync-config. Front **7** sudoers (POSIX Linux only; children **71–75**) is a different cause on the **front** board: its own menu-hidden message belongs **before** the front numbered items. The ship unit omits front **7** on this class and prints no front-board message yet (Gap). Front Exit is **9**. Rule: `requirement-shell-cli-default-interaction`.  
 **MUST:** Each verb above is also named on `requirement-shell-cli-interface` (dual mention).  
-**MUST:** Interactive empty argv (`TTY=1`, not quiet/json) **MUST** call `sshd_cmd_menu` (same handler as `menu`). Dual mention: `requirement-shell-cli-zero-arguments`.  
+**MUST:** Interactive empty argv (`TTY=1`, not quiet/json) **MUST** call `app_cmd_menu` (same handler as `menu`). Dual mention: `requirement-shell-cli-zero-arguments`.  
 **MUST NOT:** Open this menu on **non-interactive** empty argv (`curl \| sh`, quiet, json, no TTY) — that path is CLI self-install (`requirement-shell-cli-self-install`), not payload.
 
 ### 2.1.1 Install companion packages (Termux)
@@ -426,7 +426,7 @@ fi
 sshd_wake_lock_acquire
 ```
 
-**Menu choice.** The live boards are the functions quoted in `requirement-shell-cli-default-interaction` §2.11: `sshd_cmd_menu`, `sshd_cmd_menu_client`, `sshd_cmd_menu_server`, `sshd_cmd_menu_self`, and the hide helpers `sshd_os_name`, `sshd_menu_show_daemon_rows`, `sshd_host_normal_user_only_label`. Each board reads with `read -r` in the current shell. An unknown choice warns and reprints that layer.
+**Menu choice.** The live boards are the functions quoted in `requirement-shell-cli-default-interaction` §2.11: `app_cmd_menu`, `app_cmd_menu_client`, `app_cmd_menu_server`, `app_cmd_menu_self`, and the hide helpers `sshd_os_name`, `sshd_menu_show_daemon_rows`, `sshd_host_normal_user_only_label`. Each board reads with `read -r` in the current shell. An unknown choice warns and reprints that layer.
 
 **systemd unit pick:** probe `ssh.service` then `sshd.service`; both exist → prefer the active one, else `ssh.service`. `sshd_is_systemd_host` is false on Termux / Git Bash / Windows cmd.
 
@@ -543,6 +543,6 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-09-28 (1.26.2 menu sample points at the live boards in `requirement-shell-cli-default-interaction` §2.11. 1.26.1 menu-hidden message: client and server sentences stay; front **7** hide is its own cause and still Gap. 1.26.0 Termux Old OpenSSH comments and `ssh -o HostKeyAlgorithms=+ssh-rsa`; **TP-DNS-50** · **TP-DNS-51** · **TP-SSH-10**. 1.25.0 sudoers front **7** / **71–75**. Finished TTY leaf redisplays the front board; **TP-CLI-22**)  
+**Last Updated**: 2026-09-28 (1.26.3 menu handler is `app_cmd_menu`. 1.26.2 menu sample points at the live boards in `requirement-shell-cli-default-interaction` §2.11. 1.26.1 menu-hidden message: client and server sentences stay; front **7** hide is its own cause and still Gap. 1.26.0 Termux Old OpenSSH comments and `ssh -o HostKeyAlgorithms=+ssh-rsa`; **TP-DNS-50** · **TP-DNS-51** · **TP-SSH-10**. 1.25.0 sudoers front **7** / **71–75**. Finished TTY leaf redisplays the front board; **TP-CLI-22**)  
 **Owner**: Cloudgen Wong  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

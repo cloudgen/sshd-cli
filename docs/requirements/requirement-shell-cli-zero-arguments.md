@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-zero-arguments.md  
-**Status**: Active (Version 1.5.0)  
+**Status**: Active (Version 1.5.1)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -23,7 +23,7 @@ It defines what happens on a **zero-cli-verb** line: **no command**, **switches 
 curl -fsSL https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli | /bin/sh
 ```
 
-**Non-interactive** zero-cli-verb (pipe, CI, `--quiet` / `--json` with no verb, or no TTY) means **install-ensure** for three detect cases. **Interactive** zero-cli-verb (real terminal on stdin and stdout, not quiet/json, switches such as `--debug` allowed) means the main **menu** (`sshd_cmd_menu`) — dual mention `requirement-shell-cli-default-interaction` · `requirement-domain-sshd`.
+**Non-interactive** zero-cli-verb (pipe, CI, `--quiet` / `--json` with no verb, or no TTY) means **install-ensure** for three detect cases. **Interactive** zero-cli-verb (real terminal on stdin and stdout, not quiet/json, switches such as `--debug` allowed) means the main **menu** (`app_cmd_menu`) — dual mention `requirement-shell-cli-default-interaction` · `requirement-domain-sshd`.
 
 | Case | Meaning |
 |------|---------|
@@ -74,7 +74,7 @@ Jargon: **zero-cli-verb** means no command after switches. **Type O** (letter) m
 | **Type O** | Online-install ensure behavior: **non-interactive** zero-cli-verb = install-ensure (this product). Not the shape. Not JSON help. |
 | **Type N** | Non-online-install behavior: no command = help — **out of scope** for sshd-cli. |
 | **Empty argv / zero-arg** | Older name for a zero-cli-verb line. It is **not** `$# -eq 0` before flag parse. Switches do not take the line out of this shape. |
-| **Interactive zero-cli-verb** | Zero-cli-verb and `TTY=1` and `JSON=0` and `QUIET=0`: route to `sshd_cmd_menu` (main menu; `requirement-shell-cli-default-interaction`). |
+| **Interactive zero-cli-verb** | Zero-cli-verb and `TTY=1` and `JSON=0` and `QUIET=0`: route to `app_cmd_menu` (main menu; `requirement-shell-cli-default-interaction`). |
 | **Non-interactive zero-cli-verb** | Zero-cli-verb and (no TTY, or `JSON=1`, or `QUIET=1`): `inst_self_install`. Includes `--quiet`, `--json`, and off-TTY `--debug` with no verb. |
 | **Install-ensure** | Converge to “managed `sshd-cli` binary present”; either perform install or success no-op. **Non-interactive zero-cli-verb only.** |
 | **Not installed** | `inst_is_installed` returns false (`inst_get_version` → `not installed`). |
@@ -84,7 +84,7 @@ Jargon: **zero-cli-verb** means no command after switches. **Type O** (letter) m
 
 ### 2.2 Split meaning of a zero-cli-verb line
 
-1. When the line is a **zero-cli-verb** and the run is **interactive** (`TTY=1`, `JSON=0`, `QUIET=0`), `app_main` **MUST** call `sshd_cmd_menu` — **MUST NOT** install-ensure and **MUST NOT** route to `app_help`. Switches that do not set quiet or json (`--debug`, `--force`) do not change this route. The numbered tree is `requirement-shell-cli-default-interaction`.  
+1. When the line is a **zero-cli-verb** and the run is **interactive** (`TTY=1`, `JSON=0`, `QUIET=0`), `app_main` **MUST** call `app_cmd_menu` — **MUST NOT** install-ensure and **MUST NOT** route to `app_help`. Switches that do not set quiet or json (`--debug`, `--force`) do not change this route. The numbered tree is `requirement-shell-cli-default-interaction`.  
 2. When the line is a **zero-cli-verb** and the run is **non-interactive** (no TTY, or `JSON=1`, or `QUIET=1`), `app_main` **MUST** run **CLI self-install** (`inst_self_install`) — **MUST NOT** open the menu, **MUST NOT** route to `app_help`, and **MUST NOT** run payload `inst_perform_install`. This includes `sshd-cli --quiet` and `sshd-cli --json` with no verb. Depth: `requirement-shell-cli-self-install.md`.  
 3. Explicit `sshd-cli help` remains the only full-usage path for help text. Explicit `sshd-cli menu` remains the named menu verb (same handler). Those lines are **not** zero-cli-verb.  
 4. Bootstrap **MUST** always call `app_main "$@"` so pipe one-liners reach this contract (no `${0##*/}` product-name gate).  
@@ -106,7 +106,7 @@ When this product is used as **bootstrap origin A** for a specialized product **
 
 ### 2.3 Normative case matrix
 
-**Interactive empty argv** (before this matrix): `sshd_cmd_menu`; **does not** apply Cases A/B/C.
+**Interactive empty argv** (before this matrix): `app_cmd_menu`; **does not** apply Cases A/B/C.
 
 **Non-interactive** empty argv, `FORCE_REINSTALL=0`:
 
@@ -130,7 +130,7 @@ When **no managed binary** is present, **non-interactive** empty argv **MUST** p
 
 | Mode | What a person sees | What MUST happen |
 |------|--------------------|------------------|
-| **Interactive** (real terminal on stdin+stdout, not quiet/json) | Numbered domain menu | `sshd_cmd_menu`; empty choice / Exit → 0; **no** install-ensure |
+| **Interactive** (real terminal on stdin+stdout, not quiet/json) | Numbered domain menu | `app_cmd_menu`; empty choice / Exit → 0; **no** install-ensure |
 | **Non-interactive** (no terminal / `curl \| sh`) | An auto-install message | Place the program (`inst_maybe_install` non-TTY branch → `inst_perform_install`) |
 | **Quiet or JSON** | No question; no menu | `inst_perform_install` (no prompt). Failure **MUST** be non-zero. **MUST NOT** return success without placing. |
 | **Failure** (network, checksum, I/O) on install-ensure | An error | Non-zero exit; no fake success; no help-only output |
@@ -139,7 +139,7 @@ When **no managed binary** is present, **non-interactive** empty argv **MUST** p
 
 | Path | Quiet / JSON, not installed | Human TTY | Pipe, not installed |
 |------|-----------------------------|--------------------------|---------------------|
-| `app_main` empty argv | **MUST** call `inst_perform_install` directly | **MUST** call `sshd_cmd_menu` (not install) | **MUST** auto-install (helper non-TTY branch or direct place) |
+| `app_main` empty argv | **MUST** call `inst_perform_install` directly | **MUST** call `app_cmd_menu` (not install) | **MUST** auto-install (helper non-TTY branch or direct place) |
 | `inst_maybe_install` itself | **MUST** call `inst_perform_install` and return its status. **MUST NOT** `return 0` without placing | Unreachable from empty argv (menu owns TTY) | Auto-install message + place |
 
 Empty-argv quiet/json in `app_main` is **not** a license for the helper to no-op. Products copied from this bootstrap that route Case A **only** through the helper **MUST** still place the binary under quiet/json.
@@ -175,11 +175,11 @@ Empty-argv quiet/json in `app_main` is **not** a license for the helper to no-op
 
 | Item | Value for sshd-cli |
 |------|------------------------|
-| **Empty-argv type** | Interactive zero-cli-verb → `sshd_cmd_menu`; non-interactive zero-cli-verb → **Type O** install-ensure (not Type N help-default; not JSON help) |
+| **Empty-argv type** | Interactive zero-cli-verb → `app_cmd_menu`; non-interactive zero-cli-verb → **Type O** install-ensure (not Type N help-default; not JSON help) |
 | **Product / binary** | `sshd-cli` (`APP_NAME`) |
 | **Ship unit** | Repo root `./sshd-cli` |
 | **Dispatcher** | Zero-cli-verb **after** switch parse, plus the same split when `$# -eq 0` (no-token fast path). A switch-only line is this route. |
-| **Interactive zero-cli-verb** | `TTY=1` and not quiet/json and no verb → `sshd_cmd_menu` |
+| **Interactive zero-cli-verb** | `TTY=1` and not quiet/json and no verb → `app_cmd_menu` |
 | **CLI self-install** | `inst_self_install` — **non-interactive** zero-cli-verb (copy when `$0` is a script) |
 | **Payload `install`** | `inst_perform_install` — explicit verb only |
 | **Detect SSOT** | `inst_is_installed` ← `inst_get_version` |
@@ -203,7 +203,7 @@ Empty-argv quiet/json in `app_main` is **not** a license for the helper to no-op
 # and again after flag parse when COMMAND is empty (switch-only line).
 if [ -z "${COMMAND-}" ]; then
     if [ "${TTY}" -eq 1 ] && [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
-        sshd_cmd_menu
+        app_cmd_menu
         exit $?
     fi
     inst_self_install
@@ -263,7 +263,7 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 **Future AI assistants, Grok, or maintainers MUST NOT**:
 
 1. Route **non-interactive** zero-cli-verb to `app_help` or to the domain **menu** when Case A/B/C should install-ensure.  
-1b. Route **interactive** zero-cli-verb to install-ensure or to `app_help` instead of `sshd_cmd_menu`.  
+1b. Route **interactive** zero-cli-verb to install-ensure or to `app_help` instead of `app_cmd_menu`.  
 1c. Treat a switch (`--debug`, `--quiet`, `--json`, `--force`) as a command, or send `sshd-cli --json` / `sshd-cli --quiet` with no verb to help.  
 2. Require `--force` for a healthy already-installed **non-interactive** empty-argv re-run (local or global).  
 3. Handle only Case A and leave B/C as accidental help fallthrough.  
@@ -286,7 +286,7 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 This requirement is satisfied when all of the following hold:
 
 1. Non-interactive zero-cli-verb + not installed → Case A install path (pipe / quiet / json / switch-only non-interactive auto). Quiet/json through the helper **MUST** place or fail closed — not `return 0` without install.  
-1b. Interactive zero-cli-verb → `sshd_cmd_menu`; **MUST NOT** place the binary as a side effect.  
+1b. Interactive zero-cli-verb → `app_cmd_menu`; **MUST NOT** place the binary as a side effect.  
 2. Non-interactive empty argv + local install present + force off → already-installed success; not help; not menu; no re-download.  
 3. Non-interactive empty argv + global install present + force off → already-installed success; not help; not menu; no re-download.  
 4. Empty argv + install failure → non-zero exit.  
@@ -336,11 +336,12 @@ This requirement is satisfied when all of the following hold:
 | 2026-09-05 | v1.3.1: Section **Under command line for normal user only** (Type O ensure stays Type 0 on Termux/Git Bash) | Grok (owner request) |
 | 2026-09-17 | v1.4.0: Non-interactive empty argv = CLI self-install (`inst_self_install`), not payload `install` | Grok (owner request) |
 | 2026-09-28 | v1.5.0: Zero-cli-verb = no verb after switches. Interactive → main menu. Non-interactive, including `--quiet` / `--json` with no verb, stays Type O CLI self-install (not help) | Grok (owner request) |
+| 2026-09-28 | v1.5.1: interactive zero-cli-verb calls `app_cmd_menu` | Grok (owner request) |
 | 2026-09-06 | v1.3.2: People-language Purpose; DTV points at live `tests/test_local_lifecycle.sh` (drop ghost `test_install_lifecycle.sh` / `TP-INST-MAYBE-01`) | Grok |
 
 ---
 
-**Last Updated**: 2026-09-28  
+**Last Updated**: 2026-09-28 (1.5.1 interactive zero-cli-verb calls `app_cmd_menu`)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 6, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
 

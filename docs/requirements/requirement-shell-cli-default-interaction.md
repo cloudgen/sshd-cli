@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-default-interaction.md
-**Status**: Active (Version 1.9.0)
+**Status**: Active (Version 1.10.0)
 **Area**: shell
 **Key**: `requirement-shell-cli-default-interaction`
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -8,7 +8,7 @@
 
 This requirement is the **independent product law** for the sshd-cli **TTY numbered main menu**: front board **1 client-side / 2 server-side / 7 sudoers / 8 self-management / 9 Exit**, child numbers that **keep the parent prefix** and **never repeat** a parent integer, **0 Back** on every submenu, and each command row printed as **number + bold short description + italic long description**.
 
-A **zero-cli-verb** line (no command after switches; a switch such as `--debug` is still no command) follows `requirement-shell-cli-zero-arguments.md` when the run is **non-interactive**. **Interactive** zero-cli-verb and `menu`/`main` open this tree. When a layer hides rows, each cause prints a **menu-hidden message** before that layer’s numbered items. The choice on every layer is a current-shell `read` (**do not capture `read`**). Domain verbs (`status`, `dns`, `ssh`, …) stay owned by `requirement-domain-sshd.md`. This file owns **the numbered tree**, not those handlers. The Terminology section defines every word this file uses for that tree. The rules in section 2 are the law. §2.11 quotes the live functions from `./sshd-cli`.
+A **zero-cli-verb** line (no command after switches; a switch such as `--debug` is still no command) follows `requirement-shell-cli-zero-arguments.md` when the run is **non-interactive**. **Interactive** zero-cli-verb and `menu`/`main` open this tree. When a layer hides rows, each cause prints a **menu-hidden message** before that layer’s numbered items. The choice on every layer is a current-shell `read` (**do not capture `read`**). Domain verbs (`status`, `dns`, `ssh`, …) stay owned by `requirement-domain-sshd.md`. This file owns **the numbered tree**, not those handlers. The board functions are `app_cmd_menu`, `app_cmd_menu_client`, `app_cmd_menu_server`, and `app_cmd_menu_self` (`app_*`, so another project keeps the same names). The Terminology section defines every word this file uses for that tree. The rules in section 2 are the law. §2.11 quotes the live functions from `./sshd-cli`.
 
 ### 1.1 Human-facing
 
@@ -132,7 +132,7 @@ A token that stays available by name and is absent as a number by design is not 
 
 **MUST NOT** wrap `read`, or a function whose body contains `read`, in `$()` or backticks. **MUST NOT** treat a prompt on stderr, or `read` from `/dev/tty` inside the helper, as permission to keep that capture. The assignment inside the child shell does not become the parent’s choice.
 
-**This ship unit:** each menu loop uses `read -r` in the current shell (`sshd_cmd_menu` and the child boards). `prompt_yes_no` is called in the current shell. `prompt_ask` still prints its answer on stdout and these boards do not call it. New menu and picker choice code stays on the current-shell `read`. **MUST NOT** add `_choice=$(prompt_ask …)`. Those menu functions are quoted in §2.11. `prompt_ask` and `prompt_yes_no` are quoted in `requirement-shell-interactive-vs-noninteractive`. Coding home for the same ban outside this tree: `requirement-shell-script-coding`.
+**This ship unit:** each menu loop uses `read -r` in the current shell (`app_cmd_menu` and the child boards). `prompt_yes_no` is called in the current shell. `prompt_ask` still prints its answer on stdout and these boards do not call it. New menu and picker choice code stays on the current-shell `read`. **MUST NOT** add `_choice=$(prompt_ask …)`. Those menu functions are quoted in §2.11. `prompt_ask` and `prompt_yes_no` are quoted in `requirement-shell-interactive-vs-noninteractive`. Coding home for the same ban outside this tree: `requirement-shell-script-coding`.
 
 ### 2.3 Style
 
@@ -210,13 +210,13 @@ This tree is the numbered main menu. An **interactive zero-cli-verb** draws it: 
 |-------|--------|
 | Claimed | yes |
 | When drawn | Interactive zero-cli-verb and `menu` / `main` on a terminal |
-| Handler | `sshd_cmd_menu` · `sshd_cmd_menu_client` · `sshd_cmd_menu_server` · `sshd_cmd_menu_self` |
+| Handler | `app_cmd_menu` · `app_cmd_menu_client` · `app_cmd_menu_server` · `app_cmd_menu_self` (`app_*`; **MUST NOT** use the domain prefix for these boards) |
 | Printer | `out_menu_choice` |
 | Ship unit | `./sshd-cli` |
 | Zero-cli-verb gate | After switches, no verb left. Interactive (a real terminal, not quiet, not json) → this tree (`sshd-cli`, `sshd-cli --debug`, `sshd-cli --force`). Non-interactive → Type O CLI self-install. The no-token line uses the same split before flag parse. **TP-CLI-14** proves the no-token line. **TP-CLI-23** proves `--debug` / `--force` on a terminal, and `--quiet` / `--json` / non-TTY `--debug` with no verb. |
 | Menu-hidden message | Client and server sentences above are have. Front **7** on Termux / Git Bash / Windows cmd is **Gap** (row omitted, no reason line). |
 | Choice read | Current-shell `read -r` in each menu loop. `prompt_yes_no` is called in the current shell. `prompt_ask` still prints its answer on stdout and is not used for these boards. |
-| Functions | §2.11 quotes `sshd_os_name`, `sshd_menu_show_daemon_rows`, `sshd_host_normal_user_only_label`, `sshd_cmd_menu_client`, `sshd_cmd_menu_server`, `sshd_cmd_menu_self`, and `sshd_cmd_menu` from `./sshd-cli` |
+| Functions | §2.11 quotes `sshd_os_name`, `sshd_menu_show_daemon_rows`, `sshd_host_normal_user_only_label`, `app_cmd_menu_client`, `app_cmd_menu_server`, `app_cmd_menu_self`, and `app_cmd_menu` from `./sshd-cli` |
 | Proof | `tests/test_cli.sh` **TP-CLI-14** · **TP-CLI-21** · **TP-CLI-22** · **TP-CLI-23** · **TP-SSHD-03..05** · **TP-SSHD-16**; `tests/test_dns.sh` **TP-DNS-13** · **TP-DNS-20** · **TP-DNS-21** · **TP-DNS-47**; `tests/test_config_backup.sh` **TP-CFG-04** · **TP-CFG-05** · **TP-CFG-09** · **TP-CFG-17**; `tests/test_ssh_download.sh` **TP-UL-18** |
 | Map | `reviews/test-plan.md` |
 
@@ -224,9 +224,9 @@ This tree is the numbered main menu. An **interactive zero-cli-verb** draws it: 
 
 These bodies are the current text of `./sshd-cli` (the same bytes as `src/sshd-cli`). They show the menu-hidden message and the current-shell `read`. Section 2 is the law. A note under a heading records a Gap the function shows. Comment lines inside a fence are copied as the ship unit writes them.
 
-**Front board (`sshd_cmd_menu`).** On Termux / Git Bash / Windows cmd the function omits row **7** and prints no menu-hidden message. §2.2.3 requires that message. The sentence is Gap. The same function calls `out_die` when `JSON` is 1, when `QUIET` is 1, or when `TTY` is not 1. §2.9 still says interactive `menu --json` draws the tree. That §2.9 sentence stays the known gap. The sample is the function the ship unit runs.
+**Front board (`app_cmd_menu`).** On Termux / Git Bash / Windows cmd the function omits row **7** and prints no menu-hidden message. §2.2.3 requires that message. The sentence is Gap. The same function calls `out_die` when `JSON` is 1, when `QUIET` is 1, or when `TTY` is not 1. §2.9 still says interactive `menu --json` draws the tree. That §2.9 sentence stays the known gap. The sample is the function the ship unit runs.
 
-**Client board (`sshd_cmd_menu_client`).** Choice `11` / `dns` calls `sshd_cmd_dns` and then `return 0`. Back from the dns action board lands on the front board. §2.7 says **0** on the dns board returns to the client board.
+**Client board (`app_cmd_menu_client`).** Choice `11` / `dns` calls `sshd_cmd_dns` and then `return 0`. Back from the dns action board lands on the front board. §2.7 says **0** on the dns board returns to the client board.
 
 **Server helper comment.** The comment on `sshd_menu_show_daemon_rows` says "Numbered menu rows 2/3/4". The live numbers are **22–24**.
 
@@ -294,14 +294,14 @@ sshd_host_normal_user_only_label() {
 }
 ```
 
-#### `sshd_cmd_menu_client`
+#### `app_cmd_menu_client`
 
 ```sh
-# Last updated: 2026-09-16
+# Last updated: 2026-09-28
 # ALIGNMENT: requirement-shell-cli-default-interaction
 # A valid leaf (or nested action board) returns to the front board. Unknown
 # choice retries this layer. 0 / empty / EOF is Back.
-sshd_cmd_menu_client() {
+app_cmd_menu_client() {
     _show_cfg=1
     if sshd_is_normal_user_only_cli; then
         _show_cfg=0
@@ -394,14 +394,14 @@ sshd_cmd_menu_client() {
 }
 ```
 
-#### `sshd_cmd_menu_server`
+#### `app_cmd_menu_server`
 
 ```sh
-# Last updated: 2026-09-16
+# Last updated: 2026-09-28
 # ALIGNMENT: requirement-shell-cli-default-interaction
 # A valid leaf returns to the front board. Unknown choice retries this layer.
 # 0 / empty / EOF is Back.
-sshd_cmd_menu_server() {
+app_cmd_menu_server() {
     _show_daemon=0
     if sshd_menu_show_daemon_rows; then
         _show_daemon=1
@@ -474,14 +474,14 @@ sshd_cmd_menu_server() {
 }
 ```
 
-#### `sshd_cmd_menu_self`
+#### `app_cmd_menu_self`
 
 ```sh
-# Last updated: 2026-09-16
+# Last updated: 2026-09-28
 # ALIGNMENT: requirement-shell-cli-default-interaction
 # A valid leaf returns to the front board. Unknown choice retries this layer.
 # 0 / empty / EOF is Back.
-sshd_cmd_menu_self() {
+app_cmd_menu_self() {
     while true; do
         out_info "**${APP_NAME}**(*${VERSION}*) — self-management"
         out_menu_choice "81" "install" "place ${APP_NAME}; ensure rc + Termux openssh/termux-auth; start sshd"
@@ -551,15 +551,15 @@ sshd_cmd_menu_self() {
 }
 ```
 
-#### `sshd_cmd_menu`
+#### `app_cmd_menu`
 
 ```sh
-# Last updated: 2026-09-27
+# Last updated: 2026-09-28
 # ALIGNMENT: requirement-shell-cli-default-interaction · requirement-shell-cli-zero-arguments
 # Front board loops until Exit. Category rows open a submenu. POSIX Linux
 # row 7 opens sudoers (71-75). A finished leaf redisplays this board.
 # Unknown choice retries this layer. Row 7 stays reserved when hidden.
-sshd_cmd_menu() {
+app_cmd_menu() {
     if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ] || [ "${TTY}" -ne 1 ]; then
         out_die "menu needs a terminal. Run a named command instead, for example: ${APP_NAME} status"
     fi
@@ -583,8 +583,8 @@ sshd_cmd_menu() {
             return 0
         fi
         case "${_choice}" in
-            1|client-side) sshd_cmd_menu_client; continue ;;
-            2|server-side) sshd_cmd_menu_server; continue ;;
+            1|client-side) app_cmd_menu_client; continue ;;
+            2|server-side) app_cmd_menu_server; continue ;;
             7)
                 if [ "${_show_sudoers}" -eq 1 ]; then
                     sshd_cmd_sudoers_menu
@@ -593,7 +593,7 @@ sshd_cmd_menu() {
                 out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
                 continue
                 ;;
-            8|self-management) sshd_cmd_menu_self; continue ;;
+            8|self-management) app_cmd_menu_self; continue ;;
             9|99|999|exit|"")
                 unset _choice _show_sudoers
                 return 0
@@ -647,6 +647,7 @@ When Termux, Git Bash, or Windows cmd is detected: Type 1/2 unused; no in-tool s
 - Print a hide reason after the numbered items, or let one layer’s message cover a hidden row on another layer.
 - Invent a front-board sudoers sentence the ship unit does not print. The rule requires that message. The sentence stays a Gap until the ship unit has one.
 - Replace the §2.11 fences with a shortened or invented menu. Those fences stay the current `./sshd-cli` functions.
+- Name these boards with the domain prefix. The handlers are `app_cmd_menu`, `app_cmd_menu_client`, `app_cmd_menu_server`, and `app_cmd_menu_self`.
 - Treat a switch (`--debug`, `--quiet`, `--json`, `--force`) as a command verb.
 - Send an interactive zero-cli-verb to help or to install-ensure.
 - Draw this tree for a non-interactive zero-cli-verb (no TTY, quiet, or `--json` with no command).
@@ -712,6 +713,7 @@ This requirement is satisfied when all of the following hold:
 | 2026-09-28 | v1.7.0: each hide cause prints its own menu-hidden message before that layer’s numbered items. Client and server sentences are have. Front **7** on Termux / Git Bash / Windows cmd is Gap. | Grok (owner request) |
 | 2026-09-28 | v1.8.0: do not capture `read` is a core rule for every layer, picker, and yes/no on this tree. The choice is a current-shell `read`. | Grok (owner request) |
 | 2026-09-28 | v1.9.0: §2.11 quotes the live `./sshd-cli` functions for the menu-hidden message and the current-shell `read`. | Grok (owner request) |
+| 2026-09-28 | v1.10.0: menu handlers are `app_cmd_menu`, `app_cmd_menu_client`, `app_cmd_menu_server`, and `app_cmd_menu_self` (`app_*` CLI surface). | Grok (owner request) |
 
 ## 8. Terminology
 

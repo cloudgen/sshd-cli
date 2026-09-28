@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-interactive-vs-noninteractive.md  
-**Status**: Active (Version 1.2.5)  
+**Status**: Active (Version 1.2.6)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -149,7 +149,7 @@ interactive   non-interactive
 
 | Command / path | Interactive (TTY, not quiet/json) | Non-interactive / quiet / json |
 |----------------|-----------------------------------|--------------------------------|
-| Zero-arg, **not** installed | Domain **menu** (`sshd_cmd_menu`); **no** CLI place | Quiet/json / no TTY: `inst_self_install` (CLI only; copy when `$0` is a script). Payload stays `install`. |
+| Zero-arg, **not** installed | Domain **menu** (`app_cmd_menu`); **no** CLI place | Quiet/json / no TTY: `inst_self_install` (CLI only; copy when `$0` is a script). Payload stays `install`. |
 | Zero-arg, **already** installed local or global | Domain **menu** (same as `sshd-cli menu`) | Install-ensure success no-op (“already installed”); **not** help; **not** menu; no re-download without force |
 | `install` | Install with human `out_*` messages | No prompt; honor force for reinstall; JSON structured results |
 | `self-uninstall` | `prompt_yes_no` unless `--force` | Without force: fail closed with explicit “requires --force” (JSON: `out_json_error` / `confirm_required`); never pretend user cancelled; with `--force`: remove without confirm |
@@ -329,7 +329,7 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 
 **Future AI assistants, Grok, or maintainers MUST NOT**:
 
-1. Add `read` or confirmation prompts outside `prompt_ask` / `prompt_yes_no` / documented in-shell `dns` pick-and-field walk / `sshd_ssh_walk_user` / `sshd_cmd_menu` without updating this requirement.  
+1. Add `read` or confirmation prompts outside `prompt_ask` / `prompt_yes_no` / documented in-shell `dns` pick-and-field walk / `sshd_ssh_walk_user` / `app_cmd_menu` without updating this requirement.  
 2. Allow prompts to run under `--json` or `--quiet`.  
 3. Hang on prompts when stdin/stdout are not TTYs (except explicit `INTERACTIVE=1` for `prompt_ask` and the `dns` field walk).  
 4. Break the invariant that `--json` forces quiet-style non-interactive human suppression.  
@@ -389,6 +389,6 @@ Mode-related work for sshd-cli is **not done** if any of the following fail:
 
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-09-28 (1.2.5 `prompt_yes_no` and `prompt_ask` samples are the `./sshd-cli` functions. 2026-09-16 finished TTY leaf redisplays the front board; **TP-CLI-22**. TTY unknown menu choice redisplays that layer; DTV **TP-SSHD-16** · **TP-DNS-47..49** · **TP-CFG-17** · **TP-DL-17**)  
+**Last Updated**: 2026-09-28 (1.2.6 zero-arg menu handler is `app_cmd_menu`. 1.2.5 `prompt_yes_no` and `prompt_ask` samples are the `./sshd-cli` functions. 2026-09-16 finished TTY leaf redisplays the front board; **TP-CLI-22**. TTY unknown menu choice redisplays that layer; DTV **TP-SSHD-16** · **TP-DNS-47..49** · **TP-CFG-17** · **TP-DL-17**)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

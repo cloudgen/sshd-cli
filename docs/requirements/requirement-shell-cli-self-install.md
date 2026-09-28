@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-self-install.md  
-**Status**: Active (Version 1.1.0)  
+**Status**: Active (Version 1.1.1)  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
@@ -99,7 +99,7 @@ Force off → `out_success` already installed; exit 0; no re-copy; no download; 
 # Ship unit: no-token fast path, and the same split after flag parse.
 if [ -z "${COMMAND-}" ]; then
     if [ "${TTY}" -eq 1 ] && [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
-        sshd_cmd_menu
+        app_cmd_menu
         exit $?
     fi
     inst_self_install
@@ -183,6 +183,6 @@ When Termux, Git Bash, Windows cmd, or the same class is detected: Type 1/2 unus
 | `docs/requirements/requirement-shell-termux-ish.md` | `pkg` on `install` only |
 | `./sshd-cli` | Implementation |
 
-**Last Updated**: 2026-09-28  
+**Last Updated**: 2026-09-28 (1.1.1 interactive empty command calls `app_cmd_menu`)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

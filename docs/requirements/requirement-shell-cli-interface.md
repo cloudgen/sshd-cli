@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-interface.md  
-**Status**: Active (Version 1.14.3)  
+**Status**: Active (Version 1.14.4)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -146,7 +146,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 
 | Command | Type | Handler (current) | Required behavior |
 |---------|------|-------------------|-------------------|
-| *(zero-cli-verb — no verb; switches allowed)* | Type 0 | `app_main` → `sshd_cmd_menu` (interactive) or `inst_self_install` (non-interactive) | Interactive: main menu (`sshd-cli`, `sshd-cli --debug`). Non-interactive: **CLI self-install** (`curl \| sh`, `sshd-cli --quiet`, `sshd-cli --json` with no verb). Never help. Never payload. See `requirement-shell-cli-zero-arguments.md` · `requirement-shell-cli-default-interaction.md` · `requirement-shell-cli-self-install.md` |
+| *(zero-cli-verb — no verb; switches allowed)* | Type 0 | `app_main` → `app_cmd_menu` (interactive) or `inst_self_install` (non-interactive) | Interactive: main menu (`sshd-cli`, `sshd-cli --debug`). Non-interactive: **CLI self-install** (`curl \| sh`, `sshd-cli --quiet`, `sshd-cli --json` with no verb). Never help. Never payload. See `requirement-shell-cli-zero-arguments.md` · `requirement-shell-cli-default-interaction.md` · `requirement-shell-cli-self-install.md` |
 | `self-install` | Type 0 | `inst_self_install` | Place **this CLI only** (copy when `$0` is a script; download when piped). Dest **0700** local / **0755** global. **MUST NOT** `pkg` or start sshd. Dual mention: `requirement-shell-cli-self-install`. Sample: `sshd-cli self-install` |
 | `install` | Type 0 | `inst_perform_install` | Payload: **always** `inst_ensure_companion` (rc + Termux pkg); then **start sshd** (`sshd_start_after_install`). Also places the CLI if needed. Dual mention: `requirement-shell-self-management` · `requirement-shell-path-and-shell-support` · `requirement-domain-sshd` |
 | `version` | Type 0 | argv: `app_version`; TTY **82** / typed `version` on a board: `app_about` | Argv: print local version; JSON `"type":"version"` when `--json`. TTY numbered **82** and typed `version` run **about** (diagnostics), not a header reprint (**INC-20260914-001**). |
@@ -167,7 +167,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | `ssh` | Type 0 domain | `sshd_cmd_ssh` | OpenSSH client to a concrete Host alias from this login `~/.ssh/config` (TTY numbered pick then user with default; operand `<n\|name>`). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli ssh 1` |
 | `download` | Type 0 domain | `sshd_cmd_download` | tar.gz a remote folder over ssh and extract into cwd (TTY Host pick, then user with default, then numbered previous folders or a typed path; `~/folder` allowed). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli download 1 /opt/app` · `sshd-cli download 1 ~/box/app` |
 | `upload` | Type 0 domain | `sshd_cmd_upload` | tar.gz a **local** folder over ssh and extract under the remote login home (TTY Host pick, then user with default, then numbered previous **local** folders or a typed path; `~/folder` is this login). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli upload 1 ./box` · `sshd-cli upload 1 ~/box/app` |
-| `menu` / `main` | Type 0 domain | `sshd_cmd_menu` | Numbered tree on a terminal (`main` is an unlisted alias of `menu`). Same handler as an interactive zero-cli-verb. Front **1** client-side / **2** server-side / **8** self-management / **9** Exit. Dual mention: `requirement-shell-cli-default-interaction` · `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive` |
+| `menu` / `main` | Type 0 | `app_cmd_menu` | Numbered tree on a terminal (`main` is an unlisted alias of `menu`). Same handler as an interactive zero-cli-verb. Front **1** client-side / **2** server-side / **8** self-management / **9** Exit. Dual mention: `requirement-shell-cli-default-interaction` · `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive` |
 | `wake-lock` | Type 0 | `sshd_cmd_wake_lock` | Acquire Android wake lock again (`termux-wake-lock`). Termux: fail closed if helper missing. Off Termux: success no-op. Dual mention: `requirement-shell-termux-ish` |
 | `wake-unlock` | Type 0 | `sshd_cmd_wake_unlock` | Release Android wake lock (`termux-wake-unlock`). Operator-owned. **MUST NOT** auto-run from `stop`. Dual mention: `requirement-shell-termux-ish` |
 | `backup-config` | Type 1 deposit (POSIX Linux) | `sshd_cmd_backup_config` | Copy this login `~/.ssh/config` to `/var/sshd-cli/config`. Dual mention: `requirement-shell-config-backup` · `requirement-shell-sudoer` · `requirement-domain-sshd`. Sample: `sshd-cli backup-config` |
@@ -219,7 +219,7 @@ Every routed verb is named **here** and on a topic-owner. Help/`app_help` is **n
 # Ship unit: no-token fast path, and the same split after flag parse.
 if [ -z "${COMMAND-}" ]; then
     if [ "${TTY}" -eq 1 ] && [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
-        sshd_cmd_menu
+        app_cmd_menu
         exit $?
     fi
     inst_self_install
@@ -343,6 +343,6 @@ This requirement is satisfied for the sshd-cli shell CLI when all of the followi
 
 ---
 
-**Last Updated**: 2026-09-28 (product `VERSION="1.28.0"`; zero-cli-verb gate is live after flag parse. Prior same day: zero-cli-verb law. Prior: 2026-09-27 `about` cache lines)  
+**Last Updated**: 2026-09-28 (1.14.4 `menu`/`main` handler is `app_cmd_menu`. Product `VERSION="1.28.0"`; zero-cli-verb gate is live after flag parse. Prior same day: zero-cli-verb law. Prior: 2026-09-27 `about` cache lines)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 5, 6, 10, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
