@@ -58,8 +58,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config / sync-from-remote).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.28.0"
-: "${VERSION:=1.28.0}"
+VERSION="1.29.0"
+: "${VERSION:=1.29.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"

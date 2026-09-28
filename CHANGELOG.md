@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.29.0] - 2026-09-28
+
+### Added
+
+- **Menu language.** Front **6** Language offers **61** English (`en`), **62** Traditional Chinese (`zh-Hant`), **63** Spanish (`es`), **64** French (`fr`), **65** German (`de`), **66** Simplified Chinese (`zh-Hans`), **67** Japanese (`ja`), and **68** Korean (`ko`). The choice is saved in `~/.local/sshd-cli/language` (mode 0600). Default stays English. `SSHD_CLI_LANG` set to an accepted code wins for that run and does not write the file. Human `help` and `about` follow that language. The version one-liner and JSON about stay English. Command names stay the words you type. Tests **TP-CLI-24**. Law: `requirement-shell-cli-language` **1.2.0** · `requirement-shell-cli-default-interaction` **1.13.0** · `requirement-shell-cli-storage` **1.3.3** · `requirement-shell-cli-interface` **1.14.7** · `requirement-domain-sshd` **1.26.6**.
+
 ## [1.28.0] - 2026-09-28
 
 ### Changed

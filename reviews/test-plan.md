@@ -3,7 +3,7 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.28.0  
+**Product VERSION:** 1.29.0  
 **Last plan update:** 2026-09-28  
 **Last suite run:** PASS=844 FAIL=22 SKIP=0 (`./tests/run.sh`, 2026-09-28, product 1.28.0). **TP-CLI-23** passed. Menu **7** / **71–75** passed (TP-CLI-14, TP-CFG-17, TP-SSHD-04). The 22 failures are pre-existing TP-DL-* `tar xzf` cases on the fake download archive (same class on unchanged HEAD). Upload cases and the menu cases passed.
 
