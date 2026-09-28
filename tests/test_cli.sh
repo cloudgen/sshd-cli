@@ -5,7 +5,7 @@
 # requirement-shell-cli-self-install, requirement-shell-cli-default-interaction,
 # requirement-shell-output-requirements, requirement-shell-cli-storage,
 # requirement-domain-sshd (TP-SSHD-01, TP-SSHD-03..08)
-# TP family: TP-CLI-* · TP-SI-01..06 · TP-SSHD-01 · TP-SSHD-03..08 · TP-CLI-22
+# TP family: TP-CLI-* · TP-SI-01..06 · TP-SSHD-01 · TP-SSHD-03..08 · TP-CLI-22 · TP-CLI-23
 # =============================================================================
 
 # shellcheck source=helpers.sh
@@ -195,6 +195,60 @@ run_test_cli() {
     assert_file_missing "TP-CLI-14 interactive empty argv does not install" "${CI_USER_BIN}/${APP_NAME}"
     assert_not_contains "TP-CLI-14 interactive empty argv is not help Usage" "$_out" "Usage:"
     ci_cleanup_env
+
+    # TP-CLI-23 zero-cli-verb: a switch is not a verb
+    ci_isolated_env
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" --debug </dev/null 2>&1)
+    _ec=$?
+    assert_eq "TP-CLI-23 TTY --debug exit 0" 0 "$_ec"
+    assert_contains "TP-CLI-23 TTY --debug shows menu" "$_out" "Choose a number"
+    assert_contains "TP-CLI-23 TTY --debug client-side" "$_out" "client-side"
+    assert_file_missing "TP-CLI-23 TTY --debug does not install" "${CI_USER_BIN}/${APP_NAME}"
+    assert_not_contains "TP-CLI-23 TTY --debug is not help" "$_out" "Usage:"
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" --force </dev/null 2>&1)
+    _ec=$?
+    assert_eq "TP-CLI-23 TTY --force exit 0" 0 "$_ec"
+    assert_contains "TP-CLI-23 TTY --force shows menu" "$_out" "Choose a number"
+    assert_file_missing "TP-CLI-23 TTY --force does not install" "${CI_USER_BIN}/${APP_NAME}"
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" SCRIPT_URL="http://127.0.0.1:1/no-such-${APP_NAME}" sh "${SCRIPT}" --quiet 2>&1)
+    _ec=$?
+    assert_eq "TP-CLI-23 --quiet exit 0" 0 "$_ec"
+    assert_file_exists "TP-CLI-23 --quiet placed binary" "${CI_USER_BIN}/${APP_NAME}"
+    assert_not_contains "TP-CLI-23 --quiet is not help" "$_out" "Usage:"
+    assert_not_contains "TP-CLI-23 --quiet is not menu" "$_out" "Choose a number"
+    ci_cleanup_env
+
+    ci_isolated_env
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" SCRIPT_URL="http://127.0.0.1:1/no-such-${APP_NAME}" sh "${SCRIPT}" --json 2>&1)
+    _ec=$?
+    assert_eq "TP-CLI-23 --json exit 0" 0 "$_ec"
+    assert_file_exists "TP-CLI-23 --json placed binary" "${CI_USER_BIN}/${APP_NAME}"
+    assert_contains "TP-CLI-23 --json success" "$_out" '"type":"out_success"'
+    assert_not_contains "TP-CLI-23 --json is not help" "$_out" "Usage:"
+    assert_not_contains "TP-CLI-23 --json is not menu" "$_out" "Choose a number"
+    ci_cleanup_env
+
+    ci_isolated_env
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" SCRIPT_URL="http://127.0.0.1:1/no-such-${APP_NAME}" TTY=1 sh "${SCRIPT}" --json </dev/null 2>&1)
+    _ec=$?
+    assert_eq "TP-CLI-23 TTY --json exit 0" 0 "$_ec"
+    assert_file_exists "TP-CLI-23 TTY --json placed binary" "${CI_USER_BIN}/${APP_NAME}"
+    assert_not_contains "TP-CLI-23 TTY --json is not menu" "$_out" "Choose a number"
+    ci_cleanup_env
+
+    ci_isolated_env
+    _out=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" SCRIPT_URL="http://127.0.0.1:1/no-such-${APP_NAME}" sh "${SCRIPT}" --debug 2>&1)
+    _ec=$?
+    assert_eq "TP-CLI-23 non-TTY --debug exit 0" 0 "$_ec"
+    assert_file_exists "TP-CLI-23 non-TTY --debug placed binary" "${CI_USER_BIN}/${APP_NAME}"
+    assert_contains "TP-CLI-23 non-TTY --debug self-install banner" "$_out" "Starting self-install"
+    assert_not_contains "TP-CLI-23 non-TTY --debug is not help" "$_out" "Usage:"
+    assert_not_contains "TP-CLI-23 non-TTY --debug is not menu" "$_out" "Choose a number"
+    ci_cleanup_env
+
+    _out=$(sh "${SCRIPT}" --debug status 2>&1)
+    assert_contains "TP-CLI-23 --debug status is status" "$_out" "Connect:"
+    assert_not_contains "TP-CLI-23 --debug status is not menu" "$_out" "Choose a number"
 
     # TP-CLI-21 TTY 82 / typed version run about; argv version stays thin (INC-20260914-001)
     ci_isolated_env

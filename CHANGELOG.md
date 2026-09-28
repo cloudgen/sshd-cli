@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.28.0] - 2026-09-28
+
+### Changed
+
+- **No command after switches.** On a terminal, `sshd-cli` with no command opens the numbered menu. `--debug` or `--force` with no command is the same line: the menu opens and the CLI is not placed. `--quiet` or `--json` with no command, and the same line with no terminal, places the CLI (`self-install`). A named command such as `sshd-cli --debug status` stays that command. Tests **TP-CLI-14** · **TP-CLI-23**. Law: `requirement-shell-cli-zero-arguments` · `requirement-shell-cli-default-interaction` · `requirement-shell-cli-self-install`.
+
 ## [1.27.0] - 2026-09-27
 
 ### Changed

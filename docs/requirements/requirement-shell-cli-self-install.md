@@ -1,10 +1,10 @@
 **file**: docs/requirements/requirement-shell-cli-self-install.md  
-**Status**: Active (Version 1.0.0)  
+**Status**: Active (Version 1.1.0)  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This requirement is the product law for **how sshd-cli places itself**: the `self-install` verb, and **non-interactive empty argv** (`curl | sh`, quiet, json, no TTY). That path puts the program file on disk (or says it is already there). It does **not** install OpenSSH, does **not** start sshd, and does **not** print help.
+This requirement is the product law for **how sshd-cli places itself**: the `self-install` verb, and a **non-interactive zero-cli-verb** (`curl | sh`, `--quiet` or `--json` with no verb, no TTY). That path puts the program file on disk (or says it is already there). It does **not** install OpenSSH, does **not** start sshd, and does **not** print help. Switches are not a verb. An interactive zero-cli-verb is the main menu, not this path.
 
 Payload (Termux packages, start sshd, login rc companion as part of domain setup) stays on explicit `install`.
 
@@ -20,7 +20,7 @@ Payload (Termux packages, start sshd, login rc companion as part of domain setup
 
 | Includes | Excludes |
 |----------|----------|
-| `self-install`; non-interactive empty argv CLI place; copy when `$0` is the script; dest mode 0700 local / 0755 global | Payload `pkg`; start sshd; TTY empty-argv menu |
+| `self-install`; non-interactive zero-cli-verb CLI place (no verb; switches allowed); copy when `$0` is the script; dest mode 0700 local / 0755 global | Payload `pkg`; start sshd; interactive zero-cli-verb menu |
 | Already-installed success no-op | Help as empty-argv default |
 
 | Surface | What you open | What for |
@@ -34,7 +34,7 @@ Payload (Termux packages, start sshd, login rc companion as part of domain setup
 | Install from a file you already have | `$0` is the script, not `sh`. Copy that file into bin. No network. | `./sshd-cli self-install` · `sh ./sshd-cli self-install` |
 | Payload after the CLI is there | Packages + start sshd. Not the pipe default. | `sshd-cli install` |
 
-Jargon: **Type O** (letter) means pipe / no-args non-interactive **places the CLI**. That is not Type **0** (you run as yourself). On a real terminal, no arguments is the **menu**.
+Jargon: **Type O** (letter) means a non-interactive **zero-cli-verb** **places the CLI**. That is not Type **0** (you run as yourself). On a real terminal, with quiet and json off, no command is the **main menu**.
 
 ---
 
@@ -42,10 +42,10 @@ Jargon: **Type O** (letter) means pipe / no-args non-interactive **places the CL
 
 ### 2.1 Route
 
-1. When argv is empty and the run is **non-interactive** (no TTY, or `JSON=1`, or `QUIET=1`), `app_main` **MUST** call `inst_self_install` — **MUST NOT** call `inst_perform_install`, **MUST NOT** open the menu, **MUST NOT** call `app_help`.  
+1. When the line is a **zero-cli-verb** (no verb after switches) and the run is **non-interactive** (no TTY, or `JSON=1`, or `QUIET=1`), `app_main` **MUST** call `inst_self_install` — **MUST NOT** call `inst_perform_install`, **MUST NOT** open the menu, **MUST NOT** call `app_help`. `sshd-cli --quiet` and `sshd-cli --json` with no verb are this rule.  
 2. `sshd-cli self-install` **MUST** call `inst_self_install`.  
 3. `sshd-cli install` remains payload (companion + start) — dual mention `requirement-shell-self-management` · `requirement-domain-sshd`.  
-4. Interactive empty argv remains the menu — `requirement-shell-cli-zero-arguments`.
+4. Interactive zero-cli-verb remains the main menu — `requirement-shell-cli-zero-arguments` · `requirement-shell-cli-default-interaction`.
 
 ### 2.2 `$0` source
 
@@ -85,16 +85,19 @@ Force off → `out_success` already installed; exit 0; no re-copy; no download; 
 | **Copy** | `inst_self_install_copy_from_script` |
 | **Download peer** | `inst_perform_install_download_*` + `inst_perform_install_atomic_install` then dest-mode chmod |
 | **PATH** | `path_add_shell` on this path (CLI on PATH). Package + start stay on `install`. |
-| **Dispatcher** | `app_main` empty-argv NI → `inst_self_install`; command `self-install` same |
+| **Dispatcher** | `app_main` non-interactive zero-cli-verb → `inst_self_install`; command `self-install` same |
 | **TTY menu** | Self-management **87** `self-install` |
 | **Global bin** | `/usr/local/bin` or `${PREFIX}/bin` on Termux |
 | **Local bin** | `${HOME}/.local/bin` |
-| **Tests** | `tests/test_cli.sh` **TP-SI-01** .. **TP-SI-06** |
+| **Tests** | `tests/test_cli.sh` **TP-SI-01** .. **TP-SI-06** · **TP-CLI-23** |
 
 #### Dispatcher sample
 
 ```sh
-if [ $# -eq 0 ]; then
+# Zero-cli-verb after switch parse. Switches are not a verb.
+# Interactive → menu. Non-interactive → inst_self_install.
+# Ship unit: no-token fast path, and the same split after flag parse.
+if [ -z "${COMMAND-}" ]; then
     if [ "${TTY}" -eq 1 ] && [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
         sshd_cmd_menu
         exit $?
@@ -108,7 +111,8 @@ fi
 
 | Verb | Sample |
 |------|--------|
-| empty argv (pipe) | `curl -fsSL https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli \| /bin/sh` |
+| zero-cli-verb (pipe) | `curl -fsSL https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli \| /bin/sh` |
+| zero-cli-verb (quiet / json, no verb) | `sshd-cli --quiet` · `sshd-cli --json` |
 | `self-install` | `sshd-cli self-install` · `./sshd-cli self-install` |
 
 ### 2.x Why This Requirement Exists (Direct CIAO Alignment)
@@ -163,6 +167,7 @@ When Termux, Git Bash, Windows cmd, or the same class is detected: Type 1/2 unus
 | **TP-SI-04** interpreter `$0` download | `tests/test_cli.sh` | have |
 | **TP-SI-05** already-installed no-op | `tests/test_cli.sh` | have |
 | **TP-SI-06** help lists `self-install` | `tests/test_cli.sh` | have |
+| **TP-CLI-23** `--quiet` / `--json` / non-TTY `--debug` with no verb place the CLI | `tests/test_cli.sh` | have |
 
 **Map:** `reviews/test-plan.md`
 
@@ -178,6 +183,6 @@ When Termux, Git Bash, Windows cmd, or the same class is detected: Type 1/2 unus
 | `docs/requirements/requirement-shell-termux-ish.md` | `pkg` on `install` only |
 | `./sshd-cli` | Implementation |
 
-**Last Updated**: 2026-09-17  
+**Last Updated**: 2026-09-28  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

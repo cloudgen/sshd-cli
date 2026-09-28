@@ -13,7 +13,7 @@
 # Project requirements (docs/requirements/ only — never cite templates here):
 # - requirement-shell-cli-interface.md
 # - requirement-shell-cli-default-interaction.md (TTY numbered tree 1/2/8)
-# - requirement-shell-cli-zero-arguments.md  (empty argv: TTY menu / non-TTY self-install)
+# - requirement-shell-cli-zero-arguments.md  (zero-cli-verb: interactive menu / non-interactive self-install)
 # - requirement-shell-cli-self-install.md    (CLI place; copy from script $0; dest 0700/0755)
 # - requirement-shell-cli-storage.md         (util_resolve_storage + about fields)
 # - requirement-shell-idempotency.md
@@ -57,8 +57,8 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config / sync-from-remote).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.27.0"
-: "${VERSION:=1.27.0}"
+VERSION="1.28.0"
+: "${VERSION:=1.28.0}"
 
 # Runtime flags (safe defaults)
 : "${QUIET:=0}"
@@ -8466,14 +8466,23 @@ app_help() {
 #   - Empty argv split: interactive (TTY, not quiet/json) → domain menu;
 #     non-interactive / curl|sh / quiet / json → Type O install-ensure.
 #     SSOT: requirement-shell-cli-zero-arguments.md
+# 2026-09-28:
+#   - Zero-cli-verb is no command after switches. The same split runs for a
+#     no-token line and again after flag parse when COMMAND is still empty.
+#     --debug / --force with no verb stay no command. --quiet / --json with
+#     no verb are non-interactive (CLI self-install, not help).
+#     SSOT: requirement-shell-cli-zero-arguments.md
+#     requirement-shell-cli-default-interaction.md
+#     requirement-shell-cli-self-install.md
 #
-# Last updated: 2026-09-27
+# Last updated: 2026-09-28
 # Cache resolve is per login and per process. A missed tier is silent.
 # =============================================================================
 
 app_main() {
     # --- Safe Variable Defaults ---
-    : "${COMMAND:=help}"
+    # Empty until a routed-verb token sets it. Help is the explicit verb only.
+    : "${COMMAND:=}"
     : "${DOMAIN_OPERANDS:=}"
     : "${RC_TEST_OPERANDS:=}"
     : "${QUIET:=0}"
@@ -8495,11 +8504,14 @@ app_main() {
     export EFFECTIVE_STORAGE_DIR STORAGE_DIR PERSISTENT_STORAGE_DIR
     export TMPDIR="${EFFECTIVE_STORAGE_DIR}"
 
-    # === ZERO-ARG ===
+    # === ZERO-CLI-VERB (no-token fast path) ===
     # Interactive (TTY=1, not quiet/json): domain menu (sshd_cmd_menu).
     # Non-interactive (pipe / curl|sh / quiet / json / no TTY): CLI self-install
-    # (not payload install). SSOT: requirement-shell-cli-self-install.md ·
-    # requirement-shell-cli-zero-arguments.md
+    # (not payload install). The same split runs after flag parse when no
+    # routed-verb remains (switches are not a verb).
+    # SSOT: requirement-shell-cli-zero-arguments.md ·
+    # requirement-shell-cli-default-interaction.md ·
+    # requirement-shell-cli-self-install.md
     if [ $# -eq 0 ]; then
         if [ "${TTY}" -eq 1 ] && [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
             sshd_cmd_menu
@@ -8596,6 +8608,18 @@ app_main() {
         esac
         shift
     done
+
+    # Zero-cli-verb after switches. --debug / --force are not a verb.
+    # --quiet / --json with no verb are non-interactive (CLI self-install).
+    # requirement-shell-cli-zero-arguments.md
+    if [ -z "${COMMAND}" ]; then
+        if [ "${TTY}" -eq 1 ] && [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
+            sshd_cmd_menu
+            exit $?
+        fi
+        inst_self_install
+        exit $?
+    fi
 
     out_debug "dispatch command=${COMMAND} quiet=${QUIET} json=${JSON} force=${FORCE}"
 
