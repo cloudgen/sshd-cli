@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-interface.md  
-**Status**: Active (Version 1.14.5)  
+**Status**: Active (Version 1.14.7)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -98,7 +98,7 @@ Destructive Type 0 actions (e.g. uninstall) **MUST** confirm when interactive un
 - Global flags  
 - **Test-purpose** verbs (when any exist, including `rc-test`) under a heading **apart** from operational verbs  
 
-In JSON mode, help **MUST NOT** dump long human text; return a short structured success/note object instead.
+In JSON mode, help **MUST NOT** dump long human text; return a short structured success/note object instead. Human `help` and human `about` follow the saved language (`requirement-shell-cli-language`). JSON about fields stay the machine contract in English. Argv `version` stays English.
 
 **Recommended help section order** (specializee-friendly; Type 0 bootstrap uses Type 0 first):
 
@@ -150,7 +150,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | `self-install` | Type 0 | `inst_self_install` | Place **this CLI only** (copy when `$0` is a script; download when piped). Dest **0700** local / **0755** global. **MUST NOT** `pkg` or start sshd. Dual mention: `requirement-shell-cli-self-install`. Sample: `sshd-cli self-install` |
 | `install` | Type 0 | `inst_perform_install` | Payload: **always** `inst_ensure_companion` (rc + Termux pkg); then **start sshd** (`sshd_start_after_install`). Also places the CLI if needed. Dual mention: `requirement-shell-self-management` · `requirement-shell-path-and-shell-support` · `requirement-domain-sshd` |
 | `version` | Type 0 | argv: `app_version`; TTY **82** / typed `version` on a board: `app_about` | Argv: print local version; JSON `"type":"version"` when `--json`. TTY numbered **82** and typed `version` run **about** (diagnostics), not a header reprint (**INC-20260914-001**). |
-| `about` | Type 0 | `app_about` | Diagnostics: install presence, global/local paths, user, shell, TTY; **Cache folder used**, **preferred**, **1st fallback**, **2nd fallback** when that host has one, and **Persistence storage** (`requirement-shell-cli-storage`); JSON when `--json`; **no `CHECKSUM` field** |
+| `about` | Type 0 | `app_about` | Diagnostics: install presence, global/local paths, user, shell, TTY; **Cache folder used**, **preferred**, **1st fallback**, **2nd fallback** when that host has one, and **Persistence storage** (`requirement-shell-cli-storage`); human lines follow the saved language; JSON when `--json` stays English; **no `CHECKSUM` field** |
 | `version-check` | Type 0 | `ver_check` | Compare local vs remote `VERSION` from `SCRIPT_URL`; fail clearly if URL unset/unreachable |
 | `self-update` | Type 0 | `inst_self_update` | Fetch remote version; reinstall when policy allows; reuse install primitives. **CLI-only:** no auto-start sshd; no `sshd -t` of `/etc/ssh/sshd_config`. Dual mention: `requirement-shell-self-management` · `requirement-domain-sshd` |
 | `self-uninstall` | Type 0 | `inst_self_uninstall` | Remove managed binary; PATH cleanup only if `~/.local/bin` empty (user installs) |
@@ -167,7 +167,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | `ssh` | Type 0 domain | `sshd_cmd_ssh` | OpenSSH client to a concrete Host alias from this login `~/.ssh/config` (TTY numbered pick then user with default; operand `<n\|name>`). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli ssh 1` |
 | `download` | Type 0 domain | `sshd_cmd_download` | tar.gz a remote folder over ssh and extract into cwd (TTY Host pick, then user with default, then numbered previous folders or a typed path; `~/folder` allowed). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli download 1 /opt/app` · `sshd-cli download 1 ~/box/app` |
 | `upload` | Type 0 domain | `sshd_cmd_upload` | tar.gz a **local** folder over ssh and extract under the remote login home (TTY Host pick, then user with default, then numbered previous **local** folders or a typed path; `~/folder` is this login). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli upload 1 ./box` · `sshd-cli upload 1 ~/box/app` |
-| `menu` / `main` | Type 0 | `app_cmd_menu` | Numbered tree on a terminal (`main` is an unlisted alias of `menu`). Same handler as an interactive zero-cli-verb. Front **1** client-side / **2** server-side / **6** language / **7** sudoers (POSIX Linux) / **8** self-management / **9** Exit. **6** opens **61** English / **62** Traditional Chinese. Dual mention: `requirement-shell-cli-default-interaction` · `requirement-shell-cli-language` · `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive` |
+| `menu` / `main` | Type 0 | `app_cmd_menu` | Numbered tree on a terminal (`main` is an unlisted alias of `menu`). Same handler as an interactive zero-cli-verb. Front **1** client-side / **2** server-side / **6** language / **7** sudoers (POSIX Linux) / **8** self-management / **9** Exit. **6** opens **61** English / **62** Traditional Chinese / **63** Spanish / **64** French / **65** German / **66** Simplified Chinese / **67** Japanese / **68** Korean. Dual mention: `requirement-shell-cli-default-interaction` · `requirement-shell-cli-language` · `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive` |
 | `wake-lock` | Type 0 | `sshd_cmd_wake_lock` | Acquire Android wake lock again (`termux-wake-lock`). Termux: fail closed if helper missing. Off Termux: success no-op. Dual mention: `requirement-shell-termux-ish` |
 | `wake-unlock` | Type 0 | `sshd_cmd_wake_unlock` | Release Android wake lock (`termux-wake-unlock`). Operator-owned. **MUST NOT** auto-run from `stop`. Dual mention: `requirement-shell-termux-ish` |
 | `backup-config` | Type 1 deposit (POSIX Linux) | `sshd_cmd_backup_config` | Copy this login `~/.ssh/config` to `/var/sshd-cli/config`. Dual mention: `requirement-shell-config-backup` · `requirement-shell-sudoer` · `requirement-domain-sshd`. Sample: `sshd-cli backup-config` |
@@ -343,6 +343,6 @@ This requirement is satisfied for the sshd-cli shell CLI when all of the followi
 
 ---
 
-**Last Updated**: 2026-09-28 (1.14.5 front **6** language. 1.14.4 `menu`/`main` handler is `app_cmd_menu`. Product `VERSION="1.28.0"`; zero-cli-verb gate is live after flag parse. Prior same day: zero-cli-verb law. Prior: 2026-09-27 `about` cache lines)  
+**Last Updated**: 2026-09-28 (1.14.7 language **67–68**; human help and about follow the saved language. 1.14.6 language **63–66**. 1.14.5 front **6** language. 1.14.4 `menu`/`main` handler is `app_cmd_menu`. Product `VERSION="1.28.0"`; zero-cli-verb gate is live after flag parse. Prior same day: zero-cli-verb law. Prior: 2026-09-27 `about` cache lines)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 5, 6, 10, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

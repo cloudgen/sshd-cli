@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-default-interaction.md
-**Status**: Active (Version 1.11.0)
+**Status**: Active (Version 1.13.0)
 **Area**: shell
 **Key**: `requirement-shell-cli-default-interaction`
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -33,7 +33,7 @@ A **zero-cli-verb** line (no command after switches; a switch such as `--debug` 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
 | Open the front board | Client, server, language, sudoers, self-management, plus Exit | `sshd-cli` or `sshd-cli --debug` on a terminal |
-| Change the menu language | Language board, then English or Traditional Chinese | `6` then `61` or `62` |
+| Change the menu language | Language board, then one of the eight languages | `6` then `61` through `68` |
 | Open SSH names | Client board then dns | `1` then `11` (or type `dns`) |
 | Leave a side board | Back to the parent list | `0` |
 | Finish a command on a side board | Front board again (not that submenu) | `8` then `85`, then 1/2/7/8/9 |
@@ -59,9 +59,9 @@ A **zero-cli-verb** line (no command after switches; a switch such as `--debug` 
 
 **Menu-hidden message** for hiding **7** on Termux / Git Bash / Windows cmd belongs on this board, before the numbered items (§2.2.3). The ship unit omits **7** and prints no such line (**Gap**). The client-board sentence covers backup-config and sync-config only.
 
-**Layered menu design (CLI main menu hierarchy table).** The tables in §2.1, §2.4–§2.7, and §2.6.1 are the single catalog of every numbered board. The design is a stack of menu layers, not one flat list. Each row records **number**, **parent**, **short description**, **long description**, **what it runs**, and **who sees it**. The short and long text in those tables is the English catalog. When the saved language is Traditional Chinese, the same numbers print Traditional Chinese copy (`requirement-shell-cli-language`). Category rows (`client-side`, `server-side`, `language`, `sudoers`, `self-management`) open the child board. A category row is not a live command token. A leaf row runs an operational verb: the short text is that verb, and the long text is the one-line explain. README capture shows **every** layer in this catalog (front, language, client, server, sudoers, self-management, dns actions), as markdown bold and italic, with no raw CSI.
+**Layered menu design (CLI main menu hierarchy table).** The tables in §2.1, §2.4–§2.7, and §2.6.1 are the single catalog of every numbered board. The design is a stack of menu layers, not one flat list. Each row records **number**, **parent**, **short description**, **long description**, **what it runs**, and **who sees it**. The short and long text in those tables is the English catalog. When the saved language is Traditional Chinese, Spanish, French, German, Simplified Chinese, Japanese, or Korean, the same numbers print that language’s copy (`requirement-shell-cli-language`). Category rows (`client-side`, `server-side`, `language`, `sudoers`, `self-management`) open the child board. A category row is not a live command token. A leaf row runs an operational verb: the short text is that verb, and the long text is the one-line explain. README capture shows **every** layer in this catalog (front, language, client, server, sudoers, self-management, dns actions), as markdown bold and italic, with no raw CSI.
 
-**Shared numbers (well-known menu).** This product keeps the shared card: front **1** client-side, **2** server-side, **8** self-management, **9** Exit, and under **8** the rows **81–87**. **81** `install` is payload or local place. **87** `self-install` places this CLI only. Front **6** / **61–62**, front **7** / **71–75**, client **11–18**, server **21–24**, and dns **111–114** are this product’s extra rows on the same catalog. Shared command words on submenu **8** are `install`, `version`, `about`, `version-check`, `self-update`, `self-uninstall`, and `self-install`. `menu` and `main` open this tree and are not rows. `help` is not a row. Domain words (`dns`, `ssh`, `start`, and the other leaf tokens in §2.4–§2.7) are live commands and are not that shared card. A gap name (a word the law names that the dispatcher does not accept yet) and every test-purpose verb stay off every numbered list.
+**Shared numbers (well-known menu).** This product keeps the shared card: front **1** client-side, **2** server-side, **8** self-management, **9** Exit, and under **8** the rows **81–87**. **81** `install` is payload or local place. **87** `self-install` places this CLI only. Front **6** / **61–68**, front **7** / **71–75**, client **11–18**, server **21–24**, and dns **111–114** are this product’s extra rows on the same catalog. Shared command words on submenu **8** are `install`, `version`, `about`, `version-check`, `self-update`, `self-uninstall`, and `self-install`. `menu` and `main` open this tree and are not rows. `help` is not a row. Domain words (`dns`, `ssh`, `start`, and the other leaf tokens in §2.4–§2.7) are live commands and are not that shared card. A gap name (a word the law names that the dispatcher does not accept yet) and every test-purpose verb stay off every numbered list.
 
 **Numbered lists of CLI verbs.** Every menu layer is a numbered list. A leaf row is a CLI verb (an operational verb the dispatcher accepts). A category row is not a verb; it opens the next numbered list. `menu` and `main` open the tree and are not rows on any list.
 
@@ -83,7 +83,7 @@ These rules are **CLI main menu numbering**, the non-repeating number prefix for
 
 This return is the **command-finished front board**: the default is to go back to the top menu after a command runs.
 
-**MUST:** after a **valid leaf** (numbered command, typed verb, language pick **61** / **62**, or nested action board such as dns / sudoers) finishes, redisplay the **front board** (1 / 2 / 6 / 7 / 8 / 9). **MUST NOT** redisplay the submenu that launched that command. People-facing: after a command finishes, the top numbered list comes back. A language pick redisplays that board in the language just saved.
+**MUST:** after a **valid leaf** (numbered command, typed verb, language pick **61** through **68**, or nested action board such as dns / sudoers) finishes, redisplay the **front board** (1 / 2 / 6 / 7 / 8 / 9). **MUST NOT** redisplay the submenu that launched that command. People-facing: after a command finishes, the top numbered list comes back. A language pick redisplays that board in the language just saved.
 
 **MUST NOT** treat this as invalid-choice retry. Unknown / hidden-row numbers still warn and reprint **that** layer. **0** / empty / EOF on a submenu still means Back (parent). Front **9** / empty still leaves. A typed leaf on the front board itself also redisplays the front board (does not exit).
 
@@ -188,9 +188,15 @@ Every command row **MUST** print **number**, **bold** short description, *italic
 |--------|-------|------|------|
 | **61** | English | use English for this menu | Save `en` and return to the front board |
 | **62** | 繁體中文 | use Traditional Chinese for this menu | Save `zh-Hant` and return to the front board |
+| **63** | Español | use Spanish for this menu | Save `es` and return to the front board |
+| **64** | Français | use French for this menu | Save `fr` and return to the front board |
+| **65** | Deutsch | use German for this menu | Save `de` and return to the front board |
+| **66** | 简体中文 | use Simplified Chinese for this menu | Save `zh-Hans` and return to the front board |
+| **67** | 日本語 | use Japanese for this menu | Save `ja` and return to the front board |
+| **68** | 한국어 | use Korean for this menu | Save `ko` and return to the front board |
 | **0** | Back | | Return to the front board |
 
-**61** and **62** are valid leaves: the front board redisplays in the chosen language. **0** / empty / EOF is Back and does not change the saved language. The short names **English** and **繁體中文** stay those words in both languages. Typed `english`, `en`, `traditional-chinese`, `zh-Hant`, and `zh-hant` select the same rows. Which strings follow the saved language, and where the code is stored, is `requirement-shell-cli-language`. The live board is `app_cmd_menu_language`, quoted there. This table is the English catalog.
+**61** through **68** are valid leaves: the front board redisplays in the chosen language. **0** / empty / EOF is Back and does not change the saved language. The short names **English**, **繁體中文**, **Español**, **Français**, **Deutsch**, **简体中文**, **日本語**, and **한국어** stay those words in every language. Typed `english`, `en`, `traditional-chinese`, `zh-Hant`, `zh-hant`, `spanish`, `es`, `french`, `fr`, `german`, `de`, `simplified-chinese`, `zh-Hans`, `zh-hans`, `japanese`, `ja`, `korean`, and `ko` select the same rows. Which strings follow the saved language, and where the code is stored, is `requirement-shell-cli-language`. The live board is `app_cmd_menu_language`, quoted there. This table is the English catalog.
 
 Row **6** is numbered on every host, including Termux, Git Bash, and Windows cmd. It is not a hide cause.
 
@@ -238,9 +244,9 @@ This tree is the numbered main menu. An **interactive zero-cli-verb** draws it: 
 
 These bodies are the current text of `./sshd-cli` (the same bytes as `src/sshd-cli`). They show the menu-hidden message and the current-shell `read`. Section 2 is the law. A note under a heading records a Gap the function shows. Comment lines inside a fence are copied as the ship unit writes them.
 
-**Front board (`app_cmd_menu`).** On Termux / Git Bash / Windows cmd the function omits row **7** and prints no menu-hidden message. §2.2.3 requires that message. The sentence is Gap. Row **6** stays numbered on that host. The same function calls `out_die` when `JSON` is 1, when `QUIET` is 1, or when `TTY` is not 1. §2.9 still says interactive `menu --json` draws the tree. That §2.9 sentence stays the known gap. The sample is the function the ship unit runs. It calls `app_lang_load` once, then prints rows through `app_menu_text`.
+**Front board (`app_cmd_menu`).** On Termux / Git Bash / Windows cmd the function omits row **7** and prints no menu-hidden message. §2.2.3 requires that message. The sentence is Gap. Row **6** stays numbered on that host. The same function calls `out_die` when `JSON` is 1, when `QUIET` is 1, or when `TTY` is not 1. §2.9 still says interactive `menu --json` draws the tree. That §2.9 sentence stays the known gap. The sample is the function the ship unit runs. `app_main` calls `app_lang_load` once, after persistence is resolved and before dispatch. This function prints rows through `app_menu_text`.
 
-**Menu copy.** The short and long strings in these fences are calls to `app_menu_text`. The English words in §2.1–§2.6.1 are what that helper prints when `APP_LANG` is `en`. Traditional Chinese text, the language file, and `app_cmd_menu_language` are quoted in `requirement-shell-cli-language`.
+**Menu copy.** The short and long strings in these fences are calls to `app_menu_text`. The English words in §2.1–§2.6.1 are what that helper prints when `APP_LANG` is `en`. The other languages’ text, the language file, and `app_cmd_menu_language` are quoted in `requirement-shell-cli-language`.
 
 **Client board (`app_cmd_menu_client`).** Choice `11` / `dns` calls `sshd_cmd_dns` and then `return 0`. Back from the dns action board lands on the front board. §2.7 says **0** on the dns board returns to the client board.
 
@@ -573,14 +579,15 @@ app_cmd_menu_self() {
 # Last updated: 2026-09-28
 # ALIGNMENT: requirement-shell-cli-default-interaction · requirement-shell-cli-language.md · requirement-shell-cli-zero-arguments
 # Front board loops until Exit. Category rows open a submenu. Row 6 opens
-# language (61 English, 62 Traditional Chinese). POSIX Linux row 7 opens
+# language (61 English, 62 Traditional Chinese, 63 Spanish, 64 French,
+# 65 German, 66 Simplified Chinese, 67 Japanese, 68 Korean).
+# POSIX Linux row 7 opens
 # sudoers (71-75). A finished leaf redisplays this board. Unknown choice
 # retries this layer. Row 7 stays reserved when hidden.
 app_cmd_menu() {
     if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ] || [ "${TTY}" -ne 1 ]; then
         out_die "menu needs a terminal. Run a named command instead, for example: ${APP_NAME} status"
     fi
-    app_lang_load
     _show_sudoers=1
     if sshd_is_normal_user_only_cli; then
         _show_sudoers=0
@@ -602,8 +609,8 @@ app_cmd_menu() {
             return 0
         fi
         case "${_choice}" in
-            1|client-side|用戶端) app_cmd_menu_client; continue ;;
-            2|server-side|伺服器端) app_cmd_menu_server; continue ;;
+            1|client-side|用戶端|客户端|cliente|client|Client|クライアント|클라이언트) app_cmd_menu_client; continue ;;
+            2|server-side|伺服器端|服务器端|servidor|serveur|Server|server|サーバー|서버) app_cmd_menu_server; continue ;;
             7)
                 if [ "${_show_sudoers}" -eq 1 ]; then
                     sshd_cmd_sudoers_menu
@@ -612,8 +619,8 @@ app_cmd_menu() {
                 out_warn "$(app_menu_text unknown_menu "${_choice}")"
                 continue
                 ;;
-            6|language|語言) app_cmd_menu_language; continue ;;
-            8|self-management|自我管理) app_cmd_menu_self; continue ;;
+            6|language|語言|语言|idioma|langue|Sprache|sprache|言語|언어) app_cmd_menu_language; continue ;;
+            8|self-management|自我管理|autogestión|autogestion|Selbstverwaltung|selbstverwaltung|自己管理|자기관리) app_cmd_menu_self; continue ;;
             9|99|999|exit|"")
                 unset _choice _show_sudoers
                 return 0
@@ -694,7 +701,7 @@ This requirement is satisfied when all of the following hold:
 | TP family / ID | Suite | Status |
 |----------------|-------|--------|
 | **TP-CLI-14** interactive empty argv → front 1/2/6/7/8/9 | `tests/test_cli.sh` | have |
-| **TP-CLI-24** menu **6** / **61** English / **62** Traditional Chinese; file `language`; `SSHD_CLI_LANG` | `tests/test_cli.sh` | have |
+| **TP-CLI-24** menu **6** / **61–68** (English, Traditional Chinese, Spanish, French, German, Simplified Chinese, Japanese, Korean); file `language`; `SSHD_CLI_LANG`; human help and about | `tests/test_cli.sh` | have |
 | **TP-CLI-21** TTY **82** / typed `version` run about | `tests/test_cli.sh` | have |
 | **TP-CLI-22** finished leaf redisplays the front board | `tests/test_cli.sh` | have |
 | **TP-CLI-23** TTY `--debug` / `--force` menu; `--quiet` / `--json` / non-TTY `--debug` do not draw the tree | `tests/test_cli.sh` | have |
@@ -737,6 +744,8 @@ This requirement is satisfied when all of the following hold:
 | 2026-09-28 | v1.9.0: §2.11 quotes the live `./sshd-cli` functions for the menu-hidden message and the current-shell `read`. | Grok (owner request) |
 | 2026-09-28 | v1.10.0: menu handlers are `app_cmd_menu`, `app_cmd_menu_client`, `app_cmd_menu_server`, and `app_cmd_menu_self` (`app_*` CLI surface). | Grok (owner request) |
 | 2026-09-28 | v1.11.0: front **6** language, children **61** English and **62** Traditional Chinese. Menu copy follows `requirement-shell-cli-language`. | Grok (owner request) |
+| 2026-09-28 | v1.12.0: language children **63** Spanish, **64** French, **65** German, **66** Simplified Chinese. | Grok (owner request) |
+| 2026-09-28 | v1.13.0: language children **67** Japanese and **68** Korean. `app_lang_load` runs in `app_main`, not in this front function. | Grok (owner request) |
 
 ## 8. Terminology
 
@@ -753,7 +762,7 @@ Words this requirement uses. Each row is the term and the definition this file m
 | **Menu layer** | The one numbered list that owns the current `read`. The front board is one layer. Each submenu and each data picker is another. Exit or back leaves only that layer. |
 | **Menu-hidden message** | The line that names why rows of this menu layer are omitted. Each distinct cause prints its own message before the numbered items of that layer. One cause that omits several rows on the same layer uses one message. The message is not a numbered row. A later pick of a hidden number is still invalid-choice retry. On this product the client Termux-class sentence and the POSIX non-root server sentence are have. Front **7** hidden on Termux / Git Bash / Windows cmd still has no message (Gap). |
 | **Front board** | The top menu layer: **1** client-side, **2** server-side, **6** language, **7** sudoers, **8** self-management, **9** Exit. **0** is not on this layer. |
-| **Menu language** | The saved choice for the words on these numbered boards. `en` is English and the default. `zh-Hant` is Traditional Chinese. The numbers stay the same. Leaf shorts stay the English verb. Category shorts, long text, Back, Exit, the choose-prompt, the unknown-choice warn, and the menu-hidden sentences follow that choice. |
+| **Menu language** | The saved choice for the words on these numbered boards and for human help and about. `en` is English and the default. `zh-Hant` is Traditional Chinese. `es` is Spanish. `fr` is French. `de` is German. `zh-Hans` is Simplified Chinese. `ja` is Japanese. `ko` is Korean. The numbers stay the same. Leaf shorts stay the English verb. Category shorts, long text, Back, Exit, the choose-prompt, the unknown-choice warn, and the menu-hidden sentences follow that choice. |
 | **Well-known menu** | The shared numbers this product keeps: front **1 / 2 / 8 / 9** and self-management **81–87**. Front **6**, front **7**, and the domain children are this product’s rows on the hierarchy table, not part of the shared card. |
 | **Well-known CLI verb** | A shared command word (`install`, `version`, `about`, `version-check`, `self-update`, `self-uninstall`, `self-install`, `menu`, `main`, `help`). Each is either an operational verb or a test-purpose verb. Domain words such as `dns` and `start` are live commands and are not this shared card. |
 | **CLI routed-verb** | A command token the dispatcher accepts and hands to a handler. Inventory is the dispatcher, not the help text. |
@@ -772,6 +781,6 @@ Words this requirement uses. Each row is the term and the definition this file m
 | **Type O empty argv** | The non-interactive zero-cli-verb path: no command token means place/ensure this CLI. Switches with no command are still that path when the run is non-interactive (`--quiet`, `--json`, or no terminal). The letter **O** is this path. The digit **0** is privilege Type 0. An interactive zero-cli-verb is the main menu, not this path. |
 | **Operator-readable error** | A line a person at the prompt can act on: what happened, in plain words, and what to do next. The invalid-choice warn is this kind of line. It names the token and tells the operator to choose a listed number or command name. |
 
-**Last Updated**: 2026-09-28  
+**Last Updated**: 2026-09-28 (1.13.0 language **67** / **68**)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
