@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-storage.md  
-**Status**: Active (Version 1.3.0)  
+**Status**: Active (Version 1.3.1)  
 **Area**: shell  
 **Key**: `requirement-shell-cli-storage`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -15,7 +15,7 @@ This requirement is the **project Single Source of Truth** for **shell CLI stora
 
 It owns path **shapes**, the cache resolver, the persistence resolver, the `app_main` wire, and about diagnostics for both classes.
 
-Scratch files (mktemp, self-install staging, config edit temps) live in the cache folder. Durable leaves (`preferred-remote`, `download-folders`, `upload-folders`) live in persistence storage.
+Scratch files (mktemp, self-install staging, config edit temps) live in the cache folder. Durable leaves (`preferred-remote`, `download-folders`, `upload-folders`, `language`) live in persistence storage. The `language` leaf’s codes and menu copy are `requirement-shell-cli-language`.
 
 The preferred cache is **not** a ram-drive **project** tree (`/dev/shm/${APP_NAME}` or `/dev/shm/${APP_NAME}-${login}`). It lives under `/dev/shm/cache/` (Linux, including Termux) or `/tmp/cache/` (Git Bash and Mac). The leaf is **per login and per process** so two logins never share one cache directory.
 
@@ -123,7 +123,7 @@ Walk this host’s chain in order. First directory that can be created **and** i
 4. **MUST NOT** use `/var/sshd-cli` as this login’s persistence.  
 5. **MUST NOT** store scratch/temps in persistence when a cache root is available.  
 6. Persistence **MUST** be under the invoking login’s `$HOME`. **MUST** include `${APP_NAME}`.  
-7. Durable leaves **`preferred-remote`**, **`download-folders`**, and **`upload-folders`** live here. **MUST NOT** put those leaves in the cache folder.
+7. Durable leaves **`preferred-remote`**, **`download-folders`**, **`upload-folders`**, and **`language`** live here. **MUST NOT** put those leaves in the cache folder. The `language` file is one line, `en` or `zh-Hant`, mode 0600 (`requirement-shell-cli-language`).
 
 ### 2.6 Wire and diagnostics
 
@@ -263,9 +263,10 @@ Storage resolve work for sshd-cli is **not done** if any of the following fail:
 | 2026-09-11 | Active | Git Bash `/dev/shm` mkdir fail-soft (INC-20260911-001) |
 | 2026-09-17 | Active 1.2.0 | Preferred `/dev/shm/cache/${APP_NAME}-${USERNAME}` |
 | 2026-09-27 | Active 1.3.0 | Per-login per-process cache leaves. Linux shm → tmp → `${HOME}/.cache`. Git Bash tmp → AppData Local Temp. Mac tmp → Library/Caches → `${HOME}/cache`. Silent tier miss. `about` prints used / preferred / 1st / 2nd. Persistence stays `${HOME}/.local/${APP_NAME}` |
+| 2026-09-28 | Active 1.3.1 | Persistence leaf `language` (menu language). Codes and copy stay on `requirement-shell-cli-language`. |
 
 ---
 
-**Last Updated**: 2026-09-27  
+**Last Updated**: 2026-09-28 (1.3.1 persistence leaf `language`)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 4, 5, 11, 19, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

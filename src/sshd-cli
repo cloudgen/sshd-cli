@@ -12,7 +12,8 @@
 # (Type 0 lifecycle plus OpenSSH sshd domain: status/start/stop/port/keys).
 # Project requirements (docs/requirements/ only — never cite templates here):
 # - requirement-shell-cli-interface.md
-# - requirement-shell-cli-default-interaction.md (TTY numbered tree 1/2/8)
+# - requirement-shell-cli-default-interaction.md (TTY numbered tree 1/2/6/7/8/9)
+# - requirement-shell-cli-language.md (menu language: English and Traditional Chinese)
 # - requirement-shell-cli-zero-arguments.md  (zero-cli-verb: interactive menu / non-interactive self-install)
 # - requirement-shell-cli-self-install.md    (CLI place; copy from script $0; dest 0700/0755)
 # - requirement-shell-cli-storage.md         (util_resolve_storage + about fields)
@@ -5321,14 +5322,18 @@ sshd_cmd_sudoers_menu() {
         out_die "sudoers menu needs a terminal. Next: ${APP_NAME} generate-sudoer-request"
     fi
     while true; do
-        out_info "$(printf '%s' "${APP_NAME}") — sudoers (grant and drafts)"
-        out_menu_choice "71" "generate-sudoer-request" "Write a JSON grant you can read"
-        out_menu_choice "72" "submit-sudoer-request" "Queue the JSON grant inbound"
-        out_menu_choice "73" "print-sudoers" "Emit sudoers draft"
-        out_menu_choice "74" "print-sudoers-install-script" "Write admin install script"
-        out_menu_choice "75" "remove-project-sudoers" "Remove sudoers draft only"
-        out_plain "0. Back"
-        out_msg_n "Choose a number, or type the command name: "
+        out_info "$(printf '%s' "${APP_NAME}") — $(app_menu_text sudoers_header)"
+        if [ "${APP_LANG:-en}" = "zh-Hant" ]; then
+            out_menu_choice "71" "generate-sudoer-request" "寫一份可閱讀的 JSON 授權"
+        else
+            out_menu_choice "71" "generate-sudoer-request" "Write a JSON grant you can read"
+        fi
+        out_menu_choice "72" "submit-sudoer-request" "$(app_menu_text sudoers_72_long)"
+        out_menu_choice "73" "print-sudoers" "$(app_menu_text sudoers_73_long)"
+        out_menu_choice "74" "print-sudoers-install-script" "$(app_menu_text sudoers_74_long)"
+        out_menu_choice "75" "remove-project-sudoers" "$(app_menu_text sudoers_75_long)"
+        out_plain "$(app_menu_text line_back)"
+        out_msg_n "$(app_menu_text line_prompt)"
         _sc=""
         read -r _sc || true
         case "${_sc}" in
@@ -5339,7 +5344,7 @@ sshd_cmd_sudoers_menu() {
             75|remove-project-sudoers) sshd_cmd_remove_project_sudoers; break ;;
             0|q|exit|"") break ;;
             *)
-                out_warn "Unknown sudoers choice '${_sc}'. Choose a number from the list, or type the command name."
+                out_warn "$(app_menu_text unknown_sudoers "${_sc}")"
                 continue
                 ;;
         esac
@@ -7797,6 +7802,396 @@ sshd_menu_typed_leaf() {
 }
 
 # Last updated: 2026-09-28
+# ALIGNMENT: requirement-shell-cli-language.md · requirement-shell-cli-storage.md
+# APP_LANG is en or zh-Hant. Missing or unrecognized file stays en.
+# SSHD_CLI_LANG wins over the file when it is en or zh-Hant.
+# One call at the start of the front board. A later pick updates APP_LANG
+# in this process; do not call this again in that process or the env value
+# would cover the pick.
+app_lang_load() {
+    APP_LANG=en
+    if [ -z "${PERSISTENT_STORAGE_DIR:-}" ]; then
+        PERSISTENT_STORAGE_DIR=$(util_resolve_persistent_storage)
+        export PERSISTENT_STORAGE_DIR
+    fi
+    _ll_path="${PERSISTENT_STORAGE_DIR}/language"
+    if [ -f "${_ll_path}" ]; then
+        _ll_line=$(head -n 1 "${_ll_path}" 2>/dev/null || true)
+        _ll_line=$(printf '%s' "${_ll_line}" | tr -d '\r')
+        case "${_ll_line}" in
+            en|zh-Hant) APP_LANG="${_ll_line}" ;;
+        esac
+    fi
+    case "${SSHD_CLI_LANG-}" in
+        en|zh-Hant) APP_LANG="${SSHD_CLI_LANG}" ;;
+    esac
+    export APP_LANG
+    unset _ll_path _ll_line
+}
+
+# Last updated: 2026-09-28
+# ALIGNMENT: requirement-shell-cli-language.md · requirement-shell-cli-storage.md
+# Write one line, mode 0600, under persistence. Set APP_LANG on success.
+app_lang_save() {
+    _ls_code=${1-}
+    case "${_ls_code}" in
+        en|zh-Hant) ;;
+        *)
+            unset _ls_code
+            return 1
+            ;;
+    esac
+    if [ -z "${PERSISTENT_STORAGE_DIR:-}" ]; then
+        PERSISTENT_STORAGE_DIR=$(util_resolve_persistent_storage)
+        export PERSISTENT_STORAGE_DIR
+    fi
+    _ls_path="${PERSISTENT_STORAGE_DIR}/language"
+    if ! printf '%s\n' "${_ls_code}" > "${_ls_path}"; then
+        unset _ls_code _ls_path
+        return 1
+    fi
+    chmod 0600 "${_ls_path}" 2>/dev/null || true
+    APP_LANG="${_ls_code}"
+    export APP_LANG
+    unset _ls_code _ls_path
+    return 0
+}
+
+# Last updated: 2026-09-28
+# ALIGNMENT: requirement-shell-cli-language.md
+# Menu copy for APP_LANG (en or zh-Hant). Pure data. No input builtin.
+# A missing key prints the key. Call from the current shell or a command
+# substitution. Keep this body free of the four letters r, e, a, d in a row.
+app_menu_text() {
+    _mt_key=${1-}
+    _mt_extra=${2-}
+    _mt_lang=${APP_LANG:-en}
+    case "${_mt_lang}" in
+        zh-Hant) ;;
+        *) _mt_lang=en ;;
+    esac
+    _mt_out=""
+    case "${_mt_key}" in
+        cat_client)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="用戶端" ;;
+                *) _mt_out="client-side" ;;
+            esac
+            ;;
+        cat_server)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="伺服器端" ;;
+                *) _mt_out="server-side" ;;
+            esac
+            ;;
+        cat_self)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="自我管理" ;;
+                *) _mt_out="self-management" ;;
+            esac
+            ;;
+        cat_language)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="語言" ;;
+                *) _mt_out="language" ;;
+            esac
+            ;;
+        front_client_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="這個登入的 OpenSSH 用戶端（~/.ssh/config、ssh、資料夾）" ;;
+                *) _mt_out="this login OpenSSH client (~/.ssh/config, ssh, folders)" ;;
+            esac
+            ;;
+        front_server_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="這台主機的 OpenSSH sshd（接聽、金鑰、連接埠）" ;;
+                *) _mt_out="this host OpenSSH sshd (listen, keys, port)" ;;
+            esac
+            ;;
+        front_language_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="這個選單的顯示語言" ;;
+                *) _mt_out="display language for this menu" ;;
+            esac
+            ;;
+        front_sudoers_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="免密碼 sudo 的授權與草稿" ;;
+                *) _mt_out="grant and drafts for passwordless sudo" ;;
+            esac
+            ;;
+        front_self_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="這個 CLI 的安裝、版本、更新、移除" ;;
+                *) _mt_out="this CLI install, version, update, uninstall" ;;
+            esac
+            ;;
+        client_11_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="這個登入的 ~/.ssh/config Host 清單" ;;
+                *) _mt_out="this login ~/.ssh/config Host list" ;;
+            esac
+            ;;
+        client_12_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="以這個登入的 ~/.ssh/config 連線到 Host" ;;
+                *) _mt_out="OpenSSH client to a Host from this login ~/.ssh/config" ;;
+            esac
+            ;;
+        client_13_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="將遠端資料夾打包為 tar.gz 放到這個目錄" ;;
+                *) _mt_out="tar.gz a remote folder into this directory" ;;
+            esac
+            ;;
+        client_14_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="將本機資料夾打包為 tar.gz 傳到 Host（在該 ssh 使用者家目錄解開）" ;;
+                *) _mt_out="tar.gz a local folder onto a Host (extract under that ssh user home)" ;;
+            esac
+            ;;
+        client_15_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="把這個登入的 ~/.ssh/config 複製到 /var/sshd-cli" ;;
+                *) _mt_out="copy this login ~/.ssh/config to /var/sshd-cli" ;;
+            esac
+            ;;
+        client_16_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="把 /var/sshd-cli/config 複製進這個登入的 ~/.ssh/config" ;;
+                *) _mt_out="copy /var/sshd-cli/config into this login ~/.ssh/config" ;;
+            esac
+            ;;
+        client_18_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="從 user@host（或 host）複製 /var/sshd-cli/config" ;;
+                *) _mt_out="copy /var/sshd-cli/config from user@host (or host)" ;;
+            esac
+            ;;
+        hint_sync_typed)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="   （或輸入 sync-from-remote [user@host]：從另一台主機複製 /var/sshd-cli/config）" ;;
+                *) _mt_out="   (or type sync-from-remote [user@host]: copy /var/sshd-cli/config from another host)" ;;
+            esac
+            ;;
+        server_21_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="執行狀態、連接埠與路徑" ;;
+                *) _mt_out="running, port, and paths" ;;
+            esac
+            ;;
+        server_22_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="啟動 OpenSSH 常駐程式（背景執行，不是開機服務）" ;;
+                *) _mt_out="launch the OpenSSH daemon (background, not a boot service)" ;;
+            esac
+            ;;
+        server_23_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="結束正在執行的常駐程式" ;;
+                *) _mt_out="end the running daemon" ;;
+            esac
+            ;;
+        server_24_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="先停止再啟動" ;;
+                *) _mt_out="stop then start" ;;
+            esac
+            ;;
+        self_81_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="放置 ${APP_NAME}；確保 rc 與 Termux 的 openssh/termux-auth；啟動 sshd" ;;
+                *) _mt_out="place ${APP_NAME}; ensure rc + Termux openssh/termux-auth; start sshd" ;;
+            esac
+            ;;
+        self_82_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="顯示版本與詳細診斷（about）" ;;
+                *) _mt_out="show version and detailed diagnostics (about)" ;;
+            esac
+            ;;
+        self_83_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="顯示詳細診斷" ;;
+                *) _mt_out="show detailed diagnostics" ;;
+            esac
+            ;;
+        self_84_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="比較本機與遠端版本" ;;
+                *) _mt_out="compare local vs remote version" ;;
+            esac
+            ;;
+        self_85_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="將 ${APP_NAME} 更新到較新的遠端版本" ;;
+                *) _mt_out="update ${APP_NAME} to a newer remote version" ;;
+            esac
+            ;;
+        self_86_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="移除 ${APP_NAME}（安全清理 PATH）" ;;
+                *) _mt_out="remove ${APP_NAME} (safe PATH cleanup)" ;;
+            esac
+            ;;
+        self_87_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="只放置這個 CLI（複製這個檔案，或在管線輸入時下載）" ;;
+                *) _mt_out="place this CLI only (copy this file, or download when piped)" ;;
+            esac
+            ;;
+        line_back)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="0. 返回" ;;
+                *) _mt_out="0. Back" ;;
+            esac
+            ;;
+        line_exit)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="9. 離開" ;;
+                *) _mt_out="9. Exit" ;;
+            esac
+            ;;
+        line_prompt)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="請輸入編號，或輸入指令名稱： " ;;
+                *) _mt_out="Choose a number, or type the command name: " ;;
+            esac
+            ;;
+        lang_en_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="這個選單改用英文" ;;
+                *) _mt_out="use English for this menu" ;;
+            esac
+            ;;
+        lang_zh_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="這個選單改用繁體中文" ;;
+                *) _mt_out="use Traditional Chinese for this menu" ;;
+            esac
+            ;;
+        lang_saved)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="選單語言是繁體中文" ;;
+                *) _mt_out="Menu language is English" ;;
+            esac
+            ;;
+        lang_save_fail)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="無法儲存選單語言" ;;
+                *) _mt_out="Could not save the menu language" ;;
+            esac
+            ;;
+        sudoers_header)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="sudoers（免密碼授權與草稿）" ;;
+                *) _mt_out="sudoers (grant and drafts)" ;;
+            esac
+            ;;
+        sudoers_72_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="將 JSON 授權排入待處理佇列" ;;
+                *) _mt_out="Queue the JSON grant inbound" ;;
+            esac
+            ;;
+        sudoers_73_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="輸出 sudoers 草稿" ;;
+                *) _mt_out="Emit sudoers draft" ;;
+            esac
+            ;;
+        sudoers_74_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="寫出管理者安裝腳本" ;;
+                *) _mt_out="Write admin install script" ;;
+            esac
+            ;;
+        sudoers_75_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="只移除 sudoers 草稿" ;;
+                *) _mt_out="Remove sudoers draft only" ;;
+            esac
+            ;;
+        hidden_client)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="backup-config 與 sync-config 不適用於 ${_mt_extra}" ;;
+                *) _mt_out="backup-config and sync-config not available for ${_mt_extra}" ;;
+            esac
+            ;;
+        hidden_server)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="非 root 在 ${_mt_extra} 無法使用 start/stop/restart sshd" ;;
+                *) _mt_out="start/stop/restart sshd features are not available for non-root in ${_mt_extra}" ;;
+            esac
+            ;;
+        unknown_menu)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="未知的選單選項 '${_mt_extra}'。請從清單選擇編號，或輸入指令名稱。" ;;
+                *) _mt_out="Unknown menu choice '${_mt_extra}'. Choose a number from the list, or type the command name." ;;
+            esac
+            ;;
+        unknown_sudoers)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="未知的 sudoers 選項 '${_mt_extra}'。請從清單選擇編號，或輸入指令名稱。" ;;
+                *) _mt_out="Unknown sudoers choice '${_mt_extra}'. Choose a number from the list, or type the command name." ;;
+            esac
+            ;;
+        *)
+            _mt_out="${_mt_key}"
+            ;;
+    esac
+    printf '%s' "${_mt_out}"
+    unset _mt_key _mt_extra _mt_lang _mt_out
+}
+
+# Last updated: 2026-09-28
+# ALIGNMENT: requirement-shell-cli-language.md · requirement-shell-cli-default-interaction.md
+# Parent 6. 61 stores en. 62 stores zh-Hant. Both return to the front board.
+# 0 / empty / EOF is Back. The choice is a current-shell input builtin.
+app_cmd_menu_language() {
+    while true; do
+        out_info "**${APP_NAME}**(*${VERSION}*) — $(app_menu_text cat_language)"
+        out_menu_choice "61" "English" "$(app_menu_text lang_en_long)"
+        out_menu_choice "62" "繁體中文" "$(app_menu_text lang_zh_long)"
+        out_plain "$(app_menu_text line_back)"
+        out_msg_n "$(app_menu_text line_prompt)"
+        _choice=""
+        if ! read -r _choice; then
+            unset _choice
+            return 0
+        fi
+        case "${_choice}" in
+            61|english|en|English)
+                if app_lang_save en; then
+                    out_info "$(app_menu_text lang_saved)"
+                else
+                    out_warn "$(app_menu_text lang_save_fail)"
+                fi
+                unset _choice
+                return 0
+                ;;
+            62|traditional-chinese|zh-hant|zh-Hant|繁體中文)
+                if app_lang_save zh-Hant; then
+                    out_info "$(app_menu_text lang_saved)"
+                else
+                    out_warn "$(app_menu_text lang_save_fail)"
+                fi
+                unset _choice
+                return 0
+                ;;
+            0|q|"")
+                unset _choice
+                return 0
+                ;;
+            *)
+                out_warn "$(app_menu_text unknown_menu "${_choice}")"
+                continue
+                ;;
+        esac
+    done
+}
+
+# Last updated: 2026-09-28
 # ALIGNMENT: requirement-shell-cli-default-interaction
 # A valid leaf (or nested action board) returns to the front board. Unknown
 # choice retries this layer. 0 / empty / EOF is Back.
@@ -7806,23 +8201,23 @@ app_cmd_menu_client() {
         _show_cfg=0
     fi
     while true; do
-        out_info "**${APP_NAME}**(*${VERSION}*) — client-side"
+        out_info "**${APP_NAME}**(*${VERSION}*) — $(app_menu_text cat_client)"
         if [ "${_show_cfg}" -eq 0 ]; then
-            out_info "backup-config and sync-config not available for $(sshd_host_normal_user_only_label)"
+            out_info "$(app_menu_text hidden_client "$(sshd_host_normal_user_only_label)")"
         fi
-        out_menu_choice "11" "dns" "this login ~/.ssh/config Host list"
-        out_menu_choice "12" "ssh" "OpenSSH client to a Host from this login ~/.ssh/config"
-        out_menu_choice "13" "download" "tar.gz a remote folder into this directory"
-        out_menu_choice "14" "upload" "tar.gz a local folder onto a Host (extract under that ssh user home)"
+        out_menu_choice "11" "dns" "$(app_menu_text client_11_long)"
+        out_menu_choice "12" "ssh" "$(app_menu_text client_12_long)"
+        out_menu_choice "13" "download" "$(app_menu_text client_13_long)"
+        out_menu_choice "14" "upload" "$(app_menu_text client_14_long)"
         if [ "${_show_cfg}" -eq 1 ]; then
-            out_menu_choice "15" "backup-config" "copy this login ~/.ssh/config to /var/sshd-cli"
-            out_menu_choice "16" "sync-config" "copy /var/sshd-cli/config into this login ~/.ssh/config"
-            out_plain "   (or type sync-from-remote [user@host]: copy /var/sshd-cli/config from another host)"
+            out_menu_choice "15" "backup-config" "$(app_menu_text client_15_long)"
+            out_menu_choice "16" "sync-config" "$(app_menu_text client_16_long)"
+            out_plain "$(app_menu_text hint_sync_typed)"
         else
-            out_menu_choice "18" "sync-from-remote" "copy /var/sshd-cli/config from user@host (or host)"
+            out_menu_choice "18" "sync-from-remote" "$(app_menu_text client_18_long)"
         fi
-        out_plain "0. Back"
-        out_msg_n "Choose a number, or type the command name: "
+        out_plain "$(app_menu_text line_back)"
+        out_msg_n "$(app_menu_text line_prompt)"
         _choice=""
         if ! read -r _choice; then
             unset _choice _show_cfg
@@ -7855,7 +8250,7 @@ app_cmd_menu_client() {
                     unset _choice _show_cfg
                     return 0
                 fi
-                out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
+                out_warn "$(app_menu_text unknown_menu "${_choice}")"
                 continue
                 ;;
             16)
@@ -7864,7 +8259,7 @@ app_cmd_menu_client() {
                     unset _choice _show_cfg
                     return 0
                 fi
-                out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
+                out_warn "$(app_menu_text unknown_menu "${_choice}")"
                 continue
                 ;;
             18)
@@ -7873,7 +8268,7 @@ app_cmd_menu_client() {
                     unset _choice _show_cfg
                     return 0
                 fi
-                out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
+                out_warn "$(app_menu_text unknown_menu "${_choice}")"
                 continue
                 ;;
             0|q|"")
@@ -7885,7 +8280,7 @@ app_cmd_menu_client() {
                     unset _choice _show_cfg
                     return 0
                 fi
-                out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
+                out_warn "$(app_menu_text unknown_menu "${_choice}")"
                 continue
                 ;;
         esac
@@ -7902,18 +8297,18 @@ app_cmd_menu_server() {
         _show_daemon=1
     fi
     while true; do
-        out_info "**${APP_NAME}**(*${VERSION}*) — server-side"
+        out_info "**${APP_NAME}**(*${VERSION}*) — $(app_menu_text cat_server)"
         if [ "${_show_daemon}" -eq 0 ]; then
-            out_info "start/stop/restart sshd features are not available for non-root in $(sshd_os_name)"
+            out_info "$(app_menu_text hidden_server "$(sshd_os_name)")"
         fi
-        out_menu_choice "21" "status" "running, port, and paths"
+        out_menu_choice "21" "status" "$(app_menu_text server_21_long)"
         if [ "${_show_daemon}" -eq 1 ]; then
-            out_menu_choice "22" "start" "launch the OpenSSH daemon (background, not a boot service)"
-            out_menu_choice "23" "stop" "end the running daemon"
-            out_menu_choice "24" "restart" "stop then start"
+            out_menu_choice "22" "start" "$(app_menu_text server_22_long)"
+            out_menu_choice "23" "stop" "$(app_menu_text server_23_long)"
+            out_menu_choice "24" "restart" "$(app_menu_text server_24_long)"
         fi
-        out_plain "0. Back"
-        out_msg_n "Choose a number, or type the command name: "
+        out_plain "$(app_menu_text line_back)"
+        out_msg_n "$(app_menu_text line_prompt)"
         _choice=""
         if ! read -r _choice; then
             unset _choice _show_daemon
@@ -7931,7 +8326,7 @@ app_cmd_menu_server() {
                     unset _choice _show_daemon
                     return 0
                 fi
-                out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
+                out_warn "$(app_menu_text unknown_menu "${_choice}")"
                 continue
                 ;;
             23)
@@ -7940,7 +8335,7 @@ app_cmd_menu_server() {
                     unset _choice _show_daemon
                     return 0
                 fi
-                out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
+                out_warn "$(app_menu_text unknown_menu "${_choice}")"
                 continue
                 ;;
             24)
@@ -7949,7 +8344,7 @@ app_cmd_menu_server() {
                     unset _choice _show_daemon
                     return 0
                 fi
-                out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
+                out_warn "$(app_menu_text unknown_menu "${_choice}")"
                 continue
                 ;;
             0|q|"")
@@ -7961,7 +8356,7 @@ app_cmd_menu_server() {
                     unset _choice _show_daemon
                     return 0
                 fi
-                out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
+                out_warn "$(app_menu_text unknown_menu "${_choice}")"
                 continue
                 ;;
         esac
@@ -7974,16 +8369,16 @@ app_cmd_menu_server() {
 # 0 / empty / EOF is Back.
 app_cmd_menu_self() {
     while true; do
-        out_info "**${APP_NAME}**(*${VERSION}*) — self-management"
-        out_menu_choice "81" "install" "place ${APP_NAME}; ensure rc + Termux openssh/termux-auth; start sshd"
-        out_menu_choice "82" "version" "show version and detailed diagnostics (about)"
-        out_menu_choice "83" "about" "show detailed diagnostics"
-        out_menu_choice "84" "version-check" "compare local vs remote version"
-        out_menu_choice "85" "self-update" "update ${APP_NAME} to a newer remote version"
-        out_menu_choice "86" "self-uninstall" "remove ${APP_NAME} (safe PATH cleanup)"
-        out_menu_choice "87" "self-install" "place this CLI only (copy this file, or download when piped)"
-        out_plain "0. Back"
-        out_msg_n "Choose a number, or type the command name: "
+        out_info "**${APP_NAME}**(*${VERSION}*) — $(app_menu_text cat_self)"
+        out_menu_choice "81" "install" "$(app_menu_text self_81_long)"
+        out_menu_choice "82" "version" "$(app_menu_text self_82_long)"
+        out_menu_choice "83" "about" "$(app_menu_text self_83_long)"
+        out_menu_choice "84" "version-check" "$(app_menu_text self_84_long)"
+        out_menu_choice "85" "self-update" "$(app_menu_text self_85_long)"
+        out_menu_choice "86" "self-uninstall" "$(app_menu_text self_86_long)"
+        out_menu_choice "87" "self-install" "$(app_menu_text self_87_long)"
+        out_plain "$(app_menu_text line_back)"
+        out_msg_n "$(app_menu_text line_prompt)"
         _choice=""
         if ! read -r _choice; then
             unset _choice
@@ -8034,7 +8429,7 @@ app_cmd_menu_self() {
                     unset _choice
                     return 0
                 fi
-                out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
+                out_warn "$(app_menu_text unknown_menu "${_choice}")"
                 continue
                 ;;
         esac
@@ -8042,45 +8437,49 @@ app_cmd_menu_self() {
 }
 
 # Last updated: 2026-09-28
-# ALIGNMENT: requirement-shell-cli-default-interaction · requirement-shell-cli-zero-arguments
-# Front board loops until Exit. Category rows open a submenu. POSIX Linux
-# row 7 opens sudoers (71-75). A finished leaf redisplays this board.
-# Unknown choice retries this layer. Row 7 stays reserved when hidden.
+# ALIGNMENT: requirement-shell-cli-default-interaction · requirement-shell-cli-language.md · requirement-shell-cli-zero-arguments
+# Front board loops until Exit. Category rows open a submenu. Row 6 opens
+# language (61 English, 62 Traditional Chinese). POSIX Linux row 7 opens
+# sudoers (71-75). A finished leaf redisplays this board. Unknown choice
+# retries this layer. Row 7 stays reserved when hidden.
 app_cmd_menu() {
     if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ] || [ "${TTY}" -ne 1 ]; then
         out_die "menu needs a terminal. Run a named command instead, for example: ${APP_NAME} status"
     fi
+    app_lang_load
     _show_sudoers=1
     if sshd_is_normal_user_only_cli; then
         _show_sudoers=0
     fi
     while true; do
         out_info "**${APP_NAME}**(*${VERSION}*)"
-        out_menu_choice "1" "client-side" "this login OpenSSH client (~/.ssh/config, ssh, folders)"
-        out_menu_choice "2" "server-side" "this host OpenSSH sshd (listen, keys, port)"
+        out_menu_choice "1" "$(app_menu_text cat_client)" "$(app_menu_text front_client_long)"
+        out_menu_choice "2" "$(app_menu_text cat_server)" "$(app_menu_text front_server_long)"
+        out_menu_choice "6" "$(app_menu_text cat_language)" "$(app_menu_text front_language_long)"
         if [ "${_show_sudoers}" -eq 1 ]; then
-            out_menu_choice "7" "sudoers" "grant and drafts for passwordless sudo"
+            out_menu_choice "7" "sudoers" "$(app_menu_text front_sudoers_long)"
         fi
-        out_menu_choice "8" "self-management" "this CLI install, version, update, uninstall"
-        out_plain "9. Exit"
-        out_msg_n "Choose a number, or type the command name: "
+        out_menu_choice "8" "$(app_menu_text cat_self)" "$(app_menu_text front_self_long)"
+        out_plain "$(app_menu_text line_exit)"
+        out_msg_n "$(app_menu_text line_prompt)"
         _choice=""
         if ! read -r _choice; then
             unset _choice _show_sudoers
             return 0
         fi
         case "${_choice}" in
-            1|client-side) app_cmd_menu_client; continue ;;
-            2|server-side) app_cmd_menu_server; continue ;;
+            1|client-side|用戶端) app_cmd_menu_client; continue ;;
+            2|server-side|伺服器端) app_cmd_menu_server; continue ;;
             7)
                 if [ "${_show_sudoers}" -eq 1 ]; then
                     sshd_cmd_sudoers_menu
                     continue
                 fi
-                out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
+                out_warn "$(app_menu_text unknown_menu "${_choice}")"
                 continue
                 ;;
-            8|self-management) app_cmd_menu_self; continue ;;
+            6|language|語言) app_cmd_menu_language; continue ;;
+            8|self-management|自我管理) app_cmd_menu_self; continue ;;
             9|99|999|exit|"")
                 unset _choice _show_sudoers
                 return 0
@@ -8089,7 +8488,7 @@ app_cmd_menu() {
                 if sshd_menu_typed_leaf; then
                     continue
                 fi
-                out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
+                out_warn "$(app_menu_text unknown_menu "${_choice}")"
                 continue
                 ;;
         esac
@@ -8372,7 +8771,7 @@ app_help() {
     out_plain "  generate-sudoer-request [path]  Independently write a JSON grant (backup-config verb)"
     out_plain "  submit-sudoer-request [file]  Queue a JSON sudoers-grant request via sudoer-cli"
     out_plain "  remove-project-sudoers [path]  Delete project-sudoers-file draft only"
-    out_plain "  menu                 Numbered tree: 1 client-side, 2 server-side, 8 self-management, 9 Exit. Client 11… dns/ssh/download/upload; server 21… status/start/stop/restart; self-management 81… install/version/about, 87 self-install. Submenus 0 Back. Alias: main"
+    out_plain "  menu                 Numbered tree: 1 client-side, 2 server-side, 6 language, 7 sudoers, 8 self-management, 9 Exit. Language 61 English, 62 Traditional Chinese. Client 11… dns/ssh/download/upload; server 21… status/start/stop/restart; self-management 81… install/version/about, 87 self-install. Submenus 0 Back. Alias: main"
     out_empty_line
     out_info "Termux (Android wake lock):"
     out_plain "  wake-lock            Acquire the Android wake lock so sshd can keep listening with the screen off (idempotent; acquire again if Android dropped it)"

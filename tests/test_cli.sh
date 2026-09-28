@@ -3,9 +3,9 @@
 # =============================================================================
 # Primary REQs: requirement-shell-cli-interface, requirement-shell-cli-zero-arguments,
 # requirement-shell-cli-self-install, requirement-shell-cli-default-interaction,
-# requirement-shell-output-requirements, requirement-shell-cli-storage,
-# requirement-domain-sshd (TP-SSHD-01, TP-SSHD-03..08)
-# TP family: TP-CLI-* · TP-SI-01..06 · TP-SSHD-01 · TP-SSHD-03..08 · TP-CLI-22 · TP-CLI-23
+# requirement-shell-cli-language, requirement-shell-output-requirements,
+# requirement-shell-cli-storage, requirement-domain-sshd (TP-SSHD-01, TP-SSHD-03..08)
+# TP family: TP-CLI-* · TP-SI-01..06 · TP-SSHD-01 · TP-SSHD-03..08 · TP-CLI-22 · TP-CLI-23 · TP-CLI-24
 # =============================================================================
 
 # shellcheck source=helpers.sh
@@ -173,6 +173,8 @@ run_test_cli() {
     assert_contains "TP-CLI-14 interactive empty argv server-side" "$_out" "server-side"
     assert_contains "TP-CLI-14 interactive empty argv self-management" "$_out" "self-management"
     assert_contains "TP-CLI-14 interactive empty argv Exit 9" "$_out" "9. Exit"
+    assert_contains "TP-CLI-14 front language row" "$_out" "language"
+    assert_contains "TP-CLI-14 front language long" "$_out" "display language for this menu"
     assert_contains "TP-CLI-14 front sudoers row 7" "$_out" "7."
     assert_contains "TP-CLI-14 front sudoers short" "$_out" "sudoers"
     assert_not_contains "TP-CLI-14 front board has no dns row 5" "$_out" "5. SSH names"
@@ -302,6 +304,53 @@ run_test_cli() {
     _n=$(t_count_substr "$_out" "client-side")
     assert_eq "TP-CLI-22 front board after typed about" "2" "$_n"
     unset _out _ec _n
+    ci_cleanup_env
+
+    # TP-CLI-24 menu 6 language: English default, Traditional Chinese, file, restore
+    ci_isolated_env
+    _out=$(printf '%s\n' '6' '0' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
+    _ec=$?
+    assert_eq "TP-CLI-24 open language then Back exit 0" 0 "$_ec"
+    assert_contains "TP-CLI-24 front language long" "$_out" "display language for this menu"
+    assert_contains "TP-CLI-24 language row 61" "$_out" "61."
+    assert_contains "TP-CLI-24 language English" "$_out" "English"
+    assert_contains "TP-CLI-24 language row 62" "$_out" "62."
+    assert_contains "TP-CLI-24 language Traditional Chinese" "$_out" "繁體中文"
+    assert_contains "TP-CLI-24 language Back" "$_out" "0. Back"
+    assert_file_missing "TP-CLI-24 Back does not write language" "${CI_HOME}/.local/${APP_NAME}/language"
+    _out=$(printf '%s\n' '6' '62' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
+    _ec=$?
+    assert_eq "TP-CLI-24 choose Traditional Chinese exit 0" 0 "$_ec"
+    assert_contains "TP-CLI-24 Traditional Chinese saved" "$_out" "選單語言是繁體中文"
+    assert_contains "TP-CLI-24 front redraws in Traditional Chinese" "$_out" "用戶端"
+    assert_contains "TP-CLI-24 Traditional Chinese Exit" "$_out" "9. 離開"
+    assert_contains "TP-CLI-24 Traditional Chinese prompt" "$_out" "請輸入編號，或輸入指令名稱："
+    _lang=$(head -n 1 "${CI_HOME}/.local/${APP_NAME}/language" | tr -d '\r')
+    assert_eq "TP-CLI-24 file is zh-Hant" "zh-Hant" "${_lang}"
+    _mode=$(stat -c '%a' "${CI_HOME}/.local/${APP_NAME}/language" 2>/dev/null || stat -f '%OLp' "${CI_HOME}/.local/${APP_NAME}/language")
+    assert_eq "TP-CLI-24 language file mode 600" "600" "${_mode}"
+    _out=$(printf '%s\n' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
+    assert_contains "TP-CLI-24 next run stays Traditional Chinese" "$_out" "用戶端"
+    assert_not_contains "TP-CLI-24 next run is not English client-side" "$_out" "client-side"
+    _out=$(printf '%s\n' '6' '61' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
+    _ec=$?
+    assert_eq "TP-CLI-24 choose English exit 0" 0 "$_ec"
+    assert_contains "TP-CLI-24 English saved" "$_out" "Menu language is English"
+    assert_contains "TP-CLI-24 front redraws in English" "$_out" "client-side"
+    _lang=$(head -n 1 "${CI_HOME}/.local/${APP_NAME}/language" | tr -d '\r')
+    assert_eq "TP-CLI-24 file is en" "en" "${_lang}"
+    _out=$(printf '%s\n' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u SSHD_CLI_LANG sh "${SCRIPT}" 2>&1)
+    assert_contains "TP-CLI-24 next run stays English" "$_out" "client-side"
+    assert_not_contains "TP-CLI-24 next run is not Traditional Chinese client" "$_out" "用戶端"
+    printf '%s\n' 'nope' > "${CI_HOME}/.local/${APP_NAME}/language"
+    _out=$(printf '%s\n' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u SSHD_CLI_LANG sh "${SCRIPT}" 2>&1)
+    assert_contains "TP-CLI-24 unrecognized file is English" "$_out" "client-side"
+    _lang=$(head -n 1 "${CI_HOME}/.local/${APP_NAME}/language" | tr -d '\r')
+    assert_eq "TP-CLI-24 unrecognized file is left as written" "nope" "${_lang}"
+    printf '%s\n' 'en' > "${CI_HOME}/.local/${APP_NAME}/language"
+    _out=$(printf '%s\n' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 SSHD_CLI_LANG=zh-Hant sh "${SCRIPT}" 2>&1)
+    assert_contains "TP-CLI-24 SSHD_CLI_LANG overrides the file" "$_out" "用戶端"
+    unset _out _ec _lang _mode
     ci_cleanup_env
 
     # TP-CLI-15 status ends with a recommended ssh connect line
@@ -571,6 +620,7 @@ run_test_cli() {
     assert_not_contains "TP-SSHD-04 Termux omits sudoers" "$_out" "sudoers"
     assert_contains "TP-SSHD-04 Termux sync-from-remote row 18" "$_out" "18."
     assert_contains "TP-SSHD-04 Termux Exit 9" "$_out" "9. Exit"
+    assert_contains "TP-SSHD-04 Termux still shows language" "$_out" "language"
     assert_not_contains "TP-SSHD-04 no non-root INFO" "$_out" "not available for non-root"
     ci_cleanup_env
     unset _out _ec

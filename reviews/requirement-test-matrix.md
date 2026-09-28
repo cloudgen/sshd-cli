@@ -8,7 +8,8 @@
 |-----------------|------|-------------|----------------|
 | requirement-class-software-dev | class | TP-CLI-01, TP-CLI-11 | Syntax + posix-sh stack |
 | requirement-shell-cli-interface | shell | TP-CLI-* · TP-LC-18/19 · TP-TX-10/11/12/15 | Commands, flags, dispatch; domain verbs + `wake-lock` in help; Git Bash / Windows cmd; TTY **82** about (**TP-CLI-21**) |
-| requirement-shell-cli-default-interaction | shell | TP-CLI-14 · **TP-CLI-21** · **TP-CLI-22** · **TP-CLI-23** · TP-SSHD-03..05 · TP-SSHD-16 | Numbered tree; TTY **82** / typed `version` run about; finished leaf → front board; TTY `--debug` with no verb opens the menu |
+| requirement-shell-cli-default-interaction | shell | TP-CLI-14 · **TP-CLI-21** · **TP-CLI-22** · **TP-CLI-23** · **TP-CLI-24** · TP-SSHD-03..05 · TP-SSHD-16 | Numbered tree; front **6** language; TTY **82** / typed `version` run about; finished leaf → front board; TTY `--debug` with no verb opens the menu |
+| requirement-shell-cli-language | shell | **TP-CLI-24** · TP-CLI-14 · TP-SSHD-04 | English default; **62** Traditional Chinese persisted; **61** restores English; `SSHD_CLI_LANG` overrides the file |
 | requirement-shell-cli-zero-arguments | shell | TP-CLI-07, TP-CLI-14, TP-CLI-23, TP-SI-03 | Non-TTY CLI self-install; TTY menu; switch-only `--debug` menu and `--quiet` / `--json` self-install |
 | requirement-shell-cli-self-install | shell | TP-SI-01..06, TP-CLI-07, TP-CLI-23 | Copy from script `$0`; dest 0700; NI empty argv and `--quiet` / `--json` with no verb place the CLI |
 | requirement-shell-self-management | shell | TP-LC-* (incl. **09/10** mode) · TP-CLI-10 | install / self-uninstall; **0755**; companion **call site**; channel verbs routed. Rc bodies: `requirement-shell-path-and-shell-support` |
