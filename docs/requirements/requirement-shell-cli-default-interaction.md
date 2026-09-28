@@ -1,12 +1,14 @@
 **file**: docs/requirements/requirement-shell-cli-default-interaction.md
-**Status**: Active (Version 1.5.0)
+**Status**: Active (Version 1.6.0)
+**Area**: shell
+**Key**: `requirement-shell-cli-default-interaction`
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
 This requirement is the **independent product law** for the sshd-cli **TTY numbered main menu**: front board **1 client-side / 2 server-side / 7 sudoers / 8 self-management / 9 Exit**, child numbers that **keep the parent prefix** and **never repeat** a parent integer, **0 Back** on every submenu, and each command row printed as **number + bold short description + italic long description**.
 
-A **zero-cli-verb** line (no command after switches; a switch such as `--debug` is still no command) follows `requirement-shell-cli-zero-arguments.md` when the run is **non-interactive**. **Interactive** zero-cli-verb and `menu`/`main` open this tree (case 3). Domain verbs (`status`, `dns`, `ssh`, …) stay owned by `requirement-domain-sshd.md`. This file owns **the numbered tree**, not those handlers. Section 6 defines every word this file uses for that tree. The rules in section 2 are the law; section 6 is the glossary.
+A **zero-cli-verb** line (no command after switches; a switch such as `--debug` is still no command) follows `requirement-shell-cli-zero-arguments.md` when the run is **non-interactive**. **Interactive** zero-cli-verb and `menu`/`main` open this tree. Domain verbs (`status`, `dns`, `ssh`, …) stay owned by `requirement-domain-sshd.md`. This file owns **the numbered tree**, not those handlers. The Terminology section defines every word this file uses for that tree. The rules in section 2 are the law.
 
 ### 1.1 Human-facing
 
@@ -38,7 +40,7 @@ A **zero-cli-verb** line (no command after switches; a switch such as `--debug` 
 
 ## 2. Core Rules / Requirements (Mandatory)
 
-**Claimed:** yes. **Case:** 3 (zero-argument requirement exists). An **interactive zero-cli-verb** (no verb after switch parse; switches allowed; real terminal and not quiet/json) and `menu`/`main` draw this tree. A **non-interactive** zero-cli-verb (`--quiet`, `--json`, or no TTY, even with other switches and no verb) is CLI self-install (`requirement-shell-cli-self-install`). `menu` off-TTY fails closed (`menu needs a terminal`). Interactive `menu --json` still draws the tree.
+**Claimed:** yes. A zero-arguments requirement already exists, so this file owns the numbered tree and does not replace that requirement’s non-interactive path. An **interactive zero-cli-verb** (no verb after switch parse; switches allowed; real terminal and not quiet/json) and `menu`/`main` draw this tree. A **non-interactive** zero-cli-verb (`--quiet`, `--json`, or no TTY, even with other switches and no verb) is CLI self-install (`requirement-shell-cli-self-install`). `menu` off-TTY fails closed (`menu needs a terminal`). Interactive `menu --json` still draws the tree.
 
 ### 2.1 Front board
 
@@ -156,14 +158,14 @@ A wrong pick stays on this layer (§2.2.2). A one-shot yes/no after a valid pick
 
 ### 2.9 When the tree is drawn
 
-This tree is the CLI default interaction, **case 3**. An **interactive zero-cli-verb** draws it: no command token after switches are parsed, on a real terminal, and not quiet and not json. `sshd-cli`, `sshd-cli --debug`, and `sshd-cli --force` with no command are that line when the terminal is real and quiet/json are off. `menu` / `main` draw the same tree. Interactive `menu --json` still draws it. A switch is not a command. Off a terminal, under quiet, or under `--json`, a zero-cli-verb line is **non-interactive** and does not draw this tree. That path is Type O empty argv (CLI self-install), owned by `requirement-shell-cli-zero-arguments` and `requirement-shell-cli-self-install`. This file does not replace that path. `menu` / `main` off a terminal fails closed with a named-command hint and does not wait. That split is interactive vs noninteractive. Type O is the letter **O**. Privilege Type 0 is the digit **0**.
+This tree is the numbered main menu. An **interactive zero-cli-verb** draws it: no command token after switches are parsed, on a real terminal, and not quiet and not json. `sshd-cli`, `sshd-cli --debug`, and `sshd-cli --force` with no command are that line when the terminal is real and quiet/json are off. `menu` / `main` draw the same tree. Interactive `menu --json` still draws it. A switch is not a command. Off a terminal, under quiet, or under `--json`, a zero-cli-verb line is **non-interactive** and does not draw this tree. That path is Type O empty argv (CLI self-install), owned by `requirement-shell-cli-zero-arguments` and `requirement-shell-cli-self-install`. This file does not replace that path. `menu` / `main` off a terminal fails closed with a named-command hint and does not wait. That split is interactive vs noninteractive. Type O is the letter **O**. Privilege Type 0 is the digit **0**.
 
 ### 2.10 Implementation Notes (this project)
 
 | Field | Value |
 |-------|--------|
 | Claimed | yes |
-| Case | 3 |
+| When drawn | Interactive zero-cli-verb and `menu` / `main` on a terminal |
 | Handler | `sshd_cmd_menu` · `sshd_cmd_menu_client` · `sshd_cmd_menu_server` · `sshd_cmd_menu_self` |
 | Printer | `out_menu_choice` |
 | Ship unit | `./sshd-cli` |
@@ -203,13 +205,42 @@ When Termux, Git Bash, or Windows cmd is detected: Type 1/2 unused; no in-tool s
 - Print short unstyled or long unstyled on a TTY.  
 - After a valid leaf command, stay on the submenu that launched it — **MUST** redisplay the **front board**.
 - Treat **0** on the dns board as a jump to the front board. **0** returns to the client board.
-- Replace §6 with file paths. The glossary names the word and gives the definition.
+- Replace the Terminology section with file paths. The glossary names the word and gives the definition.
 - Drop a design piece from §2: the catalog, the shared numbers, the integer grammar, the look, the menu layer, invalid-choice retry, the command-finished front board, when the tree is drawn, or who-may-run.
 - Treat a switch (`--debug`, `--quiet`, `--json`, `--force`) as a command verb.
 - Send an interactive zero-cli-verb to help or to install-ensure.
 - Draw this tree for a non-interactive zero-cli-verb (no TTY, quiet, or `--json` with no command).
 
-## 5. Related artifacts (versioned surface only)
+## 5. Definition of done
+
+This requirement is satisfied when all of the following hold:
+
+1. Interactive zero-cli-verb on a terminal (`sshd-cli`, `sshd-cli --debug`, `sshd-cli --force`, quiet and json off) draws front **1 / 2 / 7 / 8 / 9** and does not place the binary.  
+2. `menu` / `main` on a terminal draw the same tree. `menu` / `main` off a terminal fails closed and does not wait.  
+3. A non-interactive zero-cli-verb does not draw this tree. That path stays on `requirement-shell-cli-zero-arguments` and `requirement-shell-cli-self-install`.  
+4. Child numbers keep the parent prefix. **0** on a submenu returns to the parent. Front **9** leaves.  
+5. An invalid choice warns, names the token, and reprints that layer.  
+6. After a valid leaf, the front board is shown again.  
+7. TTY **82** and a typed `version` on a numbered board run `about`.  
+8. The proof rows below are **have**.  
+9. Changes cite `requirement-shell-cli-default-interaction`.
+
+### Design-time verification
+
+| TP family / ID | Suite | Status |
+|----------------|-------|--------|
+| **TP-CLI-14** interactive empty argv → front 1/2/7/8/9 | `tests/test_cli.sh` | have |
+| **TP-CLI-21** TTY **82** / typed `version` run about | `tests/test_cli.sh` | have |
+| **TP-CLI-22** finished leaf redisplays the front board | `tests/test_cli.sh` | have |
+| **TP-CLI-23** TTY `--debug` / `--force` menu; `--quiet` / `--json` / non-TTY `--debug` do not draw the tree | `tests/test_cli.sh` | have |
+| **TP-SSHD-03..05** · **TP-SSHD-16** server rows and invalid-choice retry | `tests/test_cli.sh` | have |
+| **TP-DNS-13** · **TP-DNS-20** · **TP-DNS-21** · **TP-DNS-47** dns board | `tests/test_dns.sh` | have |
+| **TP-CFG-17** sudoers **71–75** | `tests/test_config_backup.sh` | have |
+| **TP-UL-18** upload row on the client board | `tests/test_ssh_download.sh` | have |
+
+**Map:** `reviews/test-plan.md`
+
+## 6. Related artifacts
 
 | Artifact | Role |
 |----------|------|
@@ -220,15 +251,26 @@ When Termux, Git Bash, or Windows cmd is detected: Type 1/2 unused; no in-tool s
 | `docs/requirements/requirement-shell-interactive-vs-noninteractive.md` | No hang; retry |
 | `docs/requirements/requirement-shell-self-management.md` | install / self-update handlers |
 | `./sshd-cli` | Implementation |
+| `tests/test_cli.sh`, `tests/test_dns.sh`, `tests/test_config_backup.sh`, `tests/test_ssh_download.sh` | Regression coverage |
 
-## 6. Terminology
+## 7. Revision history
+
+| Date | Change | Author / agent |
+|------|--------|----------------|
+| 2026-09-14 | v1.0.0: independent numbered TTY menu; front **1 / 2 / 8 / 9** | Grok (Release 1.20.0) |
+| 2026-09-14 | v1.0.1: TTY **82** runs about | Grok (Release 1.21.0) |
+| 2026-09-27 | v1.2.0: sudoers is front **7** (children **71–75**) | Grok (Release 1.26.0) |
+| 2026-09-28 | v1.5.0: interactive zero-cli-verb draws this tree; terminology lives in this file | Grok (Release 1.28.0) |
+| 2026-09-28 | v1.6.0: same section shape as the other product requirements (definition of done, related artifacts, revision history). The numbered tree stays the law in this file. | Grok (owner request) |
+
+## 8. Terminology
 
 Words this requirement uses. Each row is the term and the definition this file means by it. No glossary file paths.
 
 | Term | Definition |
 |------|------------|
 | **Zero-cli-verb** | No command token after switches are read. Switches (`--debug`, `--quiet`, `--json`, `--force`, and the other global flags) are allowed and are not a command. Interactive (a real terminal, not quiet, not json) routes to this main menu. Non-interactive (no terminal, quiet, or json) is Type O CLI self-install, owned by the zero-arguments requirement. A named command such as `menu` or `status` is not this shape. |
-| **CLI default interaction** | The numbered list of CLI verbs this product claims on a real terminal. Case 3: an interactive zero-cli-verb, and `menu` / `main`, draw it. Off a terminal the same verb fails closed. It is the behavior, not the ink and not the integer grammar. |
+| **CLI default interaction** | The numbered list of CLI verbs this product claims on a real terminal. An interactive zero-cli-verb, and `menu` / `main`, draw it. Off a terminal the same verb fails closed. It is the behavior, not the ink and not the integer grammar. |
 | **CLI main menu hierarchy table** | The layered menu design: the single catalog of every numbered board. Each row records number, parent, short description, long description, what it runs, and who sees it. The tables in §2.1 and §2.4–§2.7 are that catalog. |
 | **CLI main menu numbering** | The non-repeating number prefix. Each command number is unique in the whole tree. A child number starts with its parent’s digits. **0** on a submenu goes back to the parent. **9** on the front board leaves. A hidden row keeps its number. Host, folder, and extra-setting pickers stay item indexes **1…N** plus **0**. |
 | **Default CLI main menu style** | The default menu style. How every numbered layer is drawn: identity token on the header, then number, bold short name, italic light-gray long description. Off a terminal the same row is plain text. This term is the ink, not which rows exist. |
@@ -254,6 +296,5 @@ Words this requirement uses. Each row is the term and the definition this file m
 | **Operator-readable error** | A line a person at the prompt can act on: what happened, in plain words, and what to do next. The invalid-choice warn is this kind of line. It names the token and tells the operator to choose a listed number or command name. |
 
 **Last Updated**: 2026-09-28  
-**Owner**: {{OWNER}}  
+**Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
-- **`PO-STAY-IN-PROJECT-SSOT`** — no silent sibling-project write without this-turn named root + notify-before-write (**`E-BLAST-09`**)
