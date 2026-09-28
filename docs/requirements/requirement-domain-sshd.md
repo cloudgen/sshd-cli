@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.26.0)  
+**Status**: Active (Version 1.26.2)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -84,7 +84,7 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 **Routing:** `app_main` parses these verbs in the same pass as Type 0. Operands after `port` / `host-keys` / `auth-keys` / **`dns`** / **`ssh`** / **`download`** / **`upload`** are domain operands, not unknown flags. **Numbered tree SSOT:** `requirement-shell-cli-default-interaction` (client **11** dns, **12** ssh, **13** download, **14** upload). The dns / ssh / download / upload **Host** pick is a **separate** list (leave with `0` / empty — not `9`). **MUST NOT** number `port` / `config` / `host-keys` / `auth-keys` as numbered rows.
 
 **MUST:** `backup-config` / `sync-config` ops SSOT is `requirement-shell-config-backup` (depends on `requirement-shell-sudoer`). Sudoers JSON, print/generate/submit, and `util_sudo` SSOT is `requirement-shell-sudoer`. This domain file **points**; it does not re-own copy or grant emit.  
-**MUST:** TTY menu on Termux / Git Bash / Windows cmd **MUST** print `[INFO] backup-config and sync-config not available for termux` (or `gitbash` / `windows-cmd`) **before** the **client** numbered list and omit backup-config / sync-config / sudoers. Client **14** is **upload**. Termux class numbers **18** sync-from-remote. POSIX Linux numbers **15** backup-config, **16** sync-config. Front **7** is sudoers (POSIX Linux only; children **71–75**). Front Exit is **9**. Dual mention: `requirement-shell-cli-default-interaction`.  
+**MUST:** On Termux / Git Bash / Windows cmd, the client layer’s **menu-hidden message** **MUST** print `[INFO] backup-config and sync-config not available for termux` (or `gitbash` / `windows-cmd`) **before** the **client** numbered list. That cause omits backup-config and sync-config. Client **14** is **upload**. Termux class numbers **18** sync-from-remote. POSIX Linux numbers **15** backup-config, **16** sync-config. Front **7** sudoers (POSIX Linux only; children **71–75**) is a different cause on the **front** board: its own menu-hidden message belongs **before** the front numbered items. The ship unit omits front **7** on this class and prints no front-board message yet (Gap). Front Exit is **9**. Rule: `requirement-shell-cli-default-interaction`.  
 **MUST:** Each verb above is also named on `requirement-shell-cli-interface` (dual mention).  
 **MUST:** Interactive empty argv (`TTY=1`, not quiet/json) **MUST** call `sshd_cmd_menu` (same handler as `menu`). Dual mention: `requirement-shell-cli-zero-arguments`.  
 **MUST NOT:** Open this menu on **non-interactive** empty argv (`curl \| sh`, quiet, json, no TTY) — that path is CLI self-install (`requirement-shell-cli-self-install`), not payload.
@@ -227,7 +227,7 @@ If (2) is true and (3) is false: **warn** once per command, then use the OpenSSH
 
 1. **status** is read-only. Missing sshd is a warning, not a crash. Human mode **MUST** end with a recommended connect line `ssh -p <port> <user>@<lan-ipv4>` when a live IPv4 exists. **User** is `id -un`. **IPv4 SSOT:** `ifconfig wlan0` inet (Termux Wi-Fi). Then `wlan1`, then any `ifconfig` inet, then `ip` fallbacks. **MUST NOT** print a placeholder host (`<this-host>`, `<LAN-IPv4>`, `example.com`). If no usable IPv4: warn and say Next (turn on Wi-Fi, then `status`) — do not invent an address. JSON `connect` is that live string, or empty. **MUST NOT** freeze a session login or a sample home IP into product law. On a systemd host with a resolved unit, human **status** **MUST** print the unit name and active/inactive; JSON **MUST** add `sshd_systemd` (true/false), `sshd_unit` (name or `""`), `sshd_unit_active` (true/false).  
 1b. **menu numbers** are owned by `requirement-shell-cli-default-interaction` (front **1** client-side, **2** server-side, **7** sudoers, **8** self-management, **9** Exit; sudoers **71–75**; client **11** dns, **12** ssh, **13** download, **14** upload; server **21** status, **22–24** start/stop/restart; submenu **0** Back). This file owns the **handlers**. Choosing **11** (or typing `dns`) runs `sshd_cmd_dns`. Choosing **12** (or typing `ssh`) runs `sshd_cmd_ssh` (numbered Host pick, then **user** with default). Choosing **13** (or typing `download`) runs `sshd_cmd_download`. Choosing **14** (or typing `upload`) runs `sshd_cmd_upload` (Host pick, then **user** with default, then a **local** folder). `port` / `config` / `host-keys` / `auth-keys` stay typed. The Host pick **MUST NOT** reuse front Exit **9** (leave Host pick with **0**).  
-1c. **menu daemon rows (22/23/24):** On a **command line for normal user only** (Termux, Git Bash, Windows cmd), **MUST** print rows **22** / **23** / **24** for this login. On POSIX Linux (not that class), **MUST** print those rows **only** when this login is **root** (`id -u` is 0). When those rows are hidden, **MUST** print, **before** the server-side numbered choices: `start/stop/restart sshd features are not available for non-root in <OS-Name>`. **OS-Name** is `/etc/os-release` `NAME=` (quotes stripped), else `uname -s`, else `Linux`. **MUST NOT** hardcode Ubuntu. **MUST NOT** renumber **21** / **11**. Hidden **22** / **23** / **24** **MUST NOT** dispatch. They are an unknown TTY choice on the **server** list: **MUST** warn and **MUST** display that same list again (**MUST NOT** `out_die`). Typed `start` / `stop` / `restart` still run the handlers (fail-closed without root). **MUST NOT** wrap `sudo` to unhide the rows. Helper: `sshd_menu_show_daemon_rows` · `sshd_os_name`. Dual mention: `requirement-shell-cli-default-interaction`.  
+1c. **menu daemon rows (22/23/24):** On a **command line for normal user only** (Termux, Git Bash, Windows cmd), **MUST** print rows **22** / **23** / **24** for this login. On POSIX Linux (not that class), **MUST** print those rows **only** when this login is **root** (`id -u` is 0). When those rows are hidden, **MUST** print, **before** the server-side numbered choices, the **menu-hidden message** for this one cause: `start/stop/restart sshd features are not available for non-root in <OS-Name>`. **OS-Name** is `/etc/os-release` `NAME=` (quotes stripped), else `uname -s`, else `Linux`. **MUST NOT** hardcode Ubuntu. **MUST NOT** renumber **21** / **11**. Hidden **22** / **23** / **24** **MUST NOT** dispatch. They are an unknown TTY choice on the **server** list: **MUST** warn and **MUST** display that same list again (**MUST NOT** `out_die`). Typed `start` / `stop` / `restart` still run the handlers (fail-closed without root). **MUST NOT** wrap `sudo` to unhide the rows. Helper: `sshd_menu_show_daemon_rows` · `sshd_os_name`. Dual mention: `requirement-shell-cli-default-interaction`.  
 1d. **TTY menu retry (every numbered layer):** On the **main menu**, **sudoers** submenu, **dns action** menu, **Host pick**, **unset extra-settings** picker, and **download** / **upload** folder pick: an unknown or out-of-range numbered choice **MUST** print a warn that names the token, **MUST** display **that same list** again, and **MUST NOT** `out_die` or exit non-zero solely for that bad TTY choice. Empty / Exit / `q` / `exit` still leave that layer. A valid **leaf** command runs the handler, then the **front board** redisplays (not the submenu). Dual mention: `requirement-shell-cli-default-interaction` · `requirement-shell-interactive-vs-noninteractive`. Non-interactive operand paths still fail closed (no hang).  
 2. **start** is idempotent: already running → success no-op. Missing host keys → generate when the host-key dir is writable (OpenSSH fallback only; systemd unit path does **not** generate host keys — the distro unit owns that). On the OpenSSH fallback, `sshd -t` must pass before launch; launch **MUST** be `"${SSHD_BIN}" -f "${SSHD_CONFIG}"`. **MUST NOT** pass `-D`. **MUST NOT** wrap the launch in `&` / `nohup`. On a systemd host with a loaded unit, launch **MUST** follow §2.2.1 (`systemctl start <unit>` as root) — **MUST NOT** `sshd -f` beside that unit. Human mode (not quiet/json) **MUST** describe **this host** per §2.2.1 (Termux: session daemon + Termux:Boot + `${APP_NAME} start` after reboot; systemd unit path: name the unit and `systemctl`; POSIX Linux fallback: do not deny systemd). On Termux, **start** (including already-running) **MUST** auto-acquire the Android wake lock (`sshd_wake_lock_acquire`). Missing helper: **warn** + Next naming `${APP_NAME} wake-lock`; **MUST NOT** fail start solely for that. Dual mention: `requirement-shell-termux-ish`. **MUST NOT** auto-unlock on `stop`.  
 3. **stop** is idempotent: already stopped → success no-op. systemd unit path: `systemctl stop <unit>` as root (**MUST NOT** `kill` MainPID). OpenSSH fallback: signal the sshd pid (pidfile, then process match).  
@@ -426,29 +426,7 @@ fi
 sshd_wake_lock_acquire
 ```
 
-**Menu choice** (current-shell `read`; **MUST NOT** `$()`; unknown → warn + redisplay):
-
-```sh
-# WARNING — do-not-capture-read (PP-A-22)
-while true; do
-    out_info "**${APP_NAME}**(*${VERSION}*)"
-    out_plain "1. Show sshd status: running, port, and paths"
-    # rows 2/3/4 only when sshd_menu_show_daemon_rows
-    out_plain "5. SSH names (dns): this login ~/.ssh/config Host list"
-    out_plain "9. Exit"
-    out_msg_n "Choose a number, or type the command name: "
-    _choice=""
-    read -r _choice || true
-    case "${_choice}" in
-        1|status) sshd_cmd_status; break ;;
-        9|exit|"") break ;;
-        *)
-            out_warn "Unknown menu choice '${_choice}'. Choose a number from the list, or type the command name."
-            continue
-            ;;
-    esac
-done
-```
+**Menu choice.** The live boards are the functions quoted in `requirement-shell-cli-default-interaction` §2.11: `sshd_cmd_menu`, `sshd_cmd_menu_client`, `sshd_cmd_menu_server`, `sshd_cmd_menu_self`, and the hide helpers `sshd_os_name`, `sshd_menu_show_daemon_rows`, `sshd_host_normal_user_only_label`. Each board reads with `read -r` in the current shell. An unknown choice warns and reprints that layer.
 
 **systemd unit pick:** probe `ssh.service` then `sshd.service`; both exist → prefer the active one, else `ssh.service`. `sshd_is_systemd_host` is false on Termux / Git Bash / Windows cmd.
 
@@ -565,6 +543,6 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-09-27 (1.26.0 Termux Old OpenSSH comments and `ssh -o HostKeyAlgorithms=+ssh-rsa`; **TP-DNS-50** · **TP-DNS-51** · **TP-SSH-10**. 1.25.0 sudoers front **7** / **71–75**. Finished TTY leaf redisplays the front board; **TP-CLI-22**)  
+**Last Updated**: 2026-09-28 (1.26.2 menu sample points at the live boards in `requirement-shell-cli-default-interaction` §2.11. 1.26.1 menu-hidden message: client and server sentences stay; front **7** hide is its own cause and still Gap. 1.26.0 Termux Old OpenSSH comments and `ssh -o HostKeyAlgorithms=+ssh-rsa`; **TP-DNS-50** · **TP-DNS-51** · **TP-SSH-10**. 1.25.0 sudoers front **7** / **71–75**. Finished TTY leaf redisplays the front board; **TP-CLI-22**)  
 **Owner**: Cloudgen Wong  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

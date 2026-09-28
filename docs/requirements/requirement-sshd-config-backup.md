@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-sshd-config-backup.md  
-**Status**: Active (Version 1.1.0)  
+**Status**: Active (Version 1.1.1)  
 **Area**: backup  
 **Key**: `requirement-sshd-config-backup`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -104,7 +104,7 @@ sshd-cli submit-sudoer-request
 
 ## Under command line for normal user only
 
-When the ship unit detects Termux, Git Bash, Windows cmd, or the same class: **MUST NOT** deposit into `/var/sshd-cli` or wrap `sudo`. Direct `backup-config` / local `sync-config` **MUST** fail closed. TTY menu **MUST** print `[INFO] backup-config and sync-config not available for termux` / `gitbash` / `windows-cmd` **before** the numbered list and **MUST** omit those rows (and sudoers). **`sync-from-remote` remains available** (Type 0 `scp`) and **MUST** be numbered **18** on the client board (client **12** `ssh`, **13** `download`). Sudoers is front **7** and is omitted on this class. Numbers: `requirement-shell-cli-default-interaction`.
+When the ship unit detects Termux, Git Bash, Windows cmd, or the same class: **MUST NOT** deposit into `/var/sshd-cli` or wrap `sudo`. Direct `backup-config` / local `sync-config` **MUST** fail closed. The client board’s **menu-hidden message** for that cause **MUST** print `[INFO] backup-config and sync-config not available for termux` / `gitbash` / `windows-cmd` **before** the client numbered list and **MUST** omit **15** backup-config and **16** sync-config. **`sync-from-remote` remains available** (Type 0 `scp`) and **MUST** be numbered **18** on the client board (client **12** `ssh`, **13** `download`). Front **7** sudoers is a separate hide cause on the front board. Its menu-hidden message is owned by `requirement-shell-cli-default-interaction` (the ship unit still omits the row and prints no front-board message — Gap). Numbers: `requirement-shell-cli-default-interaction`.
 
 **This requirement:** host deposit is POSIX Linux; remote pull is this-login `scp` on every class.
 
@@ -160,6 +160,6 @@ When the ship unit detects Termux, Git Bash, Windows cmd, or the same class: **M
 | `docs/requirements/requirement-domain-sshd.md` | Dual mention catalog |
 | `./sshd-cli` | Ship unit |
 
-**Last Updated**: 2026-09-11 (sync-from-remote)  
+**Last Updated**: 2026-09-28 (menu-hidden message; sync-from-remote)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

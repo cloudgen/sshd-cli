@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-interactive-vs-noninteractive.md  
-**Status**: Active (Version 1.2.4)  
+**Status**: Active (Version 1.2.5)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -177,22 +177,40 @@ interactive   non-interactive
 | Uninstall without force + non-interactive | Confirm fails → uninstall cancelled (safe default) |
 | Uninstall with `--force` | Skip confirm entirely |
 
-Sample (consume `TTY`; never live `[ -t` as the gate):
+Ship-unit function (`./sshd-cli`). Call it in the current shell (`if prompt_yes_no; then`). The gate is the process `TTY` global. Empty and any answer other than yes returns 1.
 
 ```sh
 prompt_yes_no() {
-    : "${JSON:=0}" : "${QUIET:=0}" : "${TTY:=0}"
+    # --- Safe Variable Defaults ----
+    # Defensive defaults - never assume globals are set
+    : "${JSON:=0}"
+    : "${QUIET:=0}"
+    : "${TTY:=0}"
+
+    local message="$1"
+
+    # Never show prompt in quiet or json mode
     if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ]; then
-        return 1
+        return 1   # treat as "no" in non-interactive modes
     fi
+
+    # Consume process TTY (measured once at startup; no second [ -t).
     if [ "${TTY}" -ne 1 ]; then
         return 1
     fi
-    out_msg_n "${1} (y/N)? "
+
+    out_msg_n "${message} (y/N)? "
+
+    local answer=""
     read -r answer || true
-    case "${answer}" in
-        [Yy]*) return 0 ;;
-        *)     return 1 ;;
+
+    case "$answer" in
+        [Yy]*|[Yy][Ee][Ss]*)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
     esac
 }
 ```
@@ -205,26 +223,54 @@ prompt_yes_no() {
 | `TTY` is not `1` (and `INTERACTIVE` ≠ 1) | Return **default** without `read` |
 | `TTY=1` interactive | Show current/default via `out_*`, then `read` |
 
-Sample (consume `TTY`). **WARNING — do-not-capture-read (`PP-A-22`):** MUST NOT `_x=$(prompt_ask …)` / `$()` / backticks. This body contains `read`. Call in the current shell. Portable mold uses `PROMPT_ASK_VALUE`; this ship unit still returns via stdout (legacy) — **MUST NOT** copy `$()` into new helpers (menu / dns walks already use in-shell `read`).
+Ship-unit function (`./sshd-cli`). **WARNING — do-not-capture-read (`PP-A-22`):** MUST NOT `_x=$(prompt_ask …)` / `$()` / backticks. This body contains `read` and prints the answer on stdout. Call it in the current shell. Portable mold uses `PROMPT_ASK_VALUE`. Menu boards do not call this helper; they `read -r` in the current shell (`requirement-shell-cli-default-interaction` §2.11).
 
 ```sh
-# WARNING — do-not-capture-read (PP-A-22 / T1-PROMPT-CAPTURE)
-# MUST NOT _x=$(prompt_ask …). New code: assign PROMPT_ASK_VALUE; this product
-# still prints the value on stdout (legacy). Menu/dns use in-shell read.
 prompt_ask() {
-    : "${JSON:=0}" : "${QUIET:=0}" : "${TTY:=0}" : "${INTERACTIVE:=0}"
-    message="${1-}"; default="${2-}"
+    # --- Safe Variable Defaults ---
+    : "${JSON:=0}"
+    : "${QUIET:=0}"
+    : "${TTY:=0}"
+    : "${INTERACTIVE:=0}"
+
+    # set -u safe: missing args become empty defaults (INC-20260713-001 class)
+    local message="${1-}"
+    local default="${2-}"
+    local current="${3-}"
+
+    # Never prompt in non-interactive modes
     if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ]; then
         printf '%s' "${default}"
         return 0
     fi
+
+    # Consume process TTY (measured once at startup). INTERACTIVE=1 is the
+    # documented override when low-level TTY checks are flaky.
     if [ "${TTY}" -ne 1 ] && [ "${INTERACTIVE}" -ne 1 ]; then
         printf '%s' "${default}"
         return 0
     fi
+
+    # Show current value if present
+    if [ -n "${current}" ]; then
+        out_info "Current: ${current}"
+    fi
+
+    # Show default
+    if [ -n "${default}" ]; then
+        out_info "Default: ${default}"
+    fi
+
     out_msg_n "${message}: "
+
+    local answer=""
     read -r answer || true
-    [ -z "${answer}" ] && printf '%s' "${default}" || printf '%s' "${answer}"
+
+    if [ -z "${answer}" ]; then
+        printf '%s' "${default}"
+    else
+        printf '%s' "${answer}"
+    fi
 }
 ```
 
@@ -343,6 +389,6 @@ Mode-related work for sshd-cli is **not done** if any of the following fail:
 
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-09-16 (finished TTY leaf redisplays the front board; **TP-CLI-22**. TTY unknown menu choice redisplays that layer; DTV **TP-SSHD-16** · **TP-DNS-47..49** · **TP-CFG-17** · **TP-DL-17**)  
+**Last Updated**: 2026-09-28 (1.2.5 `prompt_yes_no` and `prompt_ask` samples are the `./sshd-cli` functions. 2026-09-16 finished TTY leaf redisplays the front board; **TP-CLI-22**. TTY unknown menu choice redisplays that layer; DTV **TP-SSHD-16** · **TP-DNS-47..49** · **TP-CFG-17** · **TP-DL-17**)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

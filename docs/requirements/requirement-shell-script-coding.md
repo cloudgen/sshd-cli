@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-script-coding.md  
-**Status**: Active (Version 1.1.1)  
+**Status**: Active (Version 1.1.2)  
 **Area**: shell  
 **Key**: `requirement-shell-script-coding`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -40,7 +40,7 @@ This is the **coding-style related requirement** for sshd-cli (POSIX `/bin/sh`).
 1. **MUST** keep `set -u` at the top of `./sshd-cli`. **MUST NOT** add global `set -e`.  
 2. **MUST** use the prefix families owned by `requirement-shell-modular-function-design` plus domain **`sshd_*`**.  
 3. **MUST** send product user messages through `out_*` (`requirement-shell-output-requirements`).  
-4. **MUST NOT** capture a `read` helper with `$()` / command substitution (**do-not-capture-read**). `prompt_ask` returns via stdout for class-B data; **new** TTY choice code (including `menu`) **MUST** `read` in the current shell, not `_x=$(prompt_ask …)`.  
+4. **MUST NOT** capture a `read` helper with `$()` / command substitution (**do-not-capture-read**). `prompt_ask` returns via stdout for class-B data; **new** TTY choice code (including `menu`) **MUST** `read` in the current shell, not `_x=$(prompt_ask …)`. The live menu functions are quoted in `requirement-shell-cli-default-interaction` §2.11. The live `prompt_ask` and `prompt_yes_no` bodies are quoted in `requirement-shell-interactive-vs-noninteractive`.  
 5. **MUST** keep a `Last updated:` (or `Last reviewed:`) line on every function header that is edited.  
 6. **MUST NOT** strip CIAO Protection Zones / `DO NOT MODIFY` dispatcher comments for brevity.  
 7. **MUST** initialize variables used under `set -u` (`: "${VAR:=…}"` or a prior assign).  
@@ -56,7 +56,7 @@ This is the **coding-style related requirement** for sshd-cli (POSIX `/bin/sh`).
 | Ship unit | `./sshd-cli` POSIX `/bin/sh` |
 | Prefixes in use | `out_` `inst_` `path_` `ver_` `util_` `prompt_` `app_` `sshd_` |
 | `set -u` | yes (file top) |
-| Menu read | `sshd_cmd_menu` calls `read -r` in-function (not `$()` of `prompt_ask`) |
+| Menu read | `sshd_cmd_menu` and each child board call `read -r` in the current shell. Verbatim bodies: `requirement-shell-cli-default-interaction` §2.11 |
 | Sudo wrap | `util_sudo` (`backup-config` only; `requirement-shell-sudoer`) |
 
 ### 2.2 Why This Requirement Exists (Direct CIAO Alignment)
@@ -106,8 +106,10 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 | `docs/requirements/requirement-shell-modular-function-design.md` | Prefix catalog |
 | `docs/requirements/requirement-shell-output-requirements.md` | `out_*` |
 | `docs/requirements/requirement-class-software-dev.md` | Residual points here |
+| `docs/requirements/requirement-shell-cli-default-interaction.md` | Menu `read` bodies (§2.11) |
+| `docs/requirements/requirement-shell-interactive-vs-noninteractive.md` | Live `prompt_ask` / `prompt_yes_no` |
 | `./sshd-cli` | Implementation |
 
-**Last Updated**: 2026-09-11  
+**Last Updated**: 2026-09-28 (1.1.2 menu `read` and prompt bodies are quoted in the peer requirements)  
 **Owner**: Cloudgen Wong  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
