@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+## [1.30.0] - 2026-09-30
+
+### Added
+
+- **`fix-config`.** Comments OpenSSH client keywords this OS does not support. Alpine comments an active `GSSAPI*` line (`Unsupported option "gssapiauthentication"` when the line stays active). Termux comments an active `HostKeyAlgorithms`, `PubkeyAcceptedAlgorithms`, or `PubkeyAcceptedKeyTypes` line. Another OS leaves those keywords active. Optional `--input-file` and `--output-file` follow the verb. Every run applies the same pass to `~/.ssh/config` and stays quiet when nothing else was asked to print. `dns` add, set, delete, and unset use the same comment rule. `ssh`, `download`, and `upload` do not pass `-o GSSAPIAuthentication`. Tests **TP-FIX-01..14** · **TP-DNS-52**. Law: `requirement-domain-sshd` **1.27.0** · `requirement-shell-cli-interface` **1.14.8** · `requirement-shell-cli-language` **1.3.1**.
+
 ## [1.29.0] - 2026-09-28
 
 ### Added

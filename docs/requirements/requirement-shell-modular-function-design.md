@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-modular-function-design.md  
-**Status**: Active (Version 1.1.3)  
+**Status**: Active (Version 1.1.4)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -184,7 +184,7 @@ function_name() {
 | `path_` | `path_add_bashrc`, `path_ensure_profile`, `path_add_zshrc`, `path_add_fish`, `path_add_shell`, `path_rc_test` |
 | `util_` | `util_json_escape`, `util_sha256_file`, `util_fetch_remote_version`, `util_get_install_bin_path`, `util_backup`, `util_cache_host_kind`, `util_preferred_cache_dir`, `util_fallback_cache_dir`, `util_fallback2_cache_dir`, `util_cache_try_dir`, `util_resolve_storage` (**wired** from `app_main` / `app_about`; silent tier miss; SSOT: `requirement-shell-cli-storage.md`), `util_resolve_persistent_storage` (preferred-remote leaf), `util_sudo` (**backup-config** re-exec; SSOT: `requirement-shell-sudo-command.md`), `util_get_current_shell` |
 | `prompt_` | `prompt_ask`, `prompt_yes_no` |
-| `app_` | `app_about`, `app_version` (dispatcher routes `version` here), `app_help`, `app_main`, `app_cmd_menu`, `app_cmd_menu_client`, `app_cmd_menu_server`, `app_cmd_menu_self`, `app_cmd_menu_language`, `app_lang_load`, `app_lang_save`, `app_menu_text` |
+| `app_` | `app_about`, `app_version` (dispatcher routes `version` here), `app_help`, `app_main`, `app_cmd_menu`, `app_cmd_menu_client`, `app_cmd_menu_server`, `app_cmd_menu_self`, `app_cmd_menu_language`, `app_lang_load`, `app_lang_save`, `app_menu_text`. The translated strings, worked samples, and translation tables stay in `requirement-shell-cli-language`. This row only names the helpers. |
 | `sshd_` | `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_cmd`, `sshd_is_normal_user_only_cli`, `sshd_os_name`, `sshd_menu_show_daemon_rows`, `sshd_is_systemd_host`, `sshd_systemd_unit`, `sshd_systemd_is_active`, `sshd_systemd_main_pid`, `sshd_resolve`, `sshd_pkg_ensure`, `sshd_start_after_install`, `sshd_try_start_linux`, `sshd_ifconfig_ipv4`, `sshd_lan_ipv4`, `sshd_connect_cmd`, `sshd_cmd_status` / `start` / `stop` / `restart` / `port` / `config` / `host_keys` / `auth_keys` |
 
 #### Structural notes (implementation status)
@@ -298,6 +298,6 @@ A modular-structure change for sshd-cli is **not done** if any of the following 
 
 ---
 
-**Last Updated**: 2026-09-28 (1.1.3 menu language helpers are `app_lang_load`, `app_lang_save`, `app_menu_text`, `app_cmd_menu_language`. 1.1.2 numbered menu handlers are `app_cmd_menu*`)  
+**Last Updated**: 2026-09-28 (1.1.4 language samples and translation tables stay on the language requirement. 1.1.3 menu language helpers are `app_lang_load`, `app_lang_save`, `app_menu_text`, `app_cmd_menu_language`. 1.1.2 numbered menu handlers are `app_cmd_menu*`)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 6, 7, 8, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

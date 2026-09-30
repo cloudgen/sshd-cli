@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-default-interaction.md
-**Status**: Active (Version 1.13.0)
+**Status**: Active (Version 1.14.0)
 **Area**: shell
 **Key**: `requirement-shell-cli-default-interaction`
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -196,7 +196,7 @@ Every command row **MUST** print **number**, **bold** short description, *italic
 | **68** | 한국어 | use Korean for this menu | Save `ko` and return to the front board |
 | **0** | Back | | Return to the front board |
 
-**61** through **68** are valid leaves: the front board redisplays in the chosen language. **0** / empty / EOF is Back and does not change the saved language. The short names **English**, **繁體中文**, **Español**, **Français**, **Deutsch**, **简体中文**, **日本語**, and **한국어** stay those words in every language. Typed `english`, `en`, `traditional-chinese`, `zh-Hant`, `zh-hant`, `spanish`, `es`, `french`, `fr`, `german`, `de`, `simplified-chinese`, `zh-Hans`, `zh-hans`, `japanese`, `ja`, `korean`, and `ko` select the same rows. Which strings follow the saved language, and where the code is stored, is `requirement-shell-cli-language`. The live board is `app_cmd_menu_language`, quoted there. This table is the English catalog.
+**61** through **68** are valid leaves: the front board redisplays in the chosen language. **0** / empty / EOF is Back and does not change the saved language. The short names **English**, **繁體中文**, **Español**, **Français**, **Deutsch**, **简体中文**, **日本語**, and **한국어** stay those words in every language. Typed `english`, `en`, `traditional-chinese`, `zh-Hant`, `zh-hant`, `spanish`, `es`, `french`, `fr`, `german`, `de`, `simplified-chinese`, `zh-Hans`, `zh-hans`, `japanese`, `ja`, `korean`, and `ko` select the same rows. Which strings follow the saved language, and where the code is stored, is `requirement-shell-cli-language`. The worked samples of the front board in each language, and the opening of human `help` and human `about`, are that file’s §2.4.1. The language-board longs in every language, the choose-prompt, the menu-hidden sentences, and the unknown-choice warns are §2.4.2. The live board is `app_cmd_menu_language`, quoted there. This table is the English catalog.
 
 Row **6** is numbered on every host, including Termux, Git Bash, and Windows cmd. It is not a hide cause.
 
@@ -746,6 +746,7 @@ This requirement is satisfied when all of the following hold:
 | 2026-09-28 | v1.11.0: front **6** language, children **61** English and **62** Traditional Chinese. Menu copy follows `requirement-shell-cli-language`. | Grok (owner request) |
 | 2026-09-28 | v1.12.0: language children **63** Spanish, **64** French, **65** German, **66** Simplified Chinese. | Grok (owner request) |
 | 2026-09-28 | v1.13.0: language children **67** Japanese and **68** Korean. `app_lang_load` runs in `app_main`, not in this front function. | Grok (owner request) |
+| 2026-09-28 | v1.14.0: the English catalog in §2.6.1 stays here. Worked samples and translation tables live in `requirement-shell-cli-language` §2.4.1 and §2.4.2. | Grok (owner request) |
 
 ## 8. Terminology
 
@@ -781,6 +782,6 @@ Words this requirement uses. Each row is the term and the definition this file m
 | **Type O empty argv** | The non-interactive zero-cli-verb path: no command token means place/ensure this CLI. Switches with no command are still that path when the run is non-interactive (`--quiet`, `--json`, or no terminal). The letter **O** is this path. The digit **0** is privilege Type 0. An interactive zero-cli-verb is the main menu, not this path. |
 | **Operator-readable error** | A line a person at the prompt can act on: what happened, in plain words, and what to do next. The invalid-choice warn is this kind of line. It names the token and tells the operator to choose a listed number or command name. |
 
-**Last Updated**: 2026-09-28 (1.13.0 language **67** / **68**)  
+**Last Updated**: 2026-09-28 (1.14.0 samples and translation tables live on the language requirement. 1.13.0 language **67** / **68**)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

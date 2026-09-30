@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-interface.md  
-**Status**: Active (Version 1.14.7)  
+**Status**: Active (Version 1.14.8)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -134,7 +134,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | **Primary executable** | Repo root `./sshd-cli` (POSIX `/bin/sh`, single-file for `curl \| sh`) |
 | **Dispatcher** | `app_main` (always invoked at end of script: `app_main "$@"` — no `${0##*/}` / APP_NAME basename gate; required for `curl \| sh`) |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION` default `1.29.0` (script header / config block: `VERSION="1.29.0"`) |
+| **Version SSOT** | `VERSION` default `1.30.0` (script header / config block: `VERSION="1.30.0"`) |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`, or `${PREFIX}/bin` when Termux `PREFIX/bin` exists; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Interactive rc write path** | `BASHRC` default `${HOME}/.bashrc`. `install` PATH ensure creates/modifies this file. Tests/CI **MAY** set `BASHRC` to a file in a temp folder. Dual mention: `requirement-shell-path-and-shell-support`. |
 | **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`). **`help` Environment also lists `BASHRC`.** |
@@ -163,7 +163,8 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | `config` | Type 0 domain | `sshd_cmd_config` | Show resolved sshd paths and key settings. Dual mention: `requirement-domain-sshd` |
 | `host-keys` | Type 0 domain | `sshd_cmd_host_keys` | List or generate host keys. Dual mention: `requirement-domain-sshd` |
 | `auth-keys` | Type 0 domain | `sshd_cmd_auth_keys` | List or add this login `authorized_keys`. Dual mention: `requirement-domain-sshd` |
-| `dns` | Type 0 domain | `sshd_cmd_dns` | This login `~/.ssh/config` Host list (TTY edit/add/delete/unset menu; as Termux / identity-file / Old OpenSSH; show; set/add/delete/unset operands). `unset` drops extra settings (user, port, …), not dns or ip. Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive` |
+| `dns` | Type 0 domain | `sshd_cmd_dns` | This login `~/.ssh/config` Host list (TTY edit/add/delete/unset menu; as Termux / identity-file / Old OpenSSH; show; set/add/delete/unset operands). `unset` drops extra settings (user, port, …), not dns or ip. Add and update comment keywords this OS rejects. Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive` |
+| `fix-config` | Type 0 domain | `sshd_cmd_fix_config` | Comment OpenSSH client keywords this OS does not support. Optional `--input-file` and `--output-file` follow the verb. Every run also applies that pass to `~/.ssh/config` before dispatch, with no extra message. Typed only (no numbered row). Dual mention: `requirement-domain-sshd`. Sample: `sshd-cli fix-config` · `sshd-cli fix-config --input-file "${HOME}/.ssh/config" --output-file "${HOME}/ssh-config.commented"` |
 | `ssh` | Type 0 domain | `sshd_cmd_ssh` | OpenSSH client to a concrete Host alias from this login `~/.ssh/config` (TTY numbered pick then user with default; operand `<n\|name>`). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli ssh 1` |
 | `download` | Type 0 domain | `sshd_cmd_download` | tar.gz a remote folder over ssh and extract into cwd (TTY Host pick, then user with default, then numbered previous folders or a typed path; `~/folder` allowed). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli download 1 /opt/app` · `sshd-cli download 1 ~/box/app` |
 | `upload` | Type 0 domain | `sshd_cmd_upload` | tar.gz a **local** folder over ssh and extract under the remote login home (TTY Host pick, then user with default, then numbered previous **local** folders or a typed path; `~/folder` is this login). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli upload 1 ./box` · `sshd-cli upload 1 ~/box/app` |
@@ -194,7 +195,7 @@ Every routed verb is named **here** and on a topic-owner. Help/`app_help` is **n
 | `help` | `requirement-shell-cli-zero-arguments` · `requirement-shell-automatic-checksum` | `sshd-cli help` |
 | `version-check` / `self-update` | `requirement-shell-self-management` | `sshd-cli version-check` |
 | `self-uninstall` | `requirement-shell-self-management` · `requirement-shell-path-and-shell-support` | `sshd-cli --force self-uninstall` |
-| `status` / `start` / `stop` / `restart` / `port` / `config` / `host-keys` / `auth-keys` / `dns` / `ssh` / `download` / `upload` / `menu` | `requirement-domain-sshd` | `sshd-cli status` · `sshd-cli dns list` · `sshd-cli ssh 1` · `sshd-cli download 1 /opt/app` · `sshd-cli upload 1 ./box` |
+| `status` / `start` / `stop` / `restart` / `port` / `config` / `host-keys` / `auth-keys` / `dns` / `fix-config` / `ssh` / `download` / `upload` / `menu` | `requirement-domain-sshd` | `sshd-cli status` · `sshd-cli dns list` · `sshd-cli fix-config` · `sshd-cli ssh 1` · `sshd-cli download 1 /opt/app` · `sshd-cli upload 1 ./box` |
 | `backup-config` / `sync-config` / `sync-from-remote` | `requirement-shell-config-backup` · `requirement-shell-sudoer` · `requirement-domain-sshd` | `sshd-cli backup-config` · `sshd-cli sync-from-remote user@host` |
 | `print-sudoers` / `print-sudoers-install-script` / `generate-sudoer-request` / `submit-sudoer-request` / `remove-project-sudoers` | `requirement-shell-sudoer` | `sshd-cli generate-sudoer-request` |
 | `main` | `requirement-domain-sshd` | alias of `menu` (help names the alias; type `menu`) |
@@ -343,6 +344,6 @@ This requirement is satisfied for the sshd-cli shell CLI when all of the followi
 
 ---
 
-**Last Updated**: 2026-09-28 (1.14.7 language **67–68**; human help and about follow the saved language. 1.14.6 language **63–66**. 1.14.5 front **6** language. 1.14.4 `menu`/`main` handler is `app_cmd_menu`. Product `VERSION="1.29.0"`; zero-cli-verb gate is live after flag parse. Prior same day: zero-cli-verb law. Prior: 2026-09-27 `about` cache lines)  
+**Last Updated**: 2026-09-30 (1.14.8 `fix-config` and the automatic client-config pass. Product `VERSION="1.30.0"`. 1.14.7 language **67–68**; human help and about follow the saved language. 1.14.6 language **63–66**. 1.14.5 front **6** language. 1.14.4 `menu`/`main` handler is `app_cmd_menu`. Zero-cli-verb gate is live after flag parse. Prior: 2026-09-27 `about` cache lines)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 5, 6, 10, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

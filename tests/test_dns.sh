@@ -717,6 +717,75 @@ EOF
     _out=$(HOME="${CI_HOME}" sh "${SCRIPT}" dns show "${H_OLD}" 2>&1)
     assert_contains "TP-DNS-51 show old-openssh no" "${_out}" "old-openssh: no"
 
+    # TP-DNS-52 unsupported keywords: posix keeps GSSAPI; alpine comments it on set/add
+    _dns_fixture
+    cat > "${CI_HOME}/.ssh/config" <<EOF
+Host ${H_A}
+    HostName ${IP_A}
+    GSSAPIAuthentication yes
+    ForwardAgent yes
+    # GSSAPIAuthentication is unsupported on Alpine
+
+Host *
+    GSSAPIAuthentication=no
+    GSSAPIDelegateCredentials no
+    StrictHostKeyChecking accept-new
+EOF
+    chmod 600 "${CI_HOME}/.ssh/config"
+    _out=$(HOME="${CI_HOME}" SSHD_CLI_OS=posix sh "${SCRIPT}" dns set 1 user "${USER_ADD}" 2>&1)
+    _ec=$?
+    assert_eq "TP-DNS-52 posix set exit 0" 0 "$_ec"
+    _cfg=$(cat "${CI_HOME}/.ssh/config")
+    _hit=$(printf '%s\n' "${_cfg}" | grep -iE '^[[:space:]]*gssapi' || true)
+    assert_contains "TP-DNS-52 posix keeps active GSSAPI" "${_hit}" "GSSAPIAuthentication"
+    assert_contains "TP-DNS-52 posix keeps Host * GSSAPI" "${_hit}" "GSSAPIDelegateCredentials"
+    assert_contains "TP-DNS-52 posix ForwardAgent kept" "${_cfg}" "ForwardAgent yes"
+    assert_contains "TP-DNS-52 posix user written" "${_cfg}" "User ${USER_ADD}"
+    _dns_fixture
+    cat > "${CI_HOME}/.ssh/config" <<EOF
+Host ${H_A}
+    HostName ${IP_A}
+    GSSAPIAuthentication yes
+    ForwardAgent yes
+    # GSSAPIAuthentication is unsupported on Alpine
+
+Host *
+    GSSAPIAuthentication=no
+    GSSAPIDelegateCredentials no
+    StrictHostKeyChecking accept-new
+EOF
+    chmod 600 "${CI_HOME}/.ssh/config"
+    _out=$(HOME="${CI_HOME}" SSHD_CLI_OS=alpine sh "${SCRIPT}" dns set 1 user "${USER_ADD}" 2>&1)
+    _ec=$?
+    assert_eq "TP-DNS-52 alpine set exit 0" 0 "$_ec"
+    _cfg=$(cat "${CI_HOME}/.ssh/config")
+    _hit=$(printf '%s\n' "${_cfg}" | grep -iE '^[[:space:]]*gssapi' || true)
+    assert_eq "TP-DNS-52 alpine set has no active GSSAPI" "" "${_hit}"
+    assert_contains "TP-DNS-52 alpine set comments the keyword" "${_cfg}" "# GSSAPIAuthentication yes"
+    assert_contains "TP-DNS-52 alpine prior comment stays" "${_cfg}" "# GSSAPIAuthentication is unsupported on Alpine"
+    assert_contains "TP-DNS-52 alpine ForwardAgent kept" "${_cfg}" "ForwardAgent yes"
+    assert_contains "TP-DNS-52 alpine Host * kept" "${_cfg}" "StrictHostKeyChecking accept-new"
+    assert_contains "TP-DNS-52 alpine user written" "${_cfg}" "User ${USER_ADD}"
+    _dns_fixture
+    cat > "${CI_HOME}/.ssh/config" <<EOF
+Host ${H_A}
+    HostName ${IP_A}
+    GSSAPIAuthentication yes
+
+Host *
+    StrictHostKeyChecking accept-new
+EOF
+    chmod 600 "${CI_HOME}/.ssh/config"
+    _out=$(HOME="${CI_HOME}" SSHD_CLI_OS=alpine sh "${SCRIPT}" dns add dns "${H_ADD}" ip "${IP_ADD}" 2>&1)
+    _ec=$?
+    assert_eq "TP-DNS-52 alpine add exit 0" 0 "$_ec"
+    _cfg=$(cat "${CI_HOME}/.ssh/config")
+    _hit=$(printf '%s\n' "${_cfg}" | grep -iE '^[[:space:]]*gssapi' || true)
+    assert_eq "TP-DNS-52 alpine add has no active GSSAPI" "" "${_hit}"
+    assert_contains "TP-DNS-52 alpine add keeps the word in a comment" "${_cfg}" "# GSSAPIAuthentication yes"
+    assert_contains "TP-DNS-52 new Host present" "${_cfg}" "Host ${H_ADD}"
+    assert_contains "TP-DNS-52 new HostName present" "${_cfg}" "HostName ${IP_ADD}"
+
     # TP-DNS-38 suite source has no dotted IPv4 (mint at run time; PP-C-21)
     _hits=$(grep -E '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' "${TESTS_ROOT}/test_dns.sh" | grep -v '127\.0\.0\.1' || true)
     assert_eq "TP-DNS-38 no IPv4 literals in suite source" "" "${_hits}"

@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.26.6)  
+**Status**: Active (Version 1.27.0)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -68,6 +68,7 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 | `host-keys` | `list` (default) or `generate` | `sshd_cmd_host_keys` | generate needs a writable host-key dir | Unknown action → `out_die` |
 | `auth-keys` | `list` (default) or `add <pubkey-file>` | `sshd_cmd_auth_keys` | This login’s `~/.ssh` | Missing file / no key line → `out_die` |
 | `dns` | `list` (default non-TTY) · `show <n\|name>` · `edit <n\|name>` · `set <n\|name> …` · `add …` · `delete <n\|name>` · `unset <n\|name> field …` · empty (TTY action menu) | `sshd_cmd_dns` | This login’s `~/.ssh/config` | Missing n / empty dns name / bad port / unset of dns or ip → `out_die` |
+| `fix-config` | optional `--input-file PATH` · optional `--output-file PATH` (flags follow the verb) | `sshd_cmd_fix_config` | This login’s OpenSSH client config | Missing or unreadable explicit input, empty flag value, unknown operand, unwritable output → `out_die` |
 | `ssh` | optional `<n\|name>` | `sshd_cmd_ssh` | This login OpenSSH **client** `ssh` using a concrete Host alias | Missing n / empty list / ssh missing → `out_die` |
 | `download` | optional `<n\|name>` then optional `folder` | `sshd_cmd_download` | This login: remote `tar czf` over `ssh`, extract into **cwd** | Missing n / folder / bad folder / ssh or tar missing / ssh fail → `out_die` |
 | `upload` | optional `<n\|name>` then optional `folder` | `sshd_cmd_upload` | This login: local `tar czf` piped over `ssh`, extract under the remote login **home** | Missing n / folder / missing local dir / bad folder / ssh or tar missing / ssh fail → `out_die` |
@@ -81,13 +82,90 @@ Bootstrap origin is **selfmanaged** (A → B only). Domain law lives here on B, 
 | `submit-sudoer-request` | optional file | `sshd_cmd_submit_sudoer_request` | Type 0 compose sudoer-cli | Missing sudoer-cli / inbound → `out_die` |
 | `remove-project-sudoers` | optional path | `sshd_cmd_remove_project_sudoers` | Type 0 draft only | `/etc` path → `out_die` |
 
-**Routing:** `app_main` parses these verbs in the same pass as Type 0. Operands after `port` / `host-keys` / `auth-keys` / **`dns`** / **`ssh`** / **`download`** / **`upload`** are domain operands, not unknown flags. **Numbered tree SSOT:** `requirement-shell-cli-default-interaction` (client **11** dns, **12** ssh, **13** download, **14** upload). The dns / ssh / download / upload **Host** pick is a **separate** list (leave with `0` / empty — not `9`). **MUST NOT** number `port` / `config` / `host-keys` / `auth-keys` as numbered rows.
+**Routing:** `app_main` parses these verbs in the same pass as Type 0. Operands after `port` / `host-keys` / `auth-keys` / **`dns`** / **`fix-config`** / **`ssh`** / **`download`** / **`upload`** are domain operands, not unknown flags. **Numbered tree SSOT:** `requirement-shell-cli-default-interaction` (client **11** dns, **12** ssh, **13** download, **14** upload). The dns / ssh / download / upload **Host** pick is a **separate** list (leave with `0` / empty — not `9`). **MUST NOT** number `port` / `config` / `host-keys` / `auth-keys` / `fix-config` as numbered rows.
 
 **MUST:** `backup-config` / `sync-config` ops SSOT is `requirement-shell-config-backup` (depends on `requirement-shell-sudoer`). Sudoers JSON, print/generate/submit, and `util_sudo` SSOT is `requirement-shell-sudoer`. This domain file **points**; it does not re-own copy or grant emit.  
 **MUST:** On Termux / Git Bash / Windows cmd, the client layer’s **menu-hidden message** **MUST** print `[INFO] backup-config and sync-config not available for termux` (or `gitbash` / `windows-cmd`) **before** the **client** numbered list. That cause omits backup-config and sync-config. Client **14** is **upload**. Termux class numbers **18** sync-from-remote. POSIX Linux numbers **15** backup-config, **16** sync-config. Front **7** sudoers (POSIX Linux only; children **71–75**) is a different cause on the **front** board: its own menu-hidden message belongs **before** the front numbered items. The ship unit omits front **7** on this class and prints no front-board message yet (Gap). Front Exit is **9**. Rule: `requirement-shell-cli-default-interaction`.  
 **MUST:** Each verb above is also named on `requirement-shell-cli-interface` (dual mention).  
 **MUST:** Interactive empty argv (`TTY=1`, not quiet/json) **MUST** call `app_cmd_menu` (same handler as `menu`). Dual mention: `requirement-shell-cli-zero-arguments`.  
 **MUST NOT:** Open this menu on **non-interactive** empty argv (`curl \| sh`, quiet, json, no TTY) — that path is CLI self-install (`requirement-shell-cli-self-install`), not payload.
+
+### 2.1.2 OpenSSH client config — unsupported parameters
+
+Words this section uses. Each row is the term and the definition this file means by it.
+
+| Term | Definition |
+|------|------------|
+| **OpenSSH** | The SSH client and server this product drives. The client reads this login’s `{{HOME}}/.ssh/config`. `ssh`, `download`, and `upload` use that client. The server program is `sshd`. |
+| **Unsupported parameter in the config file** | An **active** keyword line that this OpenSSH build rejects. A line whose first non-space character is `#` is a comment; OpenSSH ignores it. Alpine rejects an active `GSSAPI*` keyword (`Unsupported option "gssapiauthentication"`). Termux rejects an active `HostKeyAlgorithms`, `PubkeyAcceptedAlgorithms`, or `PubkeyAcceptedKeyTypes`. Another OS keeps those keywords active. |
+
+**OS class** is `sshd_fix_os_class`. `SSHD_CLI_OS` set to `alpine`, `termux`, or `posix` wins. Otherwise Termux detect (`sshd_is_termux`) is `termux`, `ID` or `ID_LIKE` containing `alpine` in `/etc/os-release` is `alpine`, and every other host is `posix`.
+
+| OS class | Comment these active keywords | Leave active |
+|----------|-------------------------------|--------------|
+| `alpine` | every keyword whose name starts with `GSSAPI` (`GSSAPIAuthentication`, `GSSAPIDelegateCredentials`, `GSSAPIKeyExchange`, `GSSAPIClientIdentity`, `GSSAPIServerIdentity`, `GSSAPITrustDNS`, `GSSAPIKexAlgorithms`, `GSSAPIRenewalForcesRekey`, `GSSAPIStoreCredentialsOnRekey`, and the same prefix) | `HostKeyAlgorithms`, `PubkeyAcceptedAlgorithms`, `PubkeyAcceptedKeyTypes`, and every other keyword |
+| `termux` | `HostKeyAlgorithms`, `PubkeyAcceptedAlgorithms`, `PubkeyAcceptedKeyTypes` | `GSSAPI*` and every other keyword |
+| `posix` | none of the rows above | those keywords stay as written |
+
+The comment keeps the indent and the original keyword text, and inserts `# ` before the keyword (`    GSSAPIAuthentication yes` becomes `    # GSSAPIAuthentication yes`; `GSSAPIAuthentication=no` becomes `# GSSAPIAuthentication=no`). `Host` lines, `Match` lines, and every other keyword stay. A comment that already mentions the word stays a comment. Concrete `Host`, `Host *`, and `Match` blocks are all in scope.
+
+**Add, update, and review use this same rule.**
+
+| Moment | What runs |
+|--------|-----------|
+| **Add** | `dns add` rewrites the file through `sshd_fix_config_render` before the new Host is inserted. A new `old-openssh yes` on the `termux` class writes the two algorithm lines as comments. |
+| **Update** | `dns set`, `dns edit`, and `dns unset` use that same render. An unsupported keyword becomes a comment. It is not dropped, and it is not turned back into an active line. |
+| **Review** | Typed `fix-config` renders the chosen file. `dns show` still reports `old-openssh: yes` when the algorithm keywords are only comments. |
+
+**`fix-config` flags** (after the verb; a flag before the verb is an unknown command):
+
+| Flags | Read | Write |
+|-------|------|-------|
+| none | `{{HOME}}/.ssh/config` | that same file |
+| `--input-file PATH` | `PATH` | that same file |
+| `--output-file PATH` | `{{HOME}}/.ssh/config` | `PATH` (the source stays as the automatic pass left it) |
+| both | the input path | the output path (the input file stays) |
+
+Missing explicit input, an empty flag value, or an unknown operand → `out_die`. A missing output directory → `out_die`. A changed in-place file gets `util_backup`, then an atomic replace, mode **600**. JSON is one object `"type":"fix-config"` with string fields `changed` (`true` or `false`) and `os`. Human mode prints one success line. `--quiet` / `--json` print no human line from this verb.
+
+**Every run** calls `sshd_fix_config_auto` on `{{HOME}}/.ssh/config` after the language load and before dispatch, including a zero-cli-verb (the numbered menu and non-interactive self-install). Missing, unreadable, or unwritable is a silent no-op. Identical text is a no-op (no rewrite). A real change writes a rolling `config.fix-config.bak` (mode **600**) and replaces the file (mode **600**) with no `out_*` line, so `version` and `--json version` stay a single message. The automatic pass does not create `{{HOME}}/.ssh/config` when it is absent. A later explicit `fix-config` on that same file is unchanged when the automatic pass already commented it.
+
+**Sample** (the ship unit’s render; `os` is `sshd_fix_os_class`):
+
+```sh
+# Comment an active keyword this OS rejects. Keep the indent. Leave other lines.
+awk -v os="${os}" '
+    function unsupported(k) {
+        if (os == "alpine" && k ~ /^gssapi/) return 1
+        if (os == "termux" && (k == "hostkeyalgorithms" || k == "pubkeyacceptedalgorithms" || k == "pubkeyacceptedkeytypes")) return 1
+        return 0
+    }
+    {
+        line = $0
+        indent = ""
+        rest = line
+        if (match(line, /^[[:space:]]*/)) {
+            indent = substr(line, 1, RLENGTH)
+            rest = substr(line, RLENGTH + 1)
+        }
+        if (rest == "" || substr(rest, 1, 1) == "#") { print line; next }
+        if (match(rest, /^[A-Za-z][A-Za-z0-9]*/)) {
+            k = tolower(substr(rest, RSTART, RLENGTH))
+            if (unsupported(k)) { print indent "# " rest; next }
+        }
+        print line
+    }
+' "${HOME}/.ssh/config"
+```
+
+```sh
+sshd-cli fix-config
+sshd-cli fix-config --input-file "${HOME}/.ssh/config"
+sshd-cli fix-config --output-file "${HOME}/ssh-config.commented"
+sshd-cli fix-config --input-file "${HOME}/.ssh/config" --output-file "${HOME}/ssh-config.commented"
+```
+
+**MUST NOT** pass `-o GSSAPIAuthentication` or any other `GSSAPI*` option from `ssh`, `download`, or `upload`.
 
 ### 2.1.1 Install companion packages (Termux)
 
@@ -249,8 +327,8 @@ If (2) is true and (3) is false: **warn** once per command, then use the OpenSSH
 | **edit N** | Same field walk as after the Edit pick. Non-interactive / quiet / json: **fail closed** with Next: `dns set …` | Hang waiting for fields in CI |
 | **delete N** / **rm N** | Non-interactive: no prompt; fail closed if n/name missing. JSON: one `out_success` object (`n`, `dns`). `rm` is an unlisted alias of `delete`. | Prompt; follow `Include`; remove other stanzas |
 | **unset N field …** / **clear** | Drop **extra** settings on that Host. Allowed fields: **user**, **port**, **identity-file**, **identities-only**, **termux**, **old-openssh** (and `--` forms). **MUST NOT** clear **dns** (Host name) or **ip** (HostName) — those stay; use **delete** to drop the whole stanza. **unset termux** strips the Termux client keep-alive / IPQoS / Ciphers / MACs lines (Port stays unless `port` is also unset). **unset old-openssh** omits the two algorithm lines. Non-interactive: needs n/name **and** at least one field; no prompt. JSON: one `out_success` object (`n`, `dns`, `cleared`). TTY / `INTERACTIVE=1` with no field: numbered picker of currently set extra fields (`0` to leave). Unknown / out-of-range picker number **MUST** warn and redisplay that picker (**MUST NOT** `out_die`). `clear` is an unlisted alias of `unset`. Empty user after unset → omit `User`. Empty port → omit `Port`. Host line and HostName stay. | Unset dns or ip; delete the stanza; hang under `--json` / quiet / no TTY; two JSON objects; `out_die` on a bad TTY extra-settings number |
-| **set N** / **add** non-interactive | Operands `dns`/`ip`/`user`/`port`/`identity-file`/`identities-only`/`termux`/`old-openssh`, or the `--` forms. Omitted fields on **set** stay unchanged. **add** requires a dns name. `""` or empty value clears that field. Port empty or `22` → omit `Port` line (OpenSSH default 22). Empty user → omit `User`. Empty ip → omit `HostName`. Empty identity-file → omit `IdentityFile`. Empty identities-only → omit `IdentitiesOnly`. Empty dns name after normalize → `out_die`. Port if set must be 1–65535. **termux yes** (add or set) writes the Termux client bundle (Port **8022**, Ciphers **aes128-ctr,aes256-ctr**, MACs **hmac-sha2-256**, ServerAliveInterval **15**, ServerAliveCountMax **12**, TCPKeepAlive **yes**, IPQoS **none**) and **overrides** port. Simpler Ciphers/MACs exist because some Termux OpenSSH `sshd` versions reply too slowly and the client then aborts with **Connection corrupted** / **Bad packet length**. **termux no** on **set** strips those keep-alive / IPQoS / Ciphers / MACs lines (Port stays unless `port` is also set). **old-openssh yes** writes `HostKeyAlgorithms +ssh-rsa,ssh-dss` and `PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss`. On Termux (`sshd_is_termux`) those two lines **MUST** be comments (`# HostKeyAlgorithms …`, `# PubkeyAcceptedAlgorithms …`): an active keyword makes the Termux OpenSSH client error. **old-openssh** stays **yes** when the lines are only comments. **old-openssh no** on **set** omits those two lines, comments included. Non-interactive **add** without `termux yes` / `old-openssh yes` **MUST NOT** write those bundles. Unowned extra keys stay. | Prompt; follow `Include`; apply Termux/Old OpenSSH bundles on add without the operand; drop unowned extra keys |
-| **Write** | Backup via `util_backup` then **atomic replace** (mktemp + `mv`) for **set, add, delete, and unset**. Create `~/.ssh` mode `700` and `config` mode `600` when missing. Keep unrelated stanzas, extra keys, and extra Host aliases after the first pattern (delete drops only the chosen stanza; unset keeps the Host line and HostName). Read `Key value`, `Key=value`, and `Key = value`. **add** inserts the new Host **before** the first wildcard `Host` / `Match` (OpenSSH first-match). Duplicate dns name on rename/add → `out_die`. | Overwrite the whole file from a stub; print private keys; `>>` after trailing `Host *`; drop extra aliases on an IP-only set; drop the Host stanza on unset |
+| **set N** / **add** non-interactive | Operands `dns`/`ip`/`user`/`port`/`identity-file`/`identities-only`/`termux`/`old-openssh`, or the `--` forms. Omitted fields on **set** stay unchanged. **add** requires a dns name. `""` or empty value clears that field. Port empty or `22` → omit `Port` line (OpenSSH default 22). Empty user → omit `User`. Empty ip → omit `HostName`. Empty identity-file → omit `IdentityFile`. Empty identities-only → omit `IdentitiesOnly`. Empty dns name after normalize → `out_die`. Port if set must be 1–65535. **termux yes** (add or set) writes the Termux client bundle (Port **8022**, Ciphers **aes128-ctr,aes256-ctr**, MACs **hmac-sha2-256**, ServerAliveInterval **15**, ServerAliveCountMax **12**, TCPKeepAlive **yes**, IPQoS **none**) and **overrides** port. Simpler Ciphers/MACs exist because some Termux OpenSSH `sshd` versions reply too slowly and the client then aborts with **Connection corrupted** / **Bad packet length**. **termux no** on **set** strips those keep-alive / IPQoS / Ciphers / MACs lines (Port stays unless `port` is also set). **old-openssh yes** writes `HostKeyAlgorithms +ssh-rsa,ssh-dss` and `PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss`. On the `termux` OS class (`sshd_fix_os_class`) those two lines **MUST** be comments (`# HostKeyAlgorithms …`, `# PubkeyAcceptedAlgorithms …`): an active keyword makes the Termux OpenSSH client error. **old-openssh** stays **yes** when the lines are only comments. **old-openssh no** on **set** omits those two lines, comments included. Non-interactive **add** without `termux yes` / `old-openssh yes` **MUST NOT** write those bundles. Unowned extra keys stay. An active keyword this OS class rejects is commented in place (Alpine: every `GSSAPI*` keyword; Termux: `HostKeyAlgorithms`, `PubkeyAcceptedAlgorithms`, `PubkeyAcceptedKeyTypes`; other OS: those keywords stay active). | Prompt; follow `Include`; apply Termux/Old OpenSSH bundles on add without the operand; drop unowned extra keys; delete an unsupported keyword instead of commenting it; comment `GSSAPI*` on an OS that accepts GSSAPI; comment the algorithm keywords on an OS that accepts them |
+| **Write** | Backup via `util_backup` then **atomic replace** (mktemp + `mv`) for **set, add, delete, and unset**. Create `~/.ssh` mode `700` and `config` mode `600` when missing. Keep unrelated stanzas, extra keys, and extra Host aliases after the first pattern (delete drops only the chosen stanza; unset keeps the Host line and HostName). Read `Key value`, `Key=value`, and `Key = value`. **add** inserts the new Host **before** the first wildcard `Host` / `Match` (OpenSSH first-match). Duplicate dns name on rename/add → `out_die`. On **set, add, delete, and unset**, comment every active keyword this OS class rejects, in the whole file (concrete Host, `Host *`, and `Match`). Alpine comments every `GSSAPI*` keyword (`GSSAPIAuthentication` prints `Unsupported option "gssapiauthentication"` when the line is active). Termux comments `HostKeyAlgorithms`, `PubkeyAcceptedAlgorithms`, and `PubkeyAcceptedKeyTypes`. Another OS leaves those keywords active. A comment that only mentions the word stays. | Overwrite the whole file from a stub; print private keys; `>>` after trailing `Host *`; drop extra aliases on an IP-only set; drop the Host stanza on unset; delete an unsupported keyword instead of commenting it; comment `GSSAPI*` on an OS that accepts GSSAPI |
 
 **Guided-input field table (Choice C — TTY walk and operands):**
 
@@ -275,7 +353,7 @@ Intention: the operator is not forced to assemble a long flag list from memory. 
 | **Operand** `<n\|name>` | Resolve like `dns show`. Missing → `out_die` with Next: `dns list` then `ssh <n\|name>` | Invent a Host |
 | **`--json`** | One object (`n`, `dns`, `command`). **MUST NOT** start a session | Mix a live `ssh` session with JSON |
 | **Binary** | `command -v ssh`, or `SSHD_CLI_SSH` override (tests inject a fake; **MUST NOT** `exec` when that override is set) | Wrap `sudo`; call `scp` for this verb |
-| **Commented algorithms** | Before `ssh` runs, read that Host stanza. If `HostKeyAlgorithms` or `PubkeyAcceptedAlgorithms` (or `PubkeyAcceptedKeyTypes`) is a **comment**, **MUST** pass `-o HostKeyAlgorithms=+ssh-rsa` on the TTY `exec`, the non-TTY batch run, and the `SSHD_CLI_SSH` override, and include it in the JSON `command` string. Menu **12** uses this same verb. | Add that `-o` when the keyword is an active config line |
+| **Commented algorithms** | Before `ssh` runs, read that Host stanza. If `HostKeyAlgorithms` or `PubkeyAcceptedAlgorithms` (or `PubkeyAcceptedKeyTypes`) is a **comment**, **MUST** pass `-o HostKeyAlgorithms=+ssh-rsa` on the TTY `exec`, the non-TTY batch run, and the `SSHD_CLI_SSH` override, and include it in the JSON `command` string. Menu **12** uses this same verb. | Add that `-o` when the keyword is an active config line; pass `-o GSSAPIAuthentication` or any other `GSSAPI*` option (`download` and `upload` included) |
 
 11. **download** (remote folder → cwd):
 
@@ -364,6 +442,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExamplePublicKeyMaterialOnly laptop-user
 - `host-keys [list|generate]`  
 - `auth-keys [list|add <file>]`  
 - `dns [list|show N|edit N|set N …|add …|delete N|unset N field …]` — This login `~/.ssh/config` Host list (numbered dns-ip; TTY as Termux / identity-file / Old OpenSSH; TTY edit/add/delete/unset; unset drops extra settings, not dns or ip)  
+- `fix-config [--input-file PATH] [--output-file PATH]` — Comment OpenSSH client keywords this OS does not support in the client config  
 - `ssh [N|name]` — OpenSSH client to a Host from this login `~/.ssh/config` (TTY: numbered pick, then user with default). A commented `HostKeyAlgorithms` / `PubkeyAcceptedAlgorithms` on that Host adds `-o HostKeyAlgorithms=+ssh-rsa` |  
 - `download [N|name] [folder]` — tar.gz a remote folder over ssh and extract it here (TTY: pick Host, then user with default, then numbered previous folders or type a path)  
 - `upload [N|name] [folder]` — tar.gz a **local** folder over ssh and extract it under the remote login home (TTY: pick Host, then user with default, then numbered previous **local** folders or type a path; `~/folder` is this login)  
@@ -402,7 +481,7 @@ JSON `about` **MUST** add fields: `sshd_platform`, `sshd_bin`, `sshd_port`, `ssh
 | Status connect hint | `ifconfig wlan0` via `sshd_ifconfig_ipv4` / `sshd_lan_ipv4`; live `Connect:` line; **no** placeholder host |
 | Start launch | §2.2.1 — systemd host + loaded `ssh.service` / `sshd.service` → `systemctl start/stop/restart` as root; else OpenSSH `sshd -f`. **No** `-D` on fallback. **No** routed `systemctl` verb. **No** `enable`/`disable`. Termux:Boot operator-owned. Termux: auto-acquire Android wake lock. Helpers: `sshd_is_systemd_host` · `sshd_systemd_unit` · `sshd_systemd_is_active` · `sshd_systemd_main_pid`. |
 | dns file | `${HOME}/.ssh/config` (OpenSSH client config; this login) |
-| dns fields | dns=`Host` · ip=`HostName` · user=`User` · port=`Port` (display 22 if empty) · identity-file=`IdentityFile` · identities-only=`IdentitiesOnly` · as Termux bundle (Port 8022 + keep-alives + IPQoS none) · Old OpenSSH (`HostKeyAlgorithms` / `PubkeyAcceptedAlgorithms` +ssh-rsa,ssh-dss) |
+| dns fields | dns=`Host` · ip=`HostName` · user=`User` · port=`Port` (display 22 if empty) · identity-file=`IdentityFile` · identities-only=`IdentitiesOnly` · as Termux bundle (Port 8022 + keep-alives + IPQoS none) · Old OpenSSH (`HostKeyAlgorithms` / `PubkeyAcceptedAlgorithms` +ssh-rsa,ssh-dss). Alpine comments an active `GSSAPI*` keyword. Termux comments an active algorithm keyword. Another OS leaves both families active |
 | dns empty token | `""` or empty operand → empty field |
 | ssh / download / upload Host | Concrete `Host` alias from this login `~/.ssh/config` (same list as `dns`) |
 | download memory | `{{HOME}}/.local/sshd-cli/download-folders` mode 600 |
@@ -426,7 +505,7 @@ fi
 sshd_wake_lock_acquire
 ```
 
-**Menu choice.** The live boards are the functions quoted in `requirement-shell-cli-default-interaction` §2.11: `app_cmd_menu`, `app_cmd_menu_client`, `app_cmd_menu_server`, `app_cmd_menu_self`, and the hide helpers `sshd_os_name`, `sshd_menu_show_daemon_rows`, `sshd_host_normal_user_only_label`. Language **6** / **61–68** and the menu-copy helpers are quoted in `requirement-shell-cli-language` (`app_cmd_menu_language`, `app_menu_text`). Each board reads with `read -r` in the current shell. An unknown choice warns and reprints that layer.
+**Menu choice.** The live boards are the functions quoted in `requirement-shell-cli-default-interaction` §2.11: `app_cmd_menu`, `app_cmd_menu_client`, `app_cmd_menu_server`, `app_cmd_menu_self`, and the hide helpers `sshd_os_name`, `sshd_menu_show_daemon_rows`, `sshd_host_normal_user_only_label`. Language **6** / **61–68** and the menu-copy helpers are quoted in `requirement-shell-cli-language` (`app_cmd_menu_language`, `app_menu_text`). Worked samples of each language’s front board and the opening of `help` and `about` are that file’s §2.4.1. The translation tables are §2.4.2. Each board reads with `read -r` in the current shell. An unknown choice warns and reprints that layer.
 
 **systemd unit pick:** probe `ssh.service` then `sshd.service`; both exist → prefer the active one, else `ssh.service`. `sshd_is_systemd_host` is false on Termux / Git Bash / Windows cmd.
 
@@ -510,7 +589,8 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 37. Treat **upload** `~/folder` as the **remote** ssh user’s home, send this login’s absolute `HOME` as the remote dest, skip the local `test -d`, or use `rsync` / a leftover tarball instead of streamed `tar.gz`.  
 38. Share `download-folders` memory with `upload-folders`, or omit numbered **`upload` (14)** from the client TTY menu.  
 39. `out_die` (or exit non-zero) solely because a TTY numbered menu received an unknown or out-of-range choice — **MUST** warn and display **that same list** again (main, sudoers, dns action, Host pick, unset picker, download/upload folder pick). Hidden server **22** / **23** / **24** on non-root POSIX Linux are the same class. Hidden front **7** on Termux / Git Bash / Windows cmd is the same class.  
-40. On Termux, write **active** `HostKeyAlgorithms` / `PubkeyAcceptedAlgorithms` lines (they **MUST** be comments). On `ssh`, skip `-o HostKeyAlgorithms=+ssh-rsa` when that Host's algorithm lines are comments, or add that `-o` when the lines are active.
+40. On the `termux` OS class, write **active** `HostKeyAlgorithms` / `PubkeyAcceptedAlgorithms` lines (they **MUST** be comments). On `ssh`, skip `-o HostKeyAlgorithms=+ssh-rsa` when that Host's algorithm lines are comments, or add that `-o` when the lines are active.  
+41. On Alpine, leave an active `GSSAPI*` line, or delete that line instead of commenting it. On Termux, leave an active `HostKeyAlgorithms` / `PubkeyAcceptedAlgorithms` / `PubkeyAcceptedKeyTypes` line. On another OS, comment those keywords. Skip the automatic `fix-config` pass against `{{HOME}}/.ssh/config`, or print from that pass. Pass `-o GSSAPIAuthentication` from `ssh`, `download`, or `upload`. Number `fix-config` as a menu row.
 
 ## 5. Related artifacts (versioned surface only)
 
@@ -534,7 +614,8 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 | **TP-SSHD-09** .. **TP-SSHD-14**, **TP-SSHD-16** | `tests/test_cli.sh` | have |
 | **TP-SSHD-15** | `tests/test_local_lifecycle.sh` | have |
 | **TP-LC-16**, **TP-LC-17**, **TP-SSHD-02**, **TP-TX-09**, **TP-TX-13**, **TP-TX-16** | `tests/test_local_lifecycle.sh` | have |
-| **TP-DNS-01** .. **TP-DNS-51** | `tests/test_dns.sh` | have |
+| **TP-DNS-01** .. **TP-DNS-52** | `tests/test_dns.sh` | have |
+| **TP-FIX-01** .. **TP-FIX-14** | `tests/test_fix_config.sh` | have |
 | **TP-SSH-01** .. **TP-SSH-10** | `tests/test_ssh_download.sh` | have |
 | **TP-DL-01** .. **TP-DL-17** | `tests/test_ssh_download.sh` | have |
 | **TP-CFG-17** | `tests/test_config_backup.sh` | have |
@@ -543,6 +624,6 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-09-28 (1.26.6 language **67–68**. 1.26.5 language **63–66**. 1.26.4 front **6** language. 1.26.3 menu handler is `app_cmd_menu`. 1.26.2 menu sample points at the live boards in `requirement-shell-cli-default-interaction` §2.11. 1.26.1 menu-hidden message: client and server sentences stay; front **7** hide is its own cause and still Gap. 1.26.0 Termux Old OpenSSH comments and `ssh -o HostKeyAlgorithms=+ssh-rsa`; **TP-DNS-50** · **TP-DNS-51** · **TP-SSH-10**. 1.25.0 sudoers front **7** / **71–75**. Finished TTY leaf redisplays the front board; **TP-CLI-22**)  
+**Last Updated**: 2026-09-30 (1.27.0 `fix-config` comments unsupported OpenSSH client keywords by OS class, including an automatic pass on `~/.ssh/config`. Add, update, and review share that rule. **TP-FIX-01..14**. **TP-DNS-52**. 1.26.8 Alpine OpenSSH does not support an active `GSSAPIAuthentication`. 1.26.7 menu sample also points at the language requirement’s worked samples and translation tables. 1.26.6 language **67–68**. 1.26.5 language **63–66**. 1.26.4 front **6** language. 1.26.3 menu handler is `app_cmd_menu`. 1.26.2 menu sample points at the live boards in `requirement-shell-cli-default-interaction` §2.11. 1.26.1 menu-hidden message: client and server sentences stay; front **7** hide is its own cause and still Gap. 1.26.0 Termux Old OpenSSH comments and `ssh -o HostKeyAlgorithms=+ssh-rsa`; **TP-DNS-50** · **TP-DNS-51** · **TP-SSH-10**. 1.25.0 sudoers front **7** / **71–75**. Finished TTY leaf redisplays the front board; **TP-CLI-22**)  
 **Owner**: Cloudgen Wong  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

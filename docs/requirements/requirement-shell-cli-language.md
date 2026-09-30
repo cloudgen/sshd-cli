@@ -1,12 +1,12 @@
 **file**: docs/requirements/requirement-shell-cli-language.md
-**Status**: Active (Version 1.2.0)
+**Status**: Active (Version 1.3.1)
 **Area**: shell
 **Key**: `requirement-shell-cli-language`
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This requirement is the product law for **menu language** on sshd-cli: English, Traditional Chinese, Spanish, French, German, Simplified Chinese, Japanese, and Korean, the saved code, the words the numbered menu prints, and the human text of `help` and `about`.
+This requirement is the product law for **menu language** on sshd-cli: English, Traditional Chinese, Spanish, French, German, Simplified Chinese, Japanese, and Korean, the saved code, the words the numbered menu prints, the human text of `help` and `about`, the worked samples of those boards, and the translation tables for the lines the samples do not show in every language.
 
 The numbered tree (which row is **6**, which child is **61** through **68**, Back, and the current-shell `read`) stays owned by `requirement-shell-cli-default-interaction`. The persistence directory stays owned by `requirement-shell-cli-storage`. This file owns the language codes, the `language` leaf, and the menu copy.
 
@@ -131,6 +131,347 @@ Back and Exit on these boards:
 | `de` | `0. Zurück` | `9. Beenden` |
 | `ja` | `0. 戻る` | `9. 終了` |
 | `ko` | `0. 뒤로` | `9. 종료` |
+
+### 2.4.1 Worked samples
+
+These fences are a live run with the terminal ink written as markdown: **bold** short, *italic* long. The version token is the live `VERSION`. These fences show `1.30.0`. The choose-prompt in the source ends with one space. These fences omit that space. **MUST** print the front board, and the opening of human `help` and human `about`, for each code as these samples say. **MUST NOT** invent a line the ship unit does not print. Deeper boards keep the English verb as the leaf short (§2.4). The language-board longs in a language other than English are §2.4.2. The §2.6 fences stay the full functions.
+
+English (`en`), front board, then the language board, then the opening of `help` and `about`:
+
+```text
+[INFO] **sshd-cli**(*1.30.0*)
+1. **client-side**: *this login OpenSSH client (~/.ssh/config, ssh, folders)*
+2. **server-side**: *this host OpenSSH sshd (listen, keys, port)*
+6. **language**: *display language for this menu*
+7. **sudoers**: *grant and drafts for passwordless sudo*
+8. **self-management**: *this CLI install, version, update, uninstall*
+9. Exit
+Choose a number, or type the command name:
+```
+
+```text
+[INFO] **sshd-cli**(*1.30.0*) — language
+61. **English**: *use English for this menu*
+62. **繁體中文**: *use Traditional Chinese for this menu*
+63. **Español**: *use Spanish for this menu*
+64. **Français**: *use French for this menu*
+65. **Deutsch**: *use German for this menu*
+66. **简体中文**: *use Simplified Chinese for this menu*
+67. **日本語**: *use Japanese for this menu*
+68. **한국어**: *use Korean for this menu*
+0. Back
+Choose a number, or type the command name:
+```
+
+```text
+[INFO] sshd-cli — Simplify Termux to install sshd
+[INFO] Usage:
+  sshd-cli [command] [options]
+[INFO] === sshd-cli 1.30.0 - About / Diagnostics ===
+[OK] sshd-cli is properly installed.
+```
+
+Traditional Chinese (`zh-Hant`), after **62**:
+
+```text
+[INFO] **sshd-cli**(*1.30.0*)
+1. **用戶端**: *這個登入的 OpenSSH 用戶端（~/.ssh/config、ssh、資料夾）*
+2. **伺服器端**: *這台主機的 OpenSSH sshd（接聽、金鑰、連接埠）*
+6. **語言**: *這個選單的顯示語言*
+7. **sudoers**: *免密碼 sudo 的授權與草稿*
+8. **自我管理**: *這個 CLI 的安裝、版本、更新、移除*
+9. 離開
+請輸入編號，或輸入指令名稱：
+```
+
+```text
+[INFO] sshd-cli — 簡化 Termux 安裝 sshd
+[INFO] 用法：
+  sshd-cli [命令] [選項]
+[INFO] === sshd-cli 1.30.0 - 關於 / 診斷 ===
+[OK] sshd-cli 已正確安裝。
+```
+
+Spanish (`es`), after **63**:
+
+```text
+[INFO] **sshd-cli**(*1.30.0*)
+1. **cliente**: *cliente OpenSSH de este inicio (~/.ssh/config, ssh, carpetas)*
+2. **servidor**: *sshd OpenSSH de este equipo (escucha, claves, puerto)*
+6. **idioma**: *idioma de este menú*
+7. **sudoers**: *concesión y borradores de sudo sin contraseña*
+8. **autogestión**: *instalación, versión, actualización y desinstalación de este CLI*
+9. Salir
+Elija un número, o escriba el nombre del comando:
+```
+
+```text
+[INFO] sshd-cli — simplificar la instalación de sshd en Termux
+[INFO] Uso:
+  sshd-cli [comando] [opciones]
+[INFO] === sshd-cli 1.30.0 - Acerca de / diagnóstico ===
+[OK] sshd-cli está instalado correctamente.
+```
+
+French (`fr`), after **64**:
+
+```text
+[INFO] **sshd-cli**(*1.30.0*)
+1. **client**: *client OpenSSH de cette session (~/.ssh/config, ssh, dossiers)*
+2. **serveur**: *sshd OpenSSH de cet hôte (écoute, clés, port)*
+6. **langue**: *langue d'affichage de ce menu*
+7. **sudoers**: *autorisation et brouillons pour sudo sans mot de passe*
+8. **autogestion**: *installation, version, mise à jour et retrait de ce CLI*
+9. Quitter
+Choisissez un numéro, ou saisissez le nom de la commande :
+```
+
+```text
+[INFO] sshd-cli — simplifier l'installation de sshd sur Termux
+[INFO] Utilisation :
+  sshd-cli [commande] [options]
+[INFO] === sshd-cli 1.30.0 - À propos / diagnostic ===
+[OK] sshd-cli est correctement installé.
+```
+
+German (`de`), after **65**:
+
+```text
+[INFO] **sshd-cli**(*1.30.0*)
+1. **Client**: *OpenSSH-Client dieser Anmeldung (~/.ssh/config, ssh, Ordner)*
+2. **Server**: *OpenSSH-sshd dieses Rechners (wartet, Schlüssel, Port)*
+6. **Sprache**: *Anzeigesprache dieses Menüs*
+7. **sudoers**: *Freigabe und Entwürfe für sudo ohne Passwort*
+8. **Selbstverwaltung**: *Installation, Version, Aktualisierung und Entfernen dieses CLI*
+9. Beenden
+Wählen Sie eine Nummer, oder geben Sie den Befehlsnamen ein:
+```
+
+```text
+[INFO] sshd-cli — sshd auf Termux einfach installieren
+[INFO] Verwendung:
+  sshd-cli [Befehl] [Optionen]
+[INFO] === sshd-cli 1.30.0 - Über / Diagnose ===
+[OK] sshd-cli ist ordnungsgemäß installiert.
+```
+
+Simplified Chinese (`zh-Hans`), after **66**:
+
+```text
+[INFO] **sshd-cli**(*1.30.0*)
+1. **客户端**: *这个登录的 OpenSSH 客户端（~/.ssh/config、ssh、文件夹）*
+2. **服务器端**: *这台主机的 OpenSSH sshd（监听、密钥、端口）*
+6. **语言**: *这个菜单的显示语言*
+7. **sudoers**: *免密码 sudo 的授权与草稿*
+8. **自我管理**: *这个 CLI 的安装、版本、更新、移除*
+9. 离开
+请输入编号，或输入指令名称：
+```
+
+```text
+[INFO] sshd-cli — 简化 Termux 安装 sshd
+[INFO] 用法：
+  sshd-cli [命令] [选项]
+[INFO] === sshd-cli 1.30.0 - 关于 / 诊断 ===
+[OK] sshd-cli 已正确安装。
+```
+
+Japanese (`ja`), after **67**:
+
+```text
+[INFO] **sshd-cli**(*1.30.0*)
+1. **クライアント**: *このログインの OpenSSH クライアント（~/.ssh/config、ssh、フォルダ）*
+2. **サーバー**: *このホストの OpenSSH sshd（待ち受け、鍵、ポート）*
+6. **言語**: *このメニューの表示言語*
+7. **sudoers**: *パスワードなし sudo の認可と下書き*
+8. **自己管理**: *この CLI のインストール、バージョン、更新、削除*
+9. 終了
+番号を入力するか、コマンド名を入力してください:
+```
+
+```text
+[INFO] sshd-cli — Termux で sshd を簡単に導入する
+[INFO] 使い方:
+  sshd-cli [コマンド] [オプション]
+[INFO] === sshd-cli 1.30.0 - 概要 / 診断 ===
+[OK] sshd-cli は正しく配置されています。
+```
+
+Korean (`ko`), after **68**:
+
+```text
+[INFO] **sshd-cli**(*1.30.0*)
+1. **클라이언트**: *이 로그인의 OpenSSH 클라이언트(~/.ssh/config, ssh, 폴더)*
+2. **서버**: *이 호스트의 OpenSSH sshd(대기, 키, 포트)*
+6. **언어**: *이 메뉴의 표시 언어*
+7. **sudoers**: *비밀번호 없는 sudo의 허가와 초안*
+8. **자기관리**: *이 CLI의 설치, 버전, 업데이트, 제거*
+9. 종료
+번호를 입력하거나 명령 이름을 입력하세요:
+```
+
+```text
+[INFO] sshd-cli — Termux에서 sshd 설치를 단순하게
+[INFO] 사용법:
+  sshd-cli [명령] [옵션]
+[INFO] === sshd-cli 1.30.0 - 개요 / 진단 ===
+[OK] sshd-cli가 올바르게 설치되어 있습니다.
+```
+
+Row **7** is on the POSIX Linux front board. Termux, Git Bash, and Windows cmd omit that row and print no reason line (Gap on the menu requirement). The samples above include row **7** because that is the POSIX Linux board.
+
+### 2.4.2 Translation detail
+
+The shorts on the language board stay the endonyms in every UI language. The long follows the UI language. `${_mt_extra}` is the host label or the OS name the caller passes. A failed-write line and the saved-language line stay in the tables above this section.
+
+Language-board longs:
+
+| UI | Row | Long |
+|----|-----|------|
+| `en` | **61** | `use English for this menu` |
+| `en` | **62** | `use Traditional Chinese for this menu` |
+| `en` | **63** | `use Spanish for this menu` |
+| `en` | **64** | `use French for this menu` |
+| `en` | **65** | `use German for this menu` |
+| `en` | **66** | `use Simplified Chinese for this menu` |
+| `en` | **67** | `use Japanese for this menu` |
+| `en` | **68** | `use Korean for this menu` |
+| `zh-Hant` | **61** | `這個選單改用英文` |
+| `zh-Hant` | **62** | `這個選單改用繁體中文` |
+| `zh-Hant` | **63** | `這個選單改用西班牙文` |
+| `zh-Hant` | **64** | `這個選單改用法文` |
+| `zh-Hant` | **65** | `這個選單改用德文` |
+| `zh-Hant` | **66** | `這個選單改用簡體中文` |
+| `zh-Hant` | **67** | `這個選單改用日文` |
+| `zh-Hant` | **68** | `這個選單改用韓文` |
+| `es` | **61** | `usar inglés en este menú` |
+| `es` | **62** | `usar chino tradicional en este menú` |
+| `es` | **63** | `usar español en este menú` |
+| `es` | **64** | `usar francés en este menú` |
+| `es` | **65** | `usar alemán en este menú` |
+| `es` | **66** | `usar chino simplificado en este menú` |
+| `es` | **67** | `usar japonés en este menú` |
+| `es` | **68** | `usar coreano en este menú` |
+| `fr` | **61** | `utiliser l'anglais pour ce menu` |
+| `fr` | **62** | `utiliser le chinois traditionnel pour ce menu` |
+| `fr` | **63** | `utiliser l'espagnol pour ce menu` |
+| `fr` | **64** | `utiliser le français pour ce menu` |
+| `fr` | **65** | `utiliser l'allemand pour ce menu` |
+| `fr` | **66** | `utiliser le chinois simplifié pour ce menu` |
+| `fr` | **67** | `utiliser le japonais pour ce menu` |
+| `fr` | **68** | `utiliser le coréen pour ce menu` |
+| `de` | **61** | `Englisch für dieses Menü verwenden` |
+| `de` | **62** | `Traditionelles Chinesisch für dieses Menü verwenden` |
+| `de` | **63** | `Spanisch für dieses Menü verwenden` |
+| `de` | **64** | `Französisch für dieses Menü verwenden` |
+| `de` | **65** | `Deutsch für dieses Menü verwenden` |
+| `de` | **66** | `Vereinfachtes Chinesisch für dieses Menü verwenden` |
+| `de` | **67** | `Japanisch für dieses Menü verwenden` |
+| `de` | **68** | `Koreanisch für dieses Menü verwenden` |
+| `zh-Hans` | **61** | `这个菜单改用英文` |
+| `zh-Hans` | **62** | `这个菜单改用繁体中文` |
+| `zh-Hans` | **63** | `这个菜单改用西班牙文` |
+| `zh-Hans` | **64** | `这个菜单改用法文` |
+| `zh-Hans` | **65** | `这个菜单改用德文` |
+| `zh-Hans` | **66** | `这个菜单改用简体中文` |
+| `zh-Hans` | **67** | `这个菜单改用日文` |
+| `zh-Hans` | **68** | `这个菜单改用韩文` |
+| `ja` | **61** | `このメニューを英語にする` |
+| `ja` | **62** | `このメニューを繁体字中国語にする` |
+| `ja` | **63** | `このメニューをスペイン語にする` |
+| `ja` | **64** | `このメニューをフランス語にする` |
+| `ja` | **65** | `このメニューをドイツ語にする` |
+| `ja` | **66** | `このメニューを簡体字中国語にする` |
+| `ja` | **67** | `このメニューを日本語にする` |
+| `ja` | **68** | `このメニューを韓国語にする` |
+| `ko` | **61** | `이 메뉴를 영어로` |
+| `ko` | **62** | `이 메뉴를 번체 중국어로` |
+| `ko` | **63** | `이 메뉴를 스페인어로` |
+| `ko` | **64** | `이 메뉴를 프랑스어로` |
+| `ko` | **65** | `이 메뉴를 독일어로` |
+| `ko` | **66** | `이 메뉴를 간체 중국어로` |
+| `ko` | **67** | `이 메뉴를 일본어로` |
+| `ko` | **68** | `이 메뉴를 한국어로` |
+
+Choose-prompt. Every source string ends with one space. The samples omit it.
+
+| Code | Source string |
+|------|----------------|
+| `en` | `Choose a number, or type the command name: ` |
+| `zh-Hant` | `請輸入編號，或輸入指令名稱： ` |
+| `es` | `Elija un número, o escriba el nombre del comando: ` |
+| `fr` | `Choisissez un numéro, ou saisissez le nom de la commande : ` |
+| `de` | `Wählen Sie eine Nummer, oder geben Sie den Befehlsnamen ein: ` |
+| `zh-Hans` | `请输入编号，或输入指令名称： ` |
+| `ja` | `番号を入力するか、コマンド名を入力してください: ` |
+| `ko` | `번호를 입력하거나 명령 이름을 입력하세요: ` |
+
+Menu-hidden sentences. The client line is the Termux / Git Bash / Windows cmd cause on the client board. The server line is the POSIX Linux non-root cause on the server board. Front **7** still has no sentence.
+
+| Code | Client hide | Server hide |
+|------|-------------|-------------|
+| `en` | `backup-config and sync-config not available for ${_mt_extra}` | `start/stop/restart sshd features are not available for non-root in ${_mt_extra}` |
+| `zh-Hant` | `backup-config 與 sync-config 不適用於 ${_mt_extra}` | `非 root 在 ${_mt_extra} 無法使用 start/stop/restart sshd` |
+| `es` | `backup-config y sync-config no están disponibles para ${_mt_extra}` | `las funciones start/stop/restart sshd no están disponibles sin root en ${_mt_extra}` |
+| `fr` | `backup-config et sync-config ne sont pas disponibles pour ${_mt_extra}` | `les fonctions start/stop/restart sshd ne sont pas disponibles hors root sur ${_mt_extra}` |
+| `de` | `backup-config und sync-config sind nicht verfügbar für ${_mt_extra}` | `start/stop/restart sshd ist ohne root auf ${_mt_extra} nicht verfügbar` |
+| `zh-Hans` | `backup-config 与 sync-config 不适用于 ${_mt_extra}` | `非 root 在 ${_mt_extra} 无法使用 start/stop/restart sshd` |
+| `ja` | `backup-config と sync-config は ${_mt_extra} では使えません` | `root 以外は ${_mt_extra} で start/stop/restart sshd を使えません` |
+| `ko` | `backup-config 와 sync-config 는 ${_mt_extra} 에서 사용할 수 없습니다` | `root가 아니면 ${_mt_extra} 에서 start/stop/restart sshd 를 사용할 수 없습니다` |
+
+Unknown-choice warn. `${_mt_extra}` is the typed token, inside single quotes in the sentence.
+
+| Code | Menu | Sudoers |
+|------|------|---------|
+| `en` | `Unknown menu choice '${_mt_extra}'. Choose a number from the list, or type the command name.` | `Unknown sudoers choice '${_mt_extra}'. Choose a number from the list, or type the command name.` |
+| `zh-Hant` | `未知的選單選項 '${_mt_extra}'。請從清單選擇編號，或輸入指令名稱。` | `未知的 sudoers 選項 '${_mt_extra}'。請從清單選擇編號，或輸入指令名稱。` |
+| `es` | `Opción de menú desconocida '${_mt_extra}'. Elija un número de la lista, o escriba el nombre del comando.` | `Opción de sudoers desconocida '${_mt_extra}'. Elija un número de la lista, o escriba el nombre del comando.` |
+| `fr` | `Choix de menu inconnu '${_mt_extra}'. Choisissez un numéro dans la liste, ou saisissez le nom de la commande.` | `Choix sudoers inconnu '${_mt_extra}'. Choisissez un numéro dans la liste, ou saisissez le nom de la commande.` |
+| `de` | `Unbekannte Menüauswahl '${_mt_extra}'. Wählen Sie eine Nummer aus der Liste, oder geben Sie den Befehlsnamen ein.` | `Unbekannte sudoers-Auswahl '${_mt_extra}'. Wählen Sie eine Nummer aus der Liste, oder geben Sie den Befehlsnamen ein.` |
+| `zh-Hans` | `未知的菜单选项 '${_mt_extra}'。请从清单选择编号，或输入指令名称。` | `未知的 sudoers 选项 '${_mt_extra}'。请从清单选择编号，或输入指令名称。` |
+| `ja` | `未知のメニュー選択 '${_mt_extra}'。一覧の番号を選ぶか、コマンド名を入力してください。` | `未知の sudoers 選択 '${_mt_extra}'。一覧の番号を選ぶか、コマンド名を入力してください。` |
+| `ko` | `알 수 없는 메뉴 선택 '${_mt_extra}'. 목록의 번호를 고르거나 명령 이름을 입력하세요.` | `알 수 없는 sudoers 선택 '${_mt_extra}'. 목록의 번호를 고르거나 명령 이름을 입력하세요.` |
+
+Sudoers header after the program name, and row **71** long. The short stays `generate-sudoer-request`. Row **71** stays a `case` arm inside `sshd_cmd_sudoers_menu`, not inside `app_menu_text`.
+
+| Code | Header | Row **71** long |
+|------|--------|-----------------|
+| `en` | `sudoers (grant and drafts)` | `Write a JSON grant you can read` |
+| `zh-Hant` | `sudoers（免密碼授權與草稿）` | `寫一份可閱讀的 JSON 授權` |
+| `es` | `sudoers (concesión y borradores)` | `Escribe una concesión JSON que se puede leer` |
+| `fr` | `sudoers (autorisation et brouillons)` | `Écrire une autorisation JSON lisible` |
+| `de` | `sudoers (Freigabe und Entwürfe)` | `Eine lesbare JSON-Freigabe schreiben` |
+| `zh-Hans` | `sudoers（免密码授权与草稿）` | `写一份可阅读的 JSON 授权` |
+| `ja` | `sudoers（パスワードなしの認可と下書き）` | `読める JSON 認可を書く` |
+| `ko` | `sudoers(비밀번호 없는 허가와 초안)` | `읽을 수 있는 JSON 허가를 작성` |
+
+Help and about lines that stay `case` arms because the English sentence contains the letters r, e, a, d in a row. The `--json` note does not, and it goes through `app_menu_text`.
+
+| Code | Help when `--json` | `--json` flag line | About `--json` line |
+|------|--------------------|--------------------|---------------------|
+| `en` | `Help text available in human-readable mode. Run without --json.` | `Machine-readable JSON (implies --quiet)` | `Machine-readable output` |
+| `zh-Hant` | `說明文字在人類可讀模式。請不要加 --json。` | `機器可處理的 JSON（同時視為 --quiet）` | `機器可處理的輸出` |
+| `es` | `El texto de ayuda está en el modo para personas. Ejecute sin --json.` | `JSON para máquinas (implica --quiet)` | `salida para máquinas` |
+| `fr` | `Le texte d'aide est dans le mode pour les personnes. Lancez sans --json.` | `JSON pour les machines (implique --quiet)` | `sortie pour les machines` |
+| `de` | `Der Hilfetext steht im Modus für Menschen. Starten Sie ohne --json.` | `JSON für Maschinen (schließt --quiet ein)` | `Ausgabe für Maschinen` |
+| `zh-Hans` | `说明文字在人可读模式。请不要加 --json。` | `机器可处理的 JSON（同时视为 --quiet）` | `机器可处理的输出` |
+| `ja` | `説明は人が読むモードにあります。--json を付けずに実行してください。` | `機械向け JSON（--quiet を含む）` | `機械向けの出力` |
+| `ko` | `도움말 문장은 사람이 읽는 모드에 있습니다. --json 없이 실행하세요.` | `기계용 JSON(--quiet 포함)` | `기계용 출력` |
+
+The `--json` note and the cache label. English, Spanish, French, German, Japanese, and Korean cache labels end with a space. The two Chinese labels end on the fullwidth colon.
+
+| Code | `--json` note | Cache label |
+|------|----------------|-------------|
+| `en` | `Use --json with version, about, version-check, install, self-install, self-update, self-uninstall, rc-test.` | `Cache folder used: ` |
+| `zh-Hant` | `請把 --json 用在 version、about、version-check、install、self-install、self-update、self-uninstall、rc-test。` | `使用的快取資料夾：` |
+| `es` | `Use --json con version, about, version-check, install, self-install, self-update, self-uninstall, rc-test.` | `Carpeta de caché en uso: ` |
+| `fr` | `Utilisez --json avec version, about, version-check, install, self-install, self-update, self-uninstall, rc-test.` | `Dossier de cache utilisé : ` |
+| `de` | `--json mit version, about, version-check, install, self-install, self-update, self-uninstall, rc-test verwenden.` | `Verwendeter Cache-Ordner: ` |
+| `zh-Hans` | `请把 --json 用在 version、about、version-check、install、self-install、self-update、self-uninstall、rc-test。` | `使用的缓存文件夹：` |
+| `ja` | `--json は version、about、version-check、install、self-install、self-update、self-uninstall、rc-test と一緒に使う。` | `使用中のキャッシュフォルダ: ` |
+| `ko` | `--json 은 version, about, version-check, install, self-install, self-update, self-uninstall, rc-test 와 함께 쓴다.` | `사용 중인 캐시 폴더: ` |
+
+Every other human `help` and `about` sentence is the matching arm in the §2.6 `app_menu_text` fence. A change to a string listed in this section, or shown in §2.4.1, updates the fence and this section in the same revision. Command tokens, flags, paths, and env names stay the Latin spelling in every language.
 
 ### 2.5 Call shape
 
@@ -1084,6 +1425,18 @@ app_menu_text() {
                 ja) _mt_out="このログインの authorized_keys" ;;
                 ko) _mt_out="이 로그인의 authorized_keys" ;;
                 *) _mt_out="This login authorized_keys" ;;
+            esac
+            ;;
+        help_fix_config)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="依這個作業系統，把 OpenSSH 用戶端設定檔裡不支援的關鍵字改成註解。可加 --input-file 與 --output-file。" ;;
+                es) _mt_out="Comenta en el config del cliente OpenSSH las palabras que este sistema no admite. Opcional --input-file y --output-file." ;;
+                fr) _mt_out="Met en commentaire les mots OpenSSH que ce système n'accepte pas dans le fichier client. --input-file et --output-file sont facultatifs." ;;
+                de) _mt_out="Kommentiert OpenSSH-Client-Schlüssel, die dieses System nicht kennt, in der Client-Datei. --input-file und --output-file sind optional." ;;
+                zh-Hans) _mt_out="按这个操作系统，把 OpenSSH 客户端配置文件里不支持的关键字改成注释。可加 --input-file 与 --output-file。" ;;
+                ja) _mt_out="この OS が受け付けない OpenSSH クライアント設定の語をコメントにする。--input-file と --output-file は任意。" ;;
+                ko) _mt_out="이 OS가 받지 않는 OpenSSH 클라이언트 설정의 낱말을 주석으로 바꿈. --input-file 과 --output-file 은 선택." ;;
+                *) _mt_out="Comment OpenSSH client keywords this OS does not support in the client config. Optional --input-file and --output-file." ;;
             esac
             ;;
         help_dns)
@@ -2065,6 +2418,8 @@ The language file lives under this login’s `$HOME`. No sudo, no root path. Row
 - Store the language file in the cache folder or under `/var/sshd-cli`.
 - Rewrite an unrecognized language file on load.
 - Replace the §2.6 fences with a shortened catalog. Those fences stay the current `./sshd-cli` functions.
+- Invent a sample line in §2.4.1, or a translation row in §2.4.2, that the ship unit does not print.
+- Change a string listed in §2.4.1 or §2.4.2 without updating the §2.6 fence in the same revision.
 
 ## 5. Definition of done
 
@@ -2078,7 +2433,8 @@ This requirement is satisfied when all of the following hold:
 6. English menu tests still match the English catalog (default). English `help` still prints `Usage:`.
 7. Human `help` and human `about` follow the saved code. JSON about fields stay English. Argv `version` stays English.
 8. §2.6 quotes the current helpers from `./sshd-cli`.
-9. **TP-CLI-24** is **have**.
+9. §2.4.1 matches a live front board and the opening of human `help` and human `about` for each code. §2.4.2 lists the language-board longs, the choose-prompt, the menu-hidden sentences, the unknown-choice warns, row **71**, and the help and about lines that stay `case` arms.
+10. **TP-CLI-24** is **have**.
 
 ### Design-time verification
 
@@ -2110,6 +2466,8 @@ This requirement is satisfied when all of the following hold:
 | 2026-09-28 | v1.0.0: English and Traditional Chinese for the numbered menu. Front **6**, **61** / **62**, file `language`. | Grok (owner request) |
 | 2026-09-28 | v1.1.0: Spanish (`es`, **63**), French (`fr`, **64**), German (`de`, **65**), Simplified Chinese (`zh-Hans`, **66**). | Grok (owner request) |
 | 2026-09-28 | v1.2.0: Japanese (`ja`, **67**), Korean (`ko`, **68**). Human `help` and human `about` follow `APP_LANG`. `app_lang_load` runs once in `app_main`. | Grok (owner request) |
+| 2026-09-28 | v1.3.0: worked samples of each front board and of the opening of `help` and `about` (§2.4.1). Translation tables for the language-board longs, prompts, hide lines, warns, row **71**, and the help/about lines that stay `case` arms (§2.4.2). | Grok (owner request) |
+| 2026-09-30 | v1.3.1: `help_fix_config` in the §2.6 `app_menu_text` fence. Live sample tokens follow `VERSION` **1.30.0**. | Grok (owner request) |
 
 ## 8. Terminology
 
@@ -2120,9 +2478,10 @@ Words this requirement uses. Each row is the term and the definition this file m
 | **Menu language** | The saved choice for the words on the numbered boards named in §2.4, and for human `help` and human `about`. English is the default. Traditional Chinese, Spanish, French, German, Simplified Chinese, Japanese, and Korean are the other choices. The numbers do not change. |
 | **Language code** | `en`, `zh-Hant`, `es`, `fr`, `de`, `zh-Hans`, `ja`, or `ko`. The first line of the language file, or `SSHD_CLI_LANG` when that variable is one of those eight codes. Anything else is English for this process. |
 | **Menu copy** | The layer titles, category shorts, long descriptions, Back, Exit, choose-prompt, unknown-choice warn, menu-hidden sentences, and the human text of `help` and `about` that follow the language code. Leaf shorts stay the English verb. JSON about fields stay English. |
-| **English catalog** | The menu words printed when the language code is `en`. The tables in the menu requirement are this catalog. |
+| **English catalog** | The menu words printed when the language code is `en`. The tables in the menu requirement are this catalog. §2.4.1 shows that board. The other codes use the samples and the translation tables in this file. |
+| **Worked sample** | A markdown transcription of a live board, or of the opening of `help` and `about`. Bold is the short. Italic is the long. The version token is the live `VERSION`. The source choose-prompt ends with a space that the sample omits. |
 | **Do not capture `read`** | A `read`, and any helper whose body contains `read`, runs in the current shell. `app_cmd_menu_language` is that kind of helper. `app_menu_text` is not, and its body must stay free of those letters so a command substitution stays legal. |
 
-**Last Updated**: 2026-09-28 (1.2.0 adds `ja`, `ko`, and human help/about. 1.1.0 adds `es`, `fr`, `de`, `zh-Hans`)
+**Last Updated**: 2026-09-30 (1.3.1 `help_fix_config` and live `VERSION` **1.30.0** in the samples. 1.3.0 worked samples and translation tables. 1.2.0 adds `ja`, `ko`, and human help/about. 1.1.0 adds `es`, `fr`, `de`, `zh-Hans`)
 **Owner**: sshd-cli project maintainers
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

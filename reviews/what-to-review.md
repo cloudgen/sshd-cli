@@ -4,8 +4,8 @@
 **Class:** software-development · domain SSOT `requirement-domain-sshd` · online-install channel + TTY menu / non-TTY CLI self-install.  
 **Always load first:** `reviews/lessons.md`
 
-**Last plan update:** 2026-09-28  
-**Ship unit VERSION:** 1.29.0  
+**Last plan update:** 2026-09-30  
+**Ship unit VERSION:** 1.30.0  
 **Suite baseline:** see `reviews/test-plan.md`
 
 ---
@@ -15,7 +15,7 @@
 | # | Check | Notes |
 |---|--------|-------|
 | P1 | Read `docs/requirements/index.md` | Class + 17 shell + domain sshd + 3 pointers (22 Active, including `requirement-shell-cli-self-install`) |
-| P2 | Confirm ship unit `src/sshd-cli` / `./sshd-cli` | `APP_NAME` / `VERSION` hard-assign (**1.29.0**); same bytes |
+| P2 | Confirm ship unit `src/sshd-cli` / `./sshd-cli` | `APP_NAME` / `VERSION` hard-assign (**1.30.0**); same bytes |
 | P3 | Load `reviews/lessons.md` and re-check open L-* that still apply | Skip L-SUDOERS / restore lessons as parent-only |
 | P4 | Run `./tests/run.sh` | Record PASS/FAIL/SKIP in report |
 | P5 | Confirm install **channel** is `cloudgen/sshd-cli` | `SCRIPT_URL` default raw GitHub |
@@ -30,7 +30,7 @@
 | Surface | Path | Review focus |
 |---------|------|--------------|
 | Class | `requirement-class-software-dev.md` | posix-sh; Termux sshd purpose; **project nature** |
-| Domain | `requirement-domain-sshd.md` | status/start/stop/port/keys/menu/dns; Termux daemonize; POSIX Linux systemd `systemctl` unit path; this-login ssh_config dns-ip; non-root server hides **22–24**; Termux Old OpenSSH comments + `ssh -o`; TTY unknown choice redisplay; **upload** client **14** (**TP-UL-01..18**); sudoers front **7** |
+| Domain | `requirement-domain-sshd.md` | status/start/stop/port/keys/menu/dns; `fix-config` comments unsupported OpenSSH client keywords by OS and runs on every start against `~/.ssh/config`; Termux daemonize; POSIX Linux systemd `systemctl` unit path; this-login ssh_config dns-ip; non-root server hides **22–24**; Termux Old OpenSSH comments + `ssh -o`; TTY unknown choice redisplay; **upload** client **14** (**TP-UL-01..18**); sudoers front **7** |
 | CLI interface | `requirement-shell-cli-interface.md` | This-login + domain commands, flags, dispatch; dual mention |
 | Empty argv | `requirement-shell-cli-zero-arguments.md` · `requirement-shell-cli-self-install.md` | TTY **menu** / non-TTY **CLI self-install** (not payload) |
 | Self-management | `requirement-shell-self-management.md` | install / self-update / self-uninstall; companion **call site** |

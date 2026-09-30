@@ -31,6 +31,8 @@ export APP_NAME
 . "${TESTS_ROOT}/test_local_lifecycle.sh"
 # shellcheck source=test_dns.sh
 . "${TESTS_ROOT}/test_dns.sh"
+# shellcheck source=test_fix_config.sh
+. "${TESTS_ROOT}/test_fix_config.sh"
 # shellcheck source=test_config_backup.sh
 . "${TESTS_ROOT}/test_config_backup.sh"
 # shellcheck source=test_ssh_download.sh
@@ -59,6 +61,7 @@ fi
 run_test_cli
 run_test_local_lifecycle
 run_test_dns
+run_test_fix_config
 run_test_config_backup
 run_test_ssh_download
 

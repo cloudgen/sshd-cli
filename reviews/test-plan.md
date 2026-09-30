@@ -3,7 +3,7 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.29.0  
+**Product VERSION:** 1.30.0  
 **Last plan update:** 2026-09-28  
 **Last suite run:** PASS=844 FAIL=22 SKIP=0 (`./tests/run.sh`, 2026-09-28, product 1.28.0). **TP-CLI-23** passed. Menu **7** / **71–75** passed (TP-CLI-14, TP-CFG-17, TP-SSHD-04). The 22 failures are pre-existing TP-DL-* `tar xzf` cases on the fake download archive (same class on unchanged HEAD). Upload cases and the menu cases passed.
 
@@ -146,6 +146,21 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-DNS-28 | `old-openssh yes` writes HostKeyAlgorithms / PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-50 | Termux `old-openssh yes` writes those lines as comments; show stays yes | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-51 | Termux `old-openssh no` removes the commented algorithm lines | test_dns | requirement-domain-sshd | **have** |
+| TP-DNS-52 | posix dns set keeps active `GSSAPI*`; alpine dns set/add comments those lines and keeps other extra keys | test_dns | requirement-domain-sshd | **have** |
+| TP-FIX-01 | help lists `fix-config` with `--input-file` and `--output-file` | test_fix_config | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
+| TP-FIX-02 | a flag before the verb is an unknown command | test_fix_config | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
+| TP-FIX-03 | alpine `--input-file` comments `GSSAPI*` in place; other keys stay; mode 600; one backup | test_fix_config | requirement-domain-sshd | **have** |
+| TP-FIX-04 | second alpine pass is unchanged and adds no backup | test_fix_config | requirement-domain-sshd | **have** |
+| TP-FIX-05 | both flags: input stays, output is the commented copy, one JSON object | test_fix_config | requirement-domain-sshd · requirement-shell-output-requirements | **have** |
+| TP-FIX-06 | `--output-file` only: automatic pass comments `~/.ssh/config`, output matches, rolling backup | test_fix_config | requirement-domain-sshd | **have** |
+| TP-FIX-07 | termux comments the three algorithm keywords and leaves `GSSAPI*` active | test_fix_config | requirement-domain-sshd | **have** |
+| TP-FIX-08 | posix comments neither family | test_fix_config | requirement-domain-sshd | **have** |
+| TP-FIX-09 | missing file, empty flag, and unknown operand fail closed | test_fix_config | requirement-domain-sshd · requirement-shell-cli-interface | **have** |
+| TP-FIX-10 | `version` comments `~/.ssh/config` on alpine and prints no comment banner; second run does not rewrite | test_fix_config | requirement-domain-sshd | **have** |
+| TP-FIX-11 | `--json version` stays one object while the file is commented | test_fix_config | requirement-domain-sshd · requirement-shell-output-requirements | **have** |
+| TP-FIX-12 | `--quiet fix-config` comments and prints no human line | test_fix_config | requirement-domain-sshd · requirement-shell-output-requirements | **have** |
+| TP-FIX-13 | termux review comments algorithm lines; `dns show` stays `old-openssh: yes` | test_fix_config | requirement-domain-sshd | **have** |
+| TP-FIX-14 | suite source has no dotted IPv4 | test_fix_config | requirement-domain-sshd | **have** |
 | TP-DNS-29 | `identity-file` + `identities-only` written and shown | test_dns | requirement-domain-sshd | **have** |
 | TP-DNS-30 | INTERACTIVE add default as Termux (Y) + Old OpenSSH (Y) | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-DNS-31 | INTERACTIVE add Termux n prompts Port; Old OpenSSH n omits algorithms | test_dns | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |

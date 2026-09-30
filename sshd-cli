@@ -58,7 +58,7 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config / sync-from-remote).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.29.0"
+VERSION="1.30.0"
 : "${VERSION:=1.29.0}"
 
 # Runtime flags (safe defaults)
@@ -5846,12 +5846,222 @@ sshd_dns_commit_tmp() {
     unset _cm_tmp _cm_cfg
 }
 
+# OS class for OpenSSH client keywords. SSHD_CLI_OS overrides detect.
+# alpine: ID or ID_LIKE contains alpine. termux: sshd_is_termux. else posix.
+# requirement-domain-sshd.
+sshd_fix_os_class() {
+    case "${SSHD_CLI_OS-}" in
+        alpine|termux|posix)
+            printf '%s' "${SSHD_CLI_OS}"
+            return 0
+            ;;
+    esac
+    if sshd_is_termux; then
+        printf '%s' termux
+        return 0
+    fi
+    if [ -r /etc/os-release ]; then
+        _foc_id=$(grep -E '^(ID|ID_LIKE)=' /etc/os-release 2>/dev/null || true)
+        case "${_foc_id}" in
+            *alpine*)
+                unset _foc_id
+                printf '%s' alpine
+                return 0
+                ;;
+        esac
+        unset _foc_id
+    fi
+    printf '%s' posix
+}
+
+# Comment active keywords this OS rejects. Keep indent. Leave other lines.
+# Alpine: GSSAPI*. Termux: HostKeyAlgorithms, PubkeyAcceptedAlgorithms,
+# PubkeyAcceptedKeyTypes. posix: those keywords stay active.
+# requirement-domain-sshd.
+sshd_fix_config_render() {
+    _fcr_src="$1"
+    _fcr_dst="$2"
+    _fcr_os=$(sshd_fix_os_class)
+    if ! awk -v os="${_fcr_os}" '
+        function unsupported(k) {
+            if (os == "alpine" && k ~ /^gssapi/) return 1
+            if (os == "termux" && (k == "hostkeyalgorithms" || k == "pubkeyacceptedalgorithms" || k == "pubkeyacceptedkeytypes")) return 1
+            return 0
+        }
+        {
+            line = $0
+            indent = ""
+            rest = line
+            if (match(line, /^[[:space:]]*/)) {
+                indent = substr(line, 1, RLENGTH)
+                rest = substr(line, RLENGTH + 1)
+            }
+            if (rest == "" || substr(rest, 1, 1) == "#") {
+                print line
+                next
+            }
+            if (match(rest, /^[A-Za-z][A-Za-z0-9]*/)) {
+                k = tolower(substr(rest, RSTART, RLENGTH))
+                if (unsupported(k)) {
+                    print indent "# " rest
+                    next
+                }
+            }
+            print line
+        }
+    ' "${_fcr_src}" > "${_fcr_dst}"; then
+        unset _fcr_src _fcr_dst _fcr_os
+        return 1
+    fi
+    unset _fcr_src _fcr_dst _fcr_os
+    return 0
+}
+
+# Silent pass on this login ~/.ssh/config. Missing, unreadable, or
+# unwritable is a no-op. Identical text is a no-op. No out_* (version
+# and --json stay one object). requirement-domain-sshd.
+sshd_fix_config_auto() {
+    : "${HOME:=/tmp}"
+    _fca_cfg="${HOME}/.ssh/config"
+    if [ ! -f "${_fca_cfg}" ] || [ ! -r "${_fca_cfg}" ] || [ ! -w "${_fca_cfg}" ]; then
+        unset _fca_cfg
+        return 0
+    fi
+    _fca_tmp=$(mktemp -t "${APP_NAME}.fix-config.XXXXXX") || {
+        unset _fca_cfg
+        return 0
+    }
+    if ! sshd_fix_config_render "${_fca_cfg}" "${_fca_tmp}"; then
+        rm -f "${_fca_tmp}" >/dev/null 2>&1 || true
+        unset _fca_cfg _fca_tmp
+        return 0
+    fi
+    if cmp -s "${_fca_cfg}" "${_fca_tmp}"; then
+        rm -f "${_fca_tmp}" >/dev/null 2>&1 || true
+        unset _fca_cfg _fca_tmp
+        return 0
+    fi
+    if ! cp -f "${_fca_cfg}" "${_fca_cfg}.fix-config.bak"; then
+        rm -f "${_fca_tmp}" >/dev/null 2>&1 || true
+        unset _fca_cfg _fca_tmp
+        return 0
+    fi
+    chmod 600 "${_fca_cfg}.fix-config.bak" 2>/dev/null || true
+    if ! mv "${_fca_tmp}" "${_fca_cfg}"; then
+        rm -f "${_fca_tmp}" >/dev/null 2>&1 || true
+        unset _fca_cfg _fca_tmp
+        return 0
+    fi
+    chmod 600 "${_fca_cfg}" 2>/dev/null || true
+    unset _fca_cfg _fca_tmp
+}
+
+# Comment unsupported OpenSSH client keywords. Flags follow the verb.
+# requirement-domain-sshd.
+sshd_cmd_fix_config() {
+    _fcc_in=""
+    _fcc_out=""
+    _fcc_in_set=0
+    _fcc_out_set=0
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --input-file)
+                if [ $# -lt 2 ] || [ -z "${2-}" ]; then
+                    out_die "--input-file requires a path. Next: ${APP_NAME} fix-config [--input-file PATH] [--output-file PATH]."
+                fi
+                _fcc_in="$2"
+                _fcc_in_set=1
+                shift 2
+                ;;
+            --output-file)
+                if [ $# -lt 2 ] || [ -z "${2-}" ]; then
+                    out_die "--output-file requires a path. Next: ${APP_NAME} fix-config [--input-file PATH] [--output-file PATH]."
+                fi
+                _fcc_out="$2"
+                _fcc_out_set=1
+                shift 2
+                ;;
+            *)
+                out_die "Unknown fix-config operand: $1. Next: ${APP_NAME} fix-config [--input-file PATH] [--output-file PATH]."
+                ;;
+        esac
+    done
+    if [ "${_fcc_in_set}" -eq 0 ]; then
+        _fcc_in="${HOME}/.ssh/config"
+    fi
+    if [ ! -f "${_fcc_in}" ] || [ ! -r "${_fcc_in}" ]; then
+        out_die "Cannot read ssh config: ${_fcc_in}."
+    fi
+    _fcc_os=$(sshd_fix_os_class)
+    _fcc_tmp=$(mktemp -t "${APP_NAME}.fix-config.XXXXXX") || out_die "Could not create a temp file for ssh config."
+    if ! sshd_fix_config_render "${_fcc_in}" "${_fcc_tmp}"; then
+        rm -f "${_fcc_tmp}" >/dev/null 2>&1 || true
+        out_die "Could not rewrite ${_fcc_in}."
+    fi
+    _fcc_changed=false
+    if ! cmp -s "${_fcc_in}" "${_fcc_tmp}"; then
+        _fcc_changed=true
+    fi
+    if [ "${_fcc_out_set}" -eq 1 ] && [ "${_fcc_out}" != "${_fcc_in}" ]; then
+        _fcc_dir=$(dirname "${_fcc_out}")
+        if [ ! -d "${_fcc_dir}" ] || [ ! -w "${_fcc_dir}" ]; then
+            rm -f "${_fcc_tmp}" >/dev/null 2>&1 || true
+            out_die "Cannot write ssh config: ${_fcc_out}."
+        fi
+        if [ -e "${_fcc_out}" ] && [ ! -w "${_fcc_out}" ]; then
+            rm -f "${_fcc_tmp}" >/dev/null 2>&1 || true
+            out_die "Cannot write ssh config: ${_fcc_out}."
+        fi
+        if ! mv "${_fcc_tmp}" "${_fcc_out}"; then
+            rm -f "${_fcc_tmp}" >/dev/null 2>&1 || true
+            out_die "Could not write ${_fcc_out}."
+        fi
+        chmod 600 "${_fcc_out}" 2>/dev/null || true
+        unset _fcc_dir
+    else
+        if [ "${_fcc_changed}" = "true" ]; then
+            if [ ! -w "${_fcc_in}" ]; then
+                rm -f "${_fcc_tmp}" >/dev/null 2>&1 || true
+                out_die "ssh config is not writable: ${_fcc_in}."
+            fi
+            sshd_dns_backup "${_fcc_in}" "fix-config"
+            if ! mv "${_fcc_tmp}" "${_fcc_in}"; then
+                rm -f "${_fcc_tmp}" >/dev/null 2>&1 || true
+                out_die "Could not replace ${_fcc_in}."
+            fi
+            chmod 600 "${_fcc_in}" 2>/dev/null || true
+        else
+            rm -f "${_fcc_tmp}" >/dev/null 2>&1 || true
+        fi
+    fi
+    if [ "${_fcc_changed}" = "true" ]; then
+        _fcc_msg="Commented unsupported OpenSSH client keywords (${_fcc_os})."
+    else
+        _fcc_msg="OpenSSH client config already matches this OS (${_fcc_os})."
+    fi
+    out_json "fix-config" "${_fcc_msg}" "changed" "${_fcc_changed}" "os" "${_fcc_os}"
+    out_success "${_fcc_msg}"
+    unset _fcc_in _fcc_out _fcc_in_set _fcc_out_set _fcc_os _fcc_tmp _fcc_changed _fcc_msg
+}
+
+# Same comment rule as fix-config, before a dns rewrite. requirement-domain-sshd.
+sshd_dns_plain_copy() {
+    _plain_in="$1"
+    _plain_out=$(mktemp -t "${APP_NAME}.ssh_config.plain.XXXXXX") || out_die "Could not create a temp file for ssh config."
+    if ! sshd_fix_config_render "${_plain_in}" "${_plain_out}"; then
+        rm -f "${_plain_out}"
+        out_die "Could not rewrite ${_plain_in}."
+    fi
+    DNS_PLAIN="${_plain_out}"
+    unset _plain_in _plain_out
+}
+
 # Rewrite concrete Host stanza number n. Empty new_* means omit that keyword.
 # Keep extra Host aliases after the first pattern; canonicalize Key value form.
 # 1 on Termux: HostKeyAlgorithms / PubkeyAcceptedAlgorithms are comments.
 # An active keyword makes the Termux OpenSSH client error.
 sshd_dns_algo_comment_flag() {
-    if sshd_is_termux; then
+    if [ "$(sshd_fix_os_class)" = "termux" ]; then
         printf '1'
     else
         printf '0'
@@ -5859,7 +6069,7 @@ sshd_dns_algo_comment_flag() {
 }
 
 sshd_dns_old_openssh_hint() {
-    if sshd_is_termux; then
+    if [ "$(sshd_fix_os_class)" = "termux" ]; then
         printf '%s' "Old OpenSSH on Termux writes HostKeyAlgorithms and PubkeyAcceptedAlgorithms as comments (an active line makes this ssh client error). ssh then passes -o HostKeyAlgorithms=+ssh-rsa."
     else
         printf '%s' "Old OpenSSH writes HostKeyAlgorithms and PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss."
@@ -5887,6 +6097,7 @@ sshd_dns_rewrite() {
     sshd_dns_backup "${_cfg}" "dns-edit"
     _tmp=$(mktemp -t "${APP_NAME}.ssh_config.XXXXXX") || out_die "Could not create a temp file for ssh config."
     _algo_comment=$(sshd_dns_algo_comment_flag)
+    sshd_dns_plain_copy "${_cfg}"
     awk -v algocomment="${_algo_comment}" -v target="${_rw_n}" -v newdns="${_new_dns}" -v newip="${_new_ip}" \
         -v newuser="${_new_user}" -v newport="${_new_port}" \
         -v newidfile="${_new_idfile}" -v newidonly="${_new_idonly}" \
@@ -6056,10 +6267,13 @@ sshd_dns_rewrite() {
             print raw
         }
         END { emit_missing() }
-    ' "${_cfg}" > "${_tmp}" || {
-        rm -f "${_tmp}"
+    ' "${DNS_PLAIN}" > "${_tmp}" || {
+        rm -f "${_tmp}" "${DNS_PLAIN}"
+        unset DNS_PLAIN
         out_die "Could not rewrite ${_cfg}."
     }
+    rm -f "${DNS_PLAIN}"
+    unset DNS_PLAIN
     sshd_dns_commit_tmp "${_tmp}" "${_cfg}"
     unset _rw_n _new_dns _new_ip _new_user _new_port _new_idfile _new_idonly
     unset _new_sai _new_sacm _new_tcpka _new_ipqos _new_hka _new_paa
@@ -6087,6 +6301,7 @@ sshd_dns_append() {
     sshd_dns_backup "${_cfg}" "dns-add"
     _tmp=$(mktemp -t "${APP_NAME}.ssh_config.XXXXXX") || out_die "Could not create a temp file for ssh config."
     _algo_comment=$(sshd_dns_algo_comment_flag)
+    sshd_dns_plain_copy "${_cfg}"
     awk -v algocomment="${_algo_comment}" -v newdns="${_new_dns}" -v newip="${_new_ip}" \
         -v newuser="${_new_user}" -v newport="${_new_port}" \
         -v newidfile="${_new_idfile}" -v newidonly="${_new_idonly}" \
@@ -6143,10 +6358,13 @@ sshd_dns_append() {
             had_output=1
         }
         END { emit_stanza() }
-    ' "${_cfg}" > "${_tmp}" || {
-        rm -f "${_tmp}"
+    ' "${DNS_PLAIN}" > "${_tmp}" || {
+        rm -f "${_tmp}" "${DNS_PLAIN}"
+        unset DNS_PLAIN
         out_die "Could not rewrite ${_cfg}."
     }
+    rm -f "${DNS_PLAIN}"
+    unset DNS_PLAIN
     sshd_dns_commit_tmp "${_tmp}" "${_cfg}"
     unset _new_dns _new_ip _new_user _new_port _new_idfile _new_idonly
     unset _new_sai _new_sacm _new_tcpka _new_ipqos _new_hka _new_paa
@@ -6160,6 +6378,7 @@ sshd_dns_remove() {
     sshd_dns_ensure_file
     sshd_dns_backup "${_cfg}" "dns-delete"
     _tmp=$(mktemp -t "${APP_NAME}.ssh_config.XXXXXX") || out_die "Could not create a temp file for ssh config."
+    sshd_dns_plain_copy "${_cfg}"
     awk -v target="${_rm_n}" '
         function parse_line(line,    s) {
             key=""; val=""; lk=""
@@ -6206,10 +6425,13 @@ sshd_dns_remove() {
             if (skip) next
             print raw
         }
-    ' "${_cfg}" > "${_tmp}" || {
-        rm -f "${_tmp}"
+    ' "${DNS_PLAIN}" > "${_tmp}" || {
+        rm -f "${_tmp}" "${DNS_PLAIN}"
+        unset DNS_PLAIN
         out_die "Could not rewrite ${_cfg}."
     }
+    rm -f "${DNS_PLAIN}"
+    unset DNS_PLAIN
     sshd_dns_commit_tmp "${_tmp}" "${_cfg}"
     unset _rm_n _cfg _tmp
 }
@@ -8757,6 +8979,18 @@ app_menu_text() {
                 *) _mt_out="This login authorized_keys" ;;
             esac
             ;;
+        help_fix_config)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="依這個作業系統，把 OpenSSH 用戶端設定檔裡不支援的關鍵字改成註解。可加 --input-file 與 --output-file。" ;;
+                es) _mt_out="Comenta en el config del cliente OpenSSH las palabras que este sistema no admite. Opcional --input-file y --output-file." ;;
+                fr) _mt_out="Met en commentaire les mots OpenSSH que ce système n'accepte pas dans le fichier client. --input-file et --output-file sont facultatifs." ;;
+                de) _mt_out="Kommentiert OpenSSH-Client-Schlüssel, die dieses System nicht kennt, in der Client-Datei. --input-file und --output-file sind optional." ;;
+                zh-Hans) _mt_out="按这个操作系统，把 OpenSSH 客户端配置文件里不支持的关键字改成注释。可加 --input-file 与 --output-file。" ;;
+                ja) _mt_out="この OS が受け付けない OpenSSH クライアント設定の語をコメントにする。--input-file と --output-file は任意。" ;;
+                ko) _mt_out="이 OS가 받지 않는 OpenSSH 클라이언트 설정의 낱말을 주석으로 바꿈. --input-file 과 --output-file 은 선택." ;;
+                *) _mt_out="Comment OpenSSH client keywords this OS does not support in the client config. Optional --input-file and --output-file." ;;
+            esac
+            ;;
         help_dns)
             case "${_mt_lang}" in
                 zh-Hant) _mt_out="這個登入的 ~/.ssh/config Host 清單（dns-ip；as Termux / identity-file / Old OpenSSH；unset 只去掉額外設定，不去掉 dns 或 ip）" ;;
@@ -10248,6 +10482,7 @@ app_help() {
     out_plain "  host-keys [list|generate]  $(app_menu_text help_host_keys)"
     out_plain "  auth-keys [list|add <file>]  $(app_menu_text help_auth_keys)"
     out_plain "  dns [list|show N|edit N|set N …|add …|delete N|unset N field …]  $(app_menu_text help_dns)"
+    out_plain "  fix-config [--input-file PATH] [--output-file PATH]  $(app_menu_text help_fix_config)"
     out_plain "  ssh [N|name]         $(app_menu_text help_ssh)"
     out_plain "  download [N|name] [folder]  $(app_menu_text help_download)"
     out_plain "  upload [N|name] [folder]  $(app_menu_text help_upload)"
@@ -10370,8 +10605,12 @@ app_help() {
 #     SSOT: requirement-shell-cli-zero-arguments.md
 #     requirement-shell-cli-default-interaction.md
 #     requirement-shell-cli-self-install.md
+# 2026-09-30:
+#   - Every run comments unsupported OpenSSH client keywords in
+#     ~/.ssh/config before dispatch, including a zero-cli-verb. Silent.
+#     SSOT: requirement-domain-sshd.md
 #
-# Last updated: 2026-09-28
+# Last updated: 2026-09-30
 # Cache resolve is per login and per process. A missed tier is silent.
 # =============================================================================
 
@@ -10403,6 +10642,11 @@ app_main() {
     # One language load for help, about, and the menu.
     # requirement-shell-cli-language.md
     app_lang_load
+
+    # Comment unsupported OpenSSH client keywords in ~/.ssh/config.
+    # Silent. Missing file is a no-op. Runs before every dispatch, including
+    # a zero-cli-verb. requirement-domain-sshd.md
+    sshd_fix_config_auto
 
     # === ZERO-CLI-VERB (no-token fast path) ===
     # Interactive (TTY=1, not quiet/json): main menu (app_cmd_menu).
@@ -10457,9 +10701,9 @@ app_main() {
                 COMMAND="$1"
                 ;;
             # --- DOMAIN_DISPATCH_COMMANDS (specializee injection) ---
-            status|start|stop|restart|port|config|host-keys|auth-keys|dns|ssh|download|upload|menu|main|wake-lock|wake-unlock|backup-config|sync-config|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
+            status|start|stop|restart|port|config|host-keys|auth-keys|dns|fix-config|ssh|download|upload|menu|main|wake-lock|wake-unlock|backup-config|sync-config|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
                 case "${COMMAND}" in
-                    port|host-keys|auth-keys|dns|ssh|download|upload|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
+                    port|host-keys|auth-keys|dns|fix-config|ssh|download|upload|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
                         if [ "${COMMAND}" = "dns" ] && [ -z "$1" ]; then
                             _op='""'
                         else
@@ -10487,7 +10731,7 @@ app_main() {
                             RC_TEST_OPERANDS="$1"
                         fi
                         ;;
-                    port|host-keys|auth-keys|dns|ssh|download|upload|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
+                    port|host-keys|auth-keys|dns|fix-config|ssh|download|upload|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
                         if [ "${COMMAND}" = "dns" ] && [ -z "$1" ]; then
                             _op='""'
                         else
@@ -10573,6 +10817,11 @@ app_main() {
         dns)
             set -- ${DOMAIN_OPERANDS}
             sshd_cmd_dns "$@"
+            ;;
+        fix-config)
+            # shellcheck disable=SC2086
+            set -- ${DOMAIN_OPERANDS}
+            sshd_cmd_fix_config "$@"
             ;;
         ssh)
             set -- ${DOMAIN_OPERANDS}
