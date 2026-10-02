@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-sshd.md  
-**Status**: Active (Version 1.27.1)  
+**Status**: Active (Version 1.27.2)  
 **Area**: domain  
 **Key**: `requirement-domain-sshd`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -505,7 +505,7 @@ fi
 sshd_wake_lock_acquire
 ```
 
-**Menu choice.** The live boards are the functions quoted in `requirement-shell-cli-default-interaction` §2.11: `app_cmd_menu`, `app_cmd_menu_client`, `app_cmd_menu_server`, `app_cmd_menu_self`, and the hide helpers `sshd_os_name`, `sshd_menu_show_daemon_rows`, `sshd_host_normal_user_only_label`. Language **5** / block **50–69** (assigned **51–58**) and the menu-copy helpers are quoted in `requirement-shell-cli-language` (`app_cmd_menu_language`, `app_menu_text`). Worked samples of each language’s front board and the opening of `help` and `about` are that file’s §2.4.1. The translation tables are §2.4.2. Each board reads with `read -r` in the current shell. An unknown choice warns and reprints that layer.
+**Menu choice.** The live boards are the functions quoted in `requirement-shell-cli-default-interaction` §2.11: `app_cmd_menu`, `app_cmd_menu_client`, `app_cmd_menu_server`, `app_cmd_menu_self`, and the hide helpers `sshd_os_name`, `sshd_menu_show_daemon_rows`, `sshd_host_normal_user_only_label`. Language **5** / block **50–69** (assigned **51–63**) and the menu-copy helpers are quoted in `requirement-shell-cli-language` (`app_cmd_menu_language`, `app_menu_text`). Worked samples of each language’s front board and the opening of `help` and `about` are that file’s §2.4.1. The translation tables are §2.4.2. Each board reads with `read -r` in the current shell. An unknown choice warns and reprints that layer.
 
 **systemd unit pick:** probe `ssh.service` then `sshd.service`; both exist → prefer the active one, else `ssh.service`. `sshd_is_systemd_host` is false on Termux / Git Bash / Windows cmd.
 
@@ -624,6 +624,6 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-10-02 (1.27.1 menu language is front **5**, block **50–69**. 1.27.0 `fix-config` comments unsupported OpenSSH client keywords by OS class, including an automatic pass on `~/.ssh/config`. Add, update, and review share that rule. **TP-FIX-01..14**. **TP-DNS-52**. 1.26.8 Alpine OpenSSH does not support an active `GSSAPIAuthentication`. 1.26.7 menu sample also points at the language requirement’s worked samples and translation tables. 1.26.6 language **67–68**. 1.26.5 language **63–66**. 1.26.4 front **6** language. 1.26.3 menu handler is `app_cmd_menu`. 1.26.2 menu sample points at the live boards in `requirement-shell-cli-default-interaction` §2.11. 1.26.1 menu-hidden message: client and server sentences stay; front **7** hide is its own cause and still Gap. 1.26.0 Termux Old OpenSSH comments and `ssh -o HostKeyAlgorithms=+ssh-rsa`; **TP-DNS-50** · **TP-DNS-51** · **TP-SSH-10**. 1.25.0 sudoers front **7** / **71–75**. Finished TTY leaf redisplays the front board; **TP-CLI-22**)  
+**Last Updated**: 2026-10-02 (1.27.2 language rows **51–63**. 1.27.1 menu language is front **5**, block **50–69**. 1.27.0 `fix-config` comments unsupported OpenSSH client keywords by OS class, including an automatic pass on `~/.ssh/config`. Add, update, and review share that rule. **TP-FIX-01..14**. **TP-DNS-52**. 1.26.8 Alpine OpenSSH does not support an active `GSSAPIAuthentication`. 1.26.7 menu sample also points at the language requirement’s worked samples and translation tables. 1.26.6 language **67–68**. 1.26.5 language **63–66**. 1.26.4 front **6** language. 1.26.3 menu handler is `app_cmd_menu`. 1.26.2 menu sample points at the live boards in `requirement-shell-cli-default-interaction` §2.11. 1.26.1 menu-hidden message: client and server sentences stay; front **7** hide is its own cause and still Gap. 1.26.0 Termux Old OpenSSH comments and `ssh -o HostKeyAlgorithms=+ssh-rsa`; **TP-DNS-50** · **TP-DNS-51** · **TP-SSH-10**. 1.25.0 sudoers front **7** / **71–75**. Finished TTY leaf redisplays the front board; **TP-CLI-22**)  
 **Owner**: Cloudgen Wong  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

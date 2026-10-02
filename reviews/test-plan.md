@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.31.0  
+**Product VERSION:** 1.32.0  
 **Last plan update:** 2026-10-02  
-**Last suite run:** PASS=1065 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-02, product 1.31.0). **TP-CLI-14** and **TP-CLI-24** passed: front **5** language, block **50–69** (assigned **51–58**); **50**, **69**, and old **61** do not write the file; front **6** warns and does not open the language board. Prior run: PASS=844 FAIL=22 SKIP=0 (`./tests/run.sh`, 2026-09-28, product 1.28.0). Those 22 were TP-DL-* `tar xzf` cases. This run’s TP-DL-* cases passed.
+**Last suite run:** PASS=1091 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-02, product 1.32.0). **TP-CLI-14** and **TP-CLI-24** passed: front **5** language, block **50–69** (assigned **51–63**); **50**, **64**, and **69** do not write the file; front **6** warns and does not open the language board. Prior run: PASS=1065 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-02, product 1.31.0), assigned **51–58**. Earlier: PASS=844 FAIL=22 SKIP=0 (`./tests/run.sh`, 2026-09-28, product 1.28.0). Those 22 were TP-DL-* `tar xzf` cases. The 1.31.0 run’s TP-DL-* cases passed.
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 

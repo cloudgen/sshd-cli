@@ -1,15 +1,15 @@
 # Requirement ↔ test matrix — sshd-cli
 
 **Updated:** 2026-10-02  
-**Product VERSION:** 1.31.0  
+**Product VERSION:** 1.32.0  
 **Suite:** `tests/run.sh`
 
 | Requirement key | Area | TP families | Coverage notes |
 |-----------------|------|-------------|----------------|
 | requirement-class-software-dev | class | TP-CLI-01, TP-CLI-11 | Syntax + posix-sh stack |
 | requirement-shell-cli-interface | shell | TP-CLI-* · TP-LC-18/19 · TP-TX-10/11/12/15 | Commands, flags, dispatch; domain verbs + `wake-lock` in help; Git Bash / Windows cmd; TTY **82** about (**TP-CLI-21**) |
-| requirement-shell-cli-default-interaction | shell | TP-CLI-14 · **TP-CLI-21** · **TP-CLI-22** · **TP-CLI-23** · **TP-CLI-24** · TP-SSHD-03..05 · TP-SSHD-16 | Numbered tree; front **5** language, block **50–69** (assigned **51–58**); TTY **82** / typed `version` run about; finished leaf → front board; TTY `--debug` with no verb opens the menu |
-| requirement-shell-cli-language | shell | **TP-CLI-24** · TP-CLI-14 · TP-SSHD-04 | English default; block **50–69** (at most 20); **52** Traditional Chinese, **53** Spanish, **54** French, **55** German, **56** Simplified Chinese, **57** Japanese, **58** Korean persisted; **51** restores English; **50**, **69**, and old **61** do not write the file; `SSHD_CLI_LANG` overrides the file; human help and about follow the code |
+| requirement-shell-cli-default-interaction | shell | TP-CLI-14 · **TP-CLI-21** · **TP-CLI-22** · **TP-CLI-23** · **TP-CLI-24** · TP-SSHD-03..05 · TP-SSHD-16 | Numbered tree; front **5** language, block **50–69** (assigned **51–63**); TTY **82** / typed `version` run about; finished leaf → front board; TTY `--debug` with no verb opens the menu |
+| requirement-shell-cli-language | shell | **TP-CLI-24** · TP-CLI-14 · TP-SSHD-04 | English default; block **50–69** (at most 20); **52** through **63** persisted (Simplified Chinese through Greek); **51** restores English; **50**, **64**, and **69** do not write the file; front **6** does not open the language board; `SSHD_CLI_LANG` overrides the file; human help and about follow the code |
 | requirement-shell-cli-zero-arguments | shell | TP-CLI-07, TP-CLI-14, TP-CLI-23, TP-SI-03 | Non-TTY CLI self-install; TTY menu; switch-only `--debug` menu and `--quiet` / `--json` self-install |
 | requirement-shell-cli-self-install | shell | TP-SI-01..06, TP-CLI-07, TP-CLI-23 | Copy from script `$0`; dest 0700; NI empty argv and `--quiet` / `--json` with no verb place the CLI |
 | requirement-shell-self-management | shell | TP-LC-* (incl. **09/10** mode) · TP-CLI-10 | install / self-uninstall; **0755**; companion **call site**; channel verbs routed. Rc bodies: `requirement-shell-path-and-shell-support` |
