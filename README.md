@@ -1,6 +1,6 @@
 # sshd-cli - Simplify Termux to install sshd
 
-![Version](https://img.shields.io/badge/Version-1.30.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.31.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/sshd-cli?style=flat-square)](https://github.com/cloudgen/sshd-cli)
@@ -24,7 +24,7 @@
 | Start sshd | OpenSSH **forks itself** so a laptop can connect. Default Termux port is often **8022**. This is not a boot service. | `sshd-cli start` then `ssh -p 8022 user@host` |
 | After a reboot | The daemon is gone. Start again. Termux:Boot is **your** hook if you want listen-after-reboot. | `sshd-cli start` |
 
-Runtime version SSOT: `VERSION="1.30.0"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
+Runtime version SSOT: `VERSION="1.31.0"` in `./sshd-cli`. Install channel SSOT: `SCRIPT_URL` default `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`. Philosophy: **[CIAO](https://github.com/cloudgen/ciao) v2.10.2** with [CIAO-Lite](https://github.com/cloudgen/ciao-lite). Specialized from bootstrap origin **selfmanaged** (A → B only).
 
 ## Features
 
@@ -33,7 +33,7 @@ Runtime version SSOT: `VERSION="1.30.0"` in `./sshd-cli`. Install channel SSOT: 
 - Places itself for this login (`~/.local/bin`) or, on a **root login**, under `/usr/local/bin` (Termux: `$PREFIX/bin`)
 - On a **terminal**, no command opens a numbered **menu**. A switch such as `--debug` is still no command. A **pipe** (`curl | sh`), or `--quiet` / `--json` with no command, **places itself** (`self-install` — not help, not OpenSSH payload). From a checkout, `./sshd-cli self-install` **copies that file** (no download)
 - Purpose: **simplify Termux to install sshd** (`status`, `start`, `stop`, `restart`, `port`, `config`, `host-keys`, `auth-keys`)
-- On POSIX Linux (not Termux / Git Bash / Windows cmd), server rows **22** / **23** / **24** (`start` / `stop` / `restart`) show **only as root**. A non-root login sees an INFO line naming this OS, then **21** `status` and **0** Back. Typed `start` / `stop` / `restart` still fail closed without wrapping `sudo`. Termux shows **22–24** for this login. The front board is **1** client-side, **2** server-side, **6** language, **7** sudoers (POSIX Linux), **8** self-management, **9** Exit. **6** chooses English, Traditional Chinese (繁體中文), Spanish (Español), French (Français), German (Deutsch), Simplified Chinese (简体中文), Japanese (日本語), or Korean (한국어) for this menu, for `help`, and for `about`, and saves it in `~/.local/sshd-cli/language`. Termux / Git Bash / Windows cmd omit **7** and still show **6**
+- On POSIX Linux (not Termux / Git Bash / Windows cmd), server rows **22** / **23** / **24** (`start` / `stop` / `restart`) show **only as root**. A non-root login sees an INFO line naming this OS, then **21** `status` and **0** Back. Typed `start` / `stop` / `restart` still fail closed without wrapping `sudo`. Termux shows **22–24** for this login. The front board is **1** client-side, **2** server-side, **5** language, **7** sudoers (POSIX Linux), **8** self-management, **9** Exit. **5** chooses English, Traditional Chinese (繁體中文), Spanish (Español), French (Français), German (Deutsch), Simplified Chinese (简体中文), Japanese (日本語), or Korean (한국어) for this menu, for `help`, and for `about`, on rows **51** through **58** (block **50–69**, not more than 20 languages), and saves it in `~/.local/sshd-cli/language`. Termux / Git Bash / Windows cmd omit **7** and still show **5**
 - `start` launches OpenSSH sshd as a **background daemon** (`sshd -f`) on Termux and on Linux with **no** distro unit. On POSIX Linux with a loaded `ssh.service` / `sshd.service`, `start` / `stop` / `restart` call **`systemctl`** as a **root login** (no in-tool `sudo`; no `sshd-cli systemctl` verb)
 - On Termux, `start` also acquires an **Android wake lock** so sshd can keep listening with the screen off. Acquire again with `sshd-cli wake-lock` if Android dropped it. `wake-unlock` is optional and does **not** run on `stop`
 - After a reboot on Termux, run `sshd-cli start` again. Listen-after-reboot on Termux is **Termux:Boot** (you own `~/.termux/boot/`) — not a `sshd-cli` verb. On POSIX Linux, listen-after-reboot is the distro sshd unit
@@ -101,41 +101,41 @@ After install, on a terminal, no command opens the menu. A switch such as `--deb
 
 ```text
 $ sshd-cli
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **client-side**: *this login OpenSSH client (~/.ssh/config, ssh, folders)*
 2. **server-side**: *this host OpenSSH sshd (listen, keys, port)*
-6. **language**: *display language for this menu*
+5. **language**: *display language for this menu*
 7. **sudoers**: *grant and drafts for passwordless sudo*
 8. **self-management**: *this CLI install, version, update, uninstall*
 9. Exit
 Choose a number, or type the command name:
 ```
 
-`6` opens language. **61** English, **62** 繁體中文, **63** Español, **64** Français, **65** Deutsch, **66** 简体中文, **67** 日本語, **68** 한국어. The choice is saved in `~/.local/sshd-cli/language` (one line, `en`, `zh-Hant`, `es`, `fr`, `de`, `zh-Hans`, `ja`, or `ko`) and the front board comes back in that language. `help` and `about` use the same language. **0** does not save.
+`5` opens language. Rows **50–69** are reserved for not more than 20 languages. **51** English, **52** 繁體中文, **53** Español, **54** Français, **55** Deutsch, **56** 简体中文, **57** 日本語, **58** 한국어. The choice is saved in `~/.local/sshd-cli/language` (one line, `en`, `zh-Hant`, `es`, `fr`, `de`, `zh-Hans`, `ja`, or `ko`) and the front board comes back in that language. `help` and `about` use the same language. **0** does not save.
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*) — language
-61. **English**: *use English for this menu*
-62. **繁體中文**: *use Traditional Chinese for this menu*
-63. **Español**: *use Spanish for this menu*
-64. **Français**: *use French for this menu*
-65. **Deutsch**: *use German for this menu*
-66. **简体中文**: *use Simplified Chinese for this menu*
-67. **日本語**: *use Japanese for this menu*
-68. **한국어**: *use Korean for this menu*
+[INFO] **sshd-cli**(*1.31.0*) — language
+51. **English**: *use English for this menu*
+52. **繁體中文**: *use Traditional Chinese for this menu*
+53. **Español**: *use Spanish for this menu*
+54. **Français**: *use French for this menu*
+55. **Deutsch**: *use German for this menu*
+56. **简体中文**: *use Simplified Chinese for this menu*
+57. **日本語**: *use Japanese for this menu*
+58. **한국어**: *use Korean for this menu*
 0. Back
 Choose a number, or type the command name:
 ```
 
 The front board, `help`, and `about` follow the saved language. Command names stay the words you type (`status`, `self-install`, `--json`).
 
-After **62**, the front board is Traditional Chinese:
+After **52**, the front board is Traditional Chinese:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **用戶端**: *這個登入的 OpenSSH 用戶端（~/.ssh/config、ssh、資料夾）*
 2. **伺服器端**: *這台主機的 OpenSSH sshd（接聽、金鑰、連接埠）*
-6. **語言**: *這個選單的顯示語言*
+5. **語言**: *這個選單的顯示語言*
 7. **sudoers**: *免密碼 sudo 的授權與草稿*
 8. **自我管理**: *這個 CLI 的安裝、版本、更新、移除*
 9. 離開
@@ -146,17 +146,17 @@ After **62**, the front board is Traditional Chinese:
 [INFO] sshd-cli — 簡化 Termux 安裝 sshd
 [INFO] 用法：
   sshd-cli [命令] [選項]
-[INFO] === sshd-cli 1.30.0 - 關於 / 診斷 ===
+[INFO] === sshd-cli 1.31.0 - 關於 / 診斷 ===
 [OK] sshd-cli 已正確安裝。
 ```
 
-After **63**, the front board is Spanish:
+After **53**, the front board is Spanish:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **cliente**: *cliente OpenSSH de este inicio (~/.ssh/config, ssh, carpetas)*
 2. **servidor**: *sshd OpenSSH de este equipo (escucha, claves, puerto)*
-6. **idioma**: *idioma de este menú*
+5. **idioma**: *idioma de este menú*
 7. **sudoers**: *concesión y borradores de sudo sin contraseña*
 8. **autogestión**: *instalación, versión, actualización y desinstalación de este CLI*
 9. Salir
@@ -167,17 +167,17 @@ Elija un número, o escriba el nombre del comando:
 [INFO] sshd-cli — simplificar la instalación de sshd en Termux
 [INFO] Uso:
   sshd-cli [comando] [opciones]
-[INFO] === sshd-cli 1.30.0 - Acerca de / diagnóstico ===
+[INFO] === sshd-cli 1.31.0 - Acerca de / diagnóstico ===
 [OK] sshd-cli está instalado correctamente.
 ```
 
-After **64**, the front board is French:
+After **54**, the front board is French:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **client**: *client OpenSSH de cette session (~/.ssh/config, ssh, dossiers)*
 2. **serveur**: *sshd OpenSSH de cet hôte (écoute, clés, port)*
-6. **langue**: *langue d'affichage de ce menu*
+5. **langue**: *langue d'affichage de ce menu*
 7. **sudoers**: *autorisation et brouillons pour sudo sans mot de passe*
 8. **autogestion**: *installation, version, mise à jour et retrait de ce CLI*
 9. Quitter
@@ -188,17 +188,17 @@ Choisissez un numéro, ou saisissez le nom de la commande :
 [INFO] sshd-cli — simplifier l'installation de sshd sur Termux
 [INFO] Utilisation :
   sshd-cli [commande] [options]
-[INFO] === sshd-cli 1.30.0 - À propos / diagnostic ===
+[INFO] === sshd-cli 1.31.0 - À propos / diagnostic ===
 [OK] sshd-cli est correctement installé.
 ```
 
-After **65**, the front board is German:
+After **55**, the front board is German:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **Client**: *OpenSSH-Client dieser Anmeldung (~/.ssh/config, ssh, Ordner)*
 2. **Server**: *OpenSSH-sshd dieses Rechners (wartet, Schlüssel, Port)*
-6. **Sprache**: *Anzeigesprache dieses Menüs*
+5. **Sprache**: *Anzeigesprache dieses Menüs*
 7. **sudoers**: *Freigabe und Entwürfe für sudo ohne Passwort*
 8. **Selbstverwaltung**: *Installation, Version, Aktualisierung und Entfernen dieses CLI*
 9. Beenden
@@ -209,17 +209,17 @@ Wählen Sie eine Nummer, oder geben Sie den Befehlsnamen ein:
 [INFO] sshd-cli — sshd auf Termux einfach installieren
 [INFO] Verwendung:
   sshd-cli [Befehl] [Optionen]
-[INFO] === sshd-cli 1.30.0 - Über / Diagnose ===
+[INFO] === sshd-cli 1.31.0 - Über / Diagnose ===
 [OK] sshd-cli ist ordnungsgemäß installiert.
 ```
 
-After **66**, the front board is Simplified Chinese:
+After **56**, the front board is Simplified Chinese:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **客户端**: *这个登录的 OpenSSH 客户端（~/.ssh/config、ssh、文件夹）*
 2. **服务器端**: *这台主机的 OpenSSH sshd（监听、密钥、端口）*
-6. **语言**: *这个菜单的显示语言*
+5. **语言**: *这个菜单的显示语言*
 7. **sudoers**: *免密码 sudo 的授权与草稿*
 8. **自我管理**: *这个 CLI 的安装、版本、更新、移除*
 9. 离开
@@ -230,17 +230,17 @@ After **66**, the front board is Simplified Chinese:
 [INFO] sshd-cli — 简化 Termux 安装 sshd
 [INFO] 用法：
   sshd-cli [命令] [选项]
-[INFO] === sshd-cli 1.30.0 - 关于 / 诊断 ===
+[INFO] === sshd-cli 1.31.0 - 关于 / 诊断 ===
 [OK] sshd-cli 已正确安装。
 ```
 
-After **67**, the front board is Japanese:
+After **57**, the front board is Japanese:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **クライアント**: *このログインの OpenSSH クライアント（~/.ssh/config、ssh、フォルダ）*
 2. **サーバー**: *このホストの OpenSSH sshd（待ち受け、鍵、ポート）*
-6. **言語**: *このメニューの表示言語*
+5. **言語**: *このメニューの表示言語*
 7. **sudoers**: *パスワードなし sudo の認可と下書き*
 8. **自己管理**: *この CLI のインストール、バージョン、更新、削除*
 9. 終了
@@ -251,17 +251,17 @@ After **67**, the front board is Japanese:
 [INFO] sshd-cli — Termux で sshd を簡単に導入する
 [INFO] 使い方:
   sshd-cli [コマンド] [オプション]
-[INFO] === sshd-cli 1.30.0 - 概要 / 診断 ===
+[INFO] === sshd-cli 1.31.0 - 概要 / 診断 ===
 [OK] sshd-cli は正しく配置されています。
 ```
 
-After **68**, the front board is Korean:
+After **58**, the front board is Korean:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **클라이언트**: *이 로그인의 OpenSSH 클라이언트(~/.ssh/config, ssh, 폴더)*
 2. **서버**: *이 호스트의 OpenSSH sshd(대기, 키, 포트)*
-6. **언어**: *이 메뉴의 표시 언어*
+5. **언어**: *이 메뉴의 표시 언어*
 7. **sudoers**: *비밀번호 없는 sudo의 허가와 초안*
 8. **자기관리**: *이 CLI의 설치, 버전, 업데이트, 제거*
 9. 종료
@@ -272,7 +272,7 @@ After **68**, the front board is Korean:
 [INFO] sshd-cli — Termux에서 sshd 설치를 단순하게
 [INFO] 사용법:
   sshd-cli [명령] [옵션]
-[INFO] === sshd-cli 1.30.0 - 개요 / 진단 ===
+[INFO] === sshd-cli 1.31.0 - 개요 / 진단 ===
 [OK] sshd-cli가 올바르게 설치되어 있습니다.
 ```
 
@@ -282,7 +282,7 @@ English `help` and `about` stay:
 [INFO] sshd-cli — Simplify Termux to install sshd
 [INFO] Usage:
   sshd-cli [command] [options]
-[INFO] === sshd-cli 1.30.0 - About / Diagnostics ===
+[INFO] === sshd-cli 1.31.0 - About / Diagnostics ===
 [OK] sshd-cli is properly installed.
 ```
 
@@ -301,7 +301,7 @@ English `help` and `about` stay:
 `1` opens client-side. POSIX Linux:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*) — client-side
+[INFO] **sshd-cli**(*1.31.0*) — client-side
 11. **dns**: *this login ~/.ssh/config Host list*
 12. **ssh**: *OpenSSH client to a Host from this login ~/.ssh/config*
 13. **download**: *tar.gz a remote folder into this directory*
@@ -315,7 +315,7 @@ English `help` and `about` stay:
 Termux / Git Bash / Windows cmd (no **15** / **16**; **18** is numbered):
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*) — client-side
+[INFO] **sshd-cli**(*1.31.0*) — client-side
 [INFO] backup-config and sync-config not available for termux
 11. **dns**: *this login ~/.ssh/config Host list*
 12. **ssh**: *OpenSSH client to a Host from this login ~/.ssh/config*
@@ -340,7 +340,7 @@ Termux / Git Bash / Windows cmd (no **15** / **16**; **18** is numbered):
 `2` opens server-side. POSIX Linux non-root (the INFO line names this OS; example **Ubuntu**):
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*) — server-side
+[INFO] **sshd-cli**(*1.31.0*) — server-side
 [INFO] start/stop/restart sshd features are not available for non-root in Ubuntu
 21. **status**: *running, port, and paths*
 0. Back
@@ -349,7 +349,7 @@ Termux / Git Bash / Windows cmd (no **15** / **16**; **18** is numbered):
 Termux (and a POSIX Linux **root** login) also shows **22–24**:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*) — server-side
+[INFO] **sshd-cli**(*1.31.0*) — server-side
 21. **status**: *running, port, and paths*
 22. **start**: *launch the OpenSSH daemon (background, not a boot service)*
 23. **stop**: *end the running daemon*
@@ -360,7 +360,7 @@ Termux (and a POSIX Linux **root** login) also shows **22–24**:
 `8` opens self-management:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*) — self-management
+[INFO] **sshd-cli**(*1.31.0*) — self-management
 81. **install**: *place sshd-cli; ensure rc + Termux openssh/termux-auth; start sshd*
 82. **version**: *show version and detailed diagnostics (about)*
 83. **about**: *show detailed diagnostics*
@@ -521,4 +521,4 @@ MIT. See [`LICENSE.md`](./LICENSE.md). Copyright (c) 2026 Cloudgen Wong.
 
 ## Last Update
 
-2026-09-30 — 1.30.0: `fix-config` comments OpenSSH client keywords this OS does not support, and every run does that to `~/.ssh/config`. 2026-09-28 — 1.29.0: menu **6** Language saves English, 繁體中文, Español, Français, Deutsch, 简体中文, 日本語, or 한국어, and human `help` and `about` follow that language. 2026-09-28 — README shows the front board, `help`, and `about` in each menu language (English, 繁體中文, Español, Français, Deutsch, 简体中文, 日本語, 한국어). Product version stays 1.28.0. 2026-09-28 — Menu **6** Language also offers Japanese (日本語) and Korean (한국어). `help` and `about` follow that language. Product version stays 1.28.0. 2026-09-28 — Menu **6** Language also offers Spanish (Español), French (Français), German (Deutsch), and Simplified Chinese (简体中文), saved in `~/.local/sshd-cli/language`. Product version stays 1.28.0. 2026-09-28 — Menu **6** Language: English or Traditional Chinese (繁體中文), saved in `~/.local/sshd-cli/language`. Product version stays 1.28.0. 2026-09-28 — 1.28.0: on a terminal, no command opens the numbered menu, and a switch such as `--debug` is still no command. `--quiet` or `--json` with no command places the CLI. 2026-09-27 — 1.27.0: each login and each process gets its own cache folder (`cache-sshd-cli-<login>-<pid>` on `/dev/shm/cache` or `/tmp/cache`). `about` prints Cache folder used, preferred, 1st fallback, and 2nd fallback when this host has one. Git Bash has no 2nd fallback line. A skipped tier prints nothing. Durable data stays in `~/.local/sshd-cli`. 2026-09-27 — 1.26.0: on Termux, Old OpenSSH `HostKeyAlgorithms` / `PubkeyAcceptedAlgorithms` are comments; `ssh` (menu **12**) passes `-o HostKeyAlgorithms=+ssh-rsa` when that Host has those comments. 2026-09-27 — 1.25.0: TTY **sudoers** is front **7** (verbs **71** generate-sudoer-request, **72** submit-sudoer-request, **73** print-sudoers, **74** print-sudoers-install-script, **75** remove-project-sudoers). Client board no longer numbers it **17**. 2026-09-17 — 1.24.0: pipe / `self-install` places the CLI only (copy when you run the file; dest 0700 local). Payload stays `install`. 2026-09-17 — 1.23.0: preferred cache is `/dev/shm/cache/sshd-cli-<user>` (not `/dev/shm/sshd-cli-<user>`). 2026-09-16 — 1.22.0: after a finished TTY command the front board is shown again (not the submenu). 2026-09-14 — 1.20.0: TTY menu is a tree (1 client-side, 2 server-side, 8 self-management; children keep the parent number; 0 Back). 2026-09-13 — 1.19.2: a wrong TTY menu number warns and shows the same list again. 2026-09-12 — 1.19.1: `download` accepts `~/folder` (remote login home). 2026-09-12 — 1.19.0: TTY `download` asks user with default (same as `ssh`). 2026-09-12 — 1.18.0: TTY menu numbers `ssh` (6) and `download` (7); `ssh` asks user with default. 2026-09-12 — 1.17.0: `ssh` picks a Host from this login `~/.ssh/config`; `download` tar.gz a remote folder into the current directory (remembers paths per Host). 2026-09-12 — 1.16.0: `dns unset` drops extra `~/.ssh/config` settings (user, port, …) without deleting the Host or HostName. 2026-09-11 — 1.15.0: `sync-from-remote` pulls `/var/sshd-cli/config` via scp and remembers last user@host. 2026-09-11 — 1.14.0: `backup-config` / `sync-config` for this-login `~/.ssh/config` (`/var/sshd-cli`); sudoers grant `sudo sshd-cli backup-config`; Termux/Git Bash/Windows cmd hide + INFO. 2026-09-11 — 1.13.4: Git Bash `/dev/shm` mkdir fail-soft; use AppData Local Temp/`cache` with no extra `[ERROR]`. 2026-09-10 — 1.13.3: Windows companion `setup-windows-ssh-server.ps1` (+ Git Bash `.sh` launcher); Git Bash detect is `MSYSTEM`/`uname` (not `$0` or `/c/`); `winpty grok` for Windows consoles. 2026-09-09 — 1.13.2: dns tests mint Host/IP (do not copy this-login LAN identity). 1.13.1: `self-update` is CLI-only (does not fail on `/etc/ssh/sshd_config` / `/run/sshd`). 1.13.0: `rc-test` proves PATH/profile ensure in a temp folder; uninstall keeps a shared PATH while other tools remain.
+2026-10-02 — 1.31.0: menu **5** Language. Language rows **50–69** are reserved for not more than 20 languages. Assigned **51** English through **58** Korean. **50** and **59–69** are not printed. 2026-09-30 — 1.30.0: `fix-config` comments OpenSSH client keywords this OS does not support, and every run does that to `~/.ssh/config`. 2026-09-28 — 1.29.0: menu **6** Language saves English, 繁體中文, Español, Français, Deutsch, 简体中文, 日本語, or 한국어, and human `help` and `about` follow that language. 2026-09-28 — README shows the front board, `help`, and `about` in each menu language (English, 繁體中文, Español, Français, Deutsch, 简体中文, 日本語, 한국어). Product version stays 1.28.0. 2026-09-28 — Menu **6** Language also offers Japanese (日本語) and Korean (한국어). `help` and `about` follow that language. Product version stays 1.28.0. 2026-09-28 — Menu **6** Language also offers Spanish (Español), French (Français), German (Deutsch), and Simplified Chinese (简体中文), saved in `~/.local/sshd-cli/language`. Product version stays 1.28.0. 2026-09-28 — Menu **6** Language: English or Traditional Chinese (繁體中文), saved in `~/.local/sshd-cli/language`. Product version stays 1.28.0. 2026-09-28 — 1.28.0: on a terminal, no command opens the numbered menu, and a switch such as `--debug` is still no command. `--quiet` or `--json` with no command places the CLI. 2026-09-27 — 1.27.0: each login and each process gets its own cache folder (`cache-sshd-cli-<login>-<pid>` on `/dev/shm/cache` or `/tmp/cache`). `about` prints Cache folder used, preferred, 1st fallback, and 2nd fallback when this host has one. Git Bash has no 2nd fallback line. A skipped tier prints nothing. Durable data stays in `~/.local/sshd-cli`. 2026-09-27 — 1.26.0: on Termux, Old OpenSSH `HostKeyAlgorithms` / `PubkeyAcceptedAlgorithms` are comments; `ssh` (menu **12**) passes `-o HostKeyAlgorithms=+ssh-rsa` when that Host has those comments. 2026-09-27 — 1.25.0: TTY **sudoers** is front **7** (verbs **71** generate-sudoer-request, **72** submit-sudoer-request, **73** print-sudoers, **74** print-sudoers-install-script, **75** remove-project-sudoers). Client board no longer numbers it **17**. 2026-09-17 — 1.24.0: pipe / `self-install` places the CLI only (copy when you run the file; dest 0700 local). Payload stays `install`. 2026-09-17 — 1.23.0: preferred cache is `/dev/shm/cache/sshd-cli-<user>` (not `/dev/shm/sshd-cli-<user>`). 2026-09-16 — 1.22.0: after a finished TTY command the front board is shown again (not the submenu). 2026-09-14 — 1.20.0: TTY menu is a tree (1 client-side, 2 server-side, 8 self-management; children keep the parent number; 0 Back). 2026-09-13 — 1.19.2: a wrong TTY menu number warns and shows the same list again. 2026-09-12 — 1.19.1: `download` accepts `~/folder` (remote login home). 2026-09-12 — 1.19.0: TTY `download` asks user with default (same as `ssh`). 2026-09-12 — 1.18.0: TTY menu numbers `ssh` (6) and `download` (7); `ssh` asks user with default. 2026-09-12 — 1.17.0: `ssh` picks a Host from this login `~/.ssh/config`; `download` tar.gz a remote folder into the current directory (remembers paths per Host). 2026-09-12 — 1.16.0: `dns unset` drops extra `~/.ssh/config` settings (user, port, …) without deleting the Host or HostName. 2026-09-11 — 1.15.0: `sync-from-remote` pulls `/var/sshd-cli/config` via scp and remembers last user@host. 2026-09-11 — 1.14.0: `backup-config` / `sync-config` for this-login `~/.ssh/config` (`/var/sshd-cli`); sudoers grant `sudo sshd-cli backup-config`; Termux/Git Bash/Windows cmd hide + INFO. 2026-09-11 — 1.13.4: Git Bash `/dev/shm` mkdir fail-soft; use AppData Local Temp/`cache` with no extra `[ERROR]`. 2026-09-10 — 1.13.3: Windows companion `setup-windows-ssh-server.ps1` (+ Git Bash `.sh` launcher); Git Bash detect is `MSYSTEM`/`uname` (not `$0` or `/c/`); `winpty grok` for Windows consoles. 2026-09-09 — 1.13.2: dns tests mint Host/IP (do not copy this-login LAN identity). 1.13.1: `self-update` is CLI-only (does not fail on `/etc/ssh/sshd_config` / `/run/sshd`). 1.13.0: `rc-test` proves PATH/profile ensure in a temp folder; uninstall keeps a shared PATH while other tools remain.

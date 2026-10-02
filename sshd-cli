@@ -12,7 +12,7 @@
 # (Type 0 lifecycle plus OpenSSH sshd domain: status/start/stop/port/keys).
 # Project requirements (docs/requirements/ only — never cite templates here):
 # - requirement-shell-cli-interface.md
-# - requirement-shell-cli-default-interaction.md (TTY numbered tree 1/2/6/7/8/9)
+# - requirement-shell-cli-default-interaction.md (TTY numbered tree 1/2/5/7/8/9)
 # - requirement-shell-cli-language.md (menu language: English and Traditional Chinese)
 # - requirement-shell-cli-zero-arguments.md  (zero-cli-verb: interactive menu / non-interactive self-install)
 # - requirement-shell-cli-self-install.md    (CLI place; copy from script $0; dest 0700/0755)
@@ -58,7 +58,7 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config / sync-from-remote).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.30.0"
+VERSION="1.31.0"
 : "${VERSION:=1.29.0}"
 
 # Runtime flags (safe defaults)
@@ -8100,7 +8100,7 @@ app_lang_save() {
     return 0
 }
 
-# Last updated: 2026-09-28
+# Last updated: 2026-10-02
 # ALIGNMENT: requirement-shell-cli-language.md
 # Menu copy for APP_LANG (en, zh-Hant, es, fr, de, zh-Hans, ja, ko). Pure data. No input builtin.
 # A missing key prints the key. Call from the current shell or a command
@@ -9377,14 +9377,14 @@ app_menu_text() {
             ;;
         help_menu)
             case "${_mt_lang}" in
-                zh-Hant) _mt_out="編號樹：1 用戶端、2 伺服器端、6 語言、7 sudoers、8 自我管理、9 離開。語言 61 English、62 繁體中文、63 Español、64 Français、65 Deutsch、66 简体中文、67 日本語、68 한국어。用戶端 11… dns/ssh/download/upload。伺服器 21… status/start/stop/restart。自我管理 81… install/version/about、87 self-install。子選單 0 返回。別名：main" ;;
-                es) _mt_out="Árbol numerado: 1 cliente, 2 servidor, 6 idioma, 7 sudoers, 8 autogestión, 9 Salir. Idiomas 61 English, 62 繁體中文, 63 Español, 64 Français, 65 Deutsch, 66 简体中文, 67 日本語, 68 한국어. Cliente 11… dns/ssh/download/upload. Servidor 21… status/start/stop/restart. Autogestión 81… install/version/about, 87 self-install. Submenús 0 Atrás. Alias: main" ;;
-                fr) _mt_out="Arbre numéroté : 1 client, 2 serveur, 6 langue, 7 sudoers, 8 autogestion, 9 Quitter. Langues 61 English, 62 繁體中文, 63 Español, 64 Français, 65 Deutsch, 66 简体中文, 67 日本語, 68 한국어. Client 11… dns/ssh/download/upload. Serveur 21… status/start/stop/restart. Autogestion 81… install/version/about, 87 self-install. Sous-menus 0 Retour. Alias : main" ;;
-                de) _mt_out="Nummerierter Baum: 1 Client, 2 Server, 6 Sprache, 7 sudoers, 8 Selbstverwaltung, 9 Beenden. Sprachen 61 English, 62 繁體中文, 63 Español, 64 Français, 65 Deutsch, 66 简体中文, 67 日本語, 68 한국어. Client 11… dns/ssh/download/upload. Server 21… status/start/stop/restart. Selbstverwaltung 81… install/version/about, 87 self-install. Untermenüs 0 Zurück. Alias: main" ;;
-                zh-Hans) _mt_out="编号树：1 客户端、2 服务器端、6 语言、7 sudoers、8 自我管理、9 离开。语言 61 English、62 繁體中文、63 Español、64 Français、65 Deutsch、66 简体中文、67 日本語、68 한국어。客户端 11… dns/ssh/download/upload。服务器 21… status/start/stop/restart。自我管理 81… install/version/about、87 self-install。子菜单 0 返回。别名：main" ;;
-                ja) _mt_out="番号の木: 1 クライアント、2 サーバー、6 言語、7 sudoers、8 自己管理、9 終了。言語 61 English、62 繁體中文、63 Español、64 Français、65 Deutsch、66 简体中文、67 日本語、68 한국어。クライアント 11… dns/ssh/download/upload。サーバー 21… status/start/stop/restart。自己管理 81… install/version/about、87 self-install。サブメニュー 0 戻る。別名: main" ;;
-                ko) _mt_out="번호 나무: 1 클라이언트, 2 서버, 6 언어, 7 sudoers, 8 자기관리, 9 종료. 언어 61 English, 62 繁體中文, 63 Español, 64 Français, 65 Deutsch, 66 简体中文, 67 日本語, 68 한국어. 클라이언트 11… dns/ssh/download/upload. 서버 21… status/start/stop/restart. 자기관리 81… install/version/about, 87 self-install. 하위 메뉴 0 뒤로. 별칭: main" ;;
-                *) _mt_out="Numbered tree: 1 client-side, 2 server-side, 6 language, 7 sudoers, 8 self-management, 9 Exit. Language 61 English, 62 Traditional Chinese, 63 Spanish, 64 French, 65 German, 66 Simplified Chinese, 67 Japanese, 68 Korean. Client 11… dns/ssh/download/upload; server 21… status/start/stop/restart; self-management 81… install/version/about, 87 self-install. Submenus 0 Back. Alias: main" ;;
+                zh-Hant) _mt_out="編號樹：1 用戶端、2 伺服器端、5 語言、7 sudoers、8 自我管理、9 離開。語言 51 English、52 繁體中文、53 Español、54 Français、55 Deutsch、56 简体中文、57 日本語、58 한국어。用戶端 11… dns/ssh/download/upload。伺服器 21… status/start/stop/restart。自我管理 81… install/version/about、87 self-install。子選單 0 返回。別名：main" ;;
+                es) _mt_out="Árbol numerado: 1 cliente, 2 servidor, 5 idioma, 7 sudoers, 8 autogestión, 9 Salir. Idiomas 51 English, 52 繁體中文, 53 Español, 54 Français, 55 Deutsch, 56 简体中文, 57 日本語, 58 한국어. Cliente 11… dns/ssh/download/upload. Servidor 21… status/start/stop/restart. Autogestión 81… install/version/about, 87 self-install. Submenús 0 Atrás. Alias: main" ;;
+                fr) _mt_out="Arbre numéroté : 1 client, 2 serveur, 5 langue, 7 sudoers, 8 autogestion, 9 Quitter. Langues 51 English, 52 繁體中文, 53 Español, 54 Français, 55 Deutsch, 56 简体中文, 57 日本語, 58 한국어. Client 11… dns/ssh/download/upload. Serveur 21… status/start/stop/restart. Autogestion 81… install/version/about, 87 self-install. Sous-menus 0 Retour. Alias : main" ;;
+                de) _mt_out="Nummerierter Baum: 1 Client, 2 Server, 5 Sprache, 7 sudoers, 8 Selbstverwaltung, 9 Beenden. Sprachen 51 English, 52 繁體中文, 53 Español, 54 Français, 55 Deutsch, 56 简体中文, 57 日本語, 58 한국어. Client 11… dns/ssh/download/upload. Server 21… status/start/stop/restart. Selbstverwaltung 81… install/version/about, 87 self-install. Untermenüs 0 Zurück. Alias: main" ;;
+                zh-Hans) _mt_out="编号树：1 客户端、2 服务器端、5 语言、7 sudoers、8 自我管理、9 离开。语言 51 English、52 繁體中文、53 Español、54 Français、55 Deutsch、56 简体中文、57 日本語、58 한국어。客户端 11… dns/ssh/download/upload。服务器 21… status/start/stop/restart。自我管理 81… install/version/about、87 self-install。子菜单 0 返回。别名：main" ;;
+                ja) _mt_out="番号の木: 1 クライアント、2 サーバー、5 言語、7 sudoers、8 自己管理、9 終了。言語 51 English、52 繁體中文、53 Español、54 Français、55 Deutsch、56 简体中文、57 日本語、58 한국어。クライアント 11… dns/ssh/download/upload。サーバー 21… status/start/stop/restart。自己管理 81… install/version/about、87 self-install。サブメニュー 0 戻る。別名: main" ;;
+                ko) _mt_out="번호 나무: 1 클라이언트, 2 서버, 5 언어, 7 sudoers, 8 자기관리, 9 종료. 언어 51 English, 52 繁體中文, 53 Español, 54 Français, 55 Deutsch, 56 简体中文, 57 日本語, 58 한국어. 클라이언트 11… dns/ssh/download/upload. 서버 21… status/start/stop/restart. 자기관리 81… install/version/about, 87 self-install. 하위 메뉴 0 뒤로. 별칭: main" ;;
+                *) _mt_out="Numbered tree: 1 client-side, 2 server-side, 5 language, 7 sudoers, 8 self-management, 9 Exit. Language 51 English, 52 Traditional Chinese, 53 Spanish, 54 French, 55 German, 56 Simplified Chinese, 57 Japanese, 58 Korean. Client 11… dns/ssh/download/upload; server 21… status/start/stop/restart; self-management 81… install/version/about, 87 self-install. Submenus 0 Back. Alias: main" ;;
             esac
             ;;
         about_title)
@@ -9779,23 +9779,23 @@ app_menu_text() {
     unset _mt_key _mt_extra _mt_lang _mt_out
 }
 
-# Last updated: 2026-09-28
+# Last updated: 2026-10-02
 # ALIGNMENT: requirement-shell-cli-language.md · requirement-shell-cli-default-interaction.md
-# Parent 6. 61 stores en. 62 stores zh-Hant. 63 stores es. 64 stores fr.
-# 65 stores de. 66 stores zh-Hans. 67 stores ja. 68 stores ko.
-# Each returns to the front board.
+# Parent 5. Language rows are reserved 50-69 (at most 20 languages).
+# Assigned: 51 en, 52 zh-Hant, 53 es, 54 fr, 55 de, 56 zh-Hans, 57 ja, 58 ko.
+# 50 and 59-69 stay unprinted. Each assigned row returns to the front board.
 # 0 / empty / EOF is Back. The choice is a current-shell input builtin.
 app_cmd_menu_language() {
     while true; do
         out_info "**${APP_NAME}**(*${VERSION}*) — $(app_menu_text cat_language)"
-        out_menu_choice "61" "English" "$(app_menu_text lang_en_long)"
-        out_menu_choice "62" "繁體中文" "$(app_menu_text lang_zh_long)"
-        out_menu_choice "63" "Español" "$(app_menu_text lang_es_long)"
-        out_menu_choice "64" "Français" "$(app_menu_text lang_fr_long)"
-        out_menu_choice "65" "Deutsch" "$(app_menu_text lang_de_long)"
-        out_menu_choice "66" "简体中文" "$(app_menu_text lang_zh_hans_long)"
-        out_menu_choice "67" "日本語" "$(app_menu_text lang_ja_long)"
-        out_menu_choice "68" "한국어" "$(app_menu_text lang_ko_long)"
+        out_menu_choice "51" "English" "$(app_menu_text lang_en_long)"
+        out_menu_choice "52" "繁體中文" "$(app_menu_text lang_zh_long)"
+        out_menu_choice "53" "Español" "$(app_menu_text lang_es_long)"
+        out_menu_choice "54" "Français" "$(app_menu_text lang_fr_long)"
+        out_menu_choice "55" "Deutsch" "$(app_menu_text lang_de_long)"
+        out_menu_choice "56" "简体中文" "$(app_menu_text lang_zh_hans_long)"
+        out_menu_choice "57" "日本語" "$(app_menu_text lang_ja_long)"
+        out_menu_choice "58" "한국어" "$(app_menu_text lang_ko_long)"
         out_plain "$(app_menu_text line_back)"
         out_msg_n "$(app_menu_text line_prompt)"
         _choice=""
@@ -9804,7 +9804,7 @@ app_cmd_menu_language() {
             return 0
         fi
         case "${_choice}" in
-            61|english|en|English)
+            51|english|en|English)
                 if app_lang_save en; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -9813,7 +9813,7 @@ app_cmd_menu_language() {
                 unset _choice
                 return 0
                 ;;
-            62|traditional-chinese|zh-hant|zh-Hant|繁體中文)
+            52|traditional-chinese|zh-hant|zh-Hant|繁體中文)
                 if app_lang_save zh-Hant; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -9822,7 +9822,7 @@ app_cmd_menu_language() {
                 unset _choice
                 return 0
                 ;;
-            63|spanish|es|Español|español)
+            53|spanish|es|Español|español)
                 if app_lang_save es; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -9831,7 +9831,7 @@ app_cmd_menu_language() {
                 unset _choice
                 return 0
                 ;;
-            64|french|fr|Français|français)
+            54|french|fr|Français|français)
                 if app_lang_save fr; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -9840,7 +9840,7 @@ app_cmd_menu_language() {
                 unset _choice
                 return 0
                 ;;
-            65|german|de|Deutsch|deutsch)
+            55|german|de|Deutsch|deutsch)
                 if app_lang_save de; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -9849,7 +9849,7 @@ app_cmd_menu_language() {
                 unset _choice
                 return 0
                 ;;
-            66|simplified-chinese|zh-hans|zh-Hans|简体中文)
+            56|simplified-chinese|zh-hans|zh-Hans|简体中文)
                 if app_lang_save zh-Hans; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -9858,7 +9858,7 @@ app_cmd_menu_language() {
                 unset _choice
                 return 0
                 ;;
-            67|japanese|ja|日本語)
+            57|japanese|ja|日本語)
                 if app_lang_save ja; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -9867,7 +9867,7 @@ app_cmd_menu_language() {
                 unset _choice
                 return 0
                 ;;
-            68|korean|ko|한국어)
+            58|korean|ko|한국어)
                 if app_lang_save ko; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -10133,14 +10133,15 @@ app_cmd_menu_self() {
     done
 }
 
-# Last updated: 2026-09-28
+# Last updated: 2026-10-02
 # ALIGNMENT: requirement-shell-cli-default-interaction · requirement-shell-cli-language.md · requirement-shell-cli-zero-arguments
-# Front board loops until Exit. Category rows open a submenu. Row 6 opens
-# language (61 English, 62 Traditional Chinese, 63 Spanish, 64 French,
-# 65 German, 66 Simplified Chinese, 67 Japanese, 68 Korean).
+# Front board loops until Exit. Category rows open a submenu. Row 5 opens
+# language. Rows 50-69 are reserved for at most 20 languages.
+# Assigned: 51 English, 52 Traditional Chinese, 53 Spanish, 54 French,
+# 55 German, 56 Simplified Chinese, 57 Japanese, 58 Korean.
 # POSIX Linux row 7 opens
 # sudoers (71-75). A finished leaf redisplays this board. Unknown choice
-# retries this layer. Row 7 stays reserved when hidden.
+# retries this layer. Row 7 stays reserved when hidden. Front 6 is not a row.
 app_cmd_menu() {
     if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ] || [ "${TTY}" -ne 1 ]; then
         out_die "menu needs a terminal. Run a named command instead, for example: ${APP_NAME} status"
@@ -10153,7 +10154,7 @@ app_cmd_menu() {
         out_info "**${APP_NAME}**(*${VERSION}*)"
         out_menu_choice "1" "$(app_menu_text cat_client)" "$(app_menu_text front_client_long)"
         out_menu_choice "2" "$(app_menu_text cat_server)" "$(app_menu_text front_server_long)"
-        out_menu_choice "6" "$(app_menu_text cat_language)" "$(app_menu_text front_language_long)"
+        out_menu_choice "5" "$(app_menu_text cat_language)" "$(app_menu_text front_language_long)"
         if [ "${_show_sudoers}" -eq 1 ]; then
             out_menu_choice "7" "sudoers" "$(app_menu_text front_sudoers_long)"
         fi
@@ -10176,7 +10177,7 @@ app_cmd_menu() {
                 out_warn "$(app_menu_text unknown_menu "${_choice}")"
                 continue
                 ;;
-            6|language|語言|语言|idioma|langue|Sprache|sprache|言語|언어) app_cmd_menu_language; continue ;;
+            5|language|語言|语言|idioma|langue|Sprache|sprache|言語|언어) app_cmd_menu_language; continue ;;
             8|self-management|自我管理|autogestión|autogestion|Selbstverwaltung|selbstverwaltung|自己管理|자기관리) app_cmd_menu_self; continue ;;
             9|99|999|exit|"")
                 unset _choice _show_sudoers

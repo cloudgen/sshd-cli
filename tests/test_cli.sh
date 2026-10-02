@@ -175,6 +175,8 @@ run_test_cli() {
     assert_contains "TP-CLI-14 interactive empty argv Exit 9" "$_out" "9. Exit"
     assert_contains "TP-CLI-14 front language row" "$_out" "language"
     assert_contains "TP-CLI-14 front language long" "$_out" "display language for this menu"
+    assert_contains "TP-CLI-14 front language row 5" "$_out" "5."
+    assert_not_contains "TP-CLI-14 front board has no row 6" "$_out" "6."
     assert_contains "TP-CLI-14 front sudoers row 7" "$_out" "7."
     assert_contains "TP-CLI-14 front sudoers short" "$_out" "sudoers"
     assert_not_contains "TP-CLI-14 front board has no dns row 5" "$_out" "5. SSH names"
@@ -306,37 +308,56 @@ run_test_cli() {
     unset _out _ec _n
     ci_cleanup_env
 
-    # TP-CLI-24 menu 6 language: English default, eight codes, file, restore
+    # TP-CLI-24 menu 5 language: English default, eight codes, file, restore
     ci_isolated_env
-    _out=$(printf '%s\n' '6' '0' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
+    _out=$(printf '%s\n' '5' '0' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
     _ec=$?
     assert_eq "TP-CLI-24 open language then Back exit 0" 0 "$_ec"
     assert_contains "TP-CLI-24 front language long" "$_out" "display language for this menu"
-    assert_contains "TP-CLI-24 language row 61" "$_out" "61."
+    assert_contains "TP-CLI-24 language row 51" "$_out" "51."
     assert_contains "TP-CLI-24 language English" "$_out" "English"
-    assert_contains "TP-CLI-24 language row 62" "$_out" "62."
+    assert_contains "TP-CLI-24 language row 52" "$_out" "52."
     assert_contains "TP-CLI-24 language Traditional Chinese" "$_out" "繁體中文"
-    assert_contains "TP-CLI-24 language row 63" "$_out" "63."
+    assert_contains "TP-CLI-24 language row 53" "$_out" "53."
     assert_contains "TP-CLI-24 language Spanish" "$_out" "Español"
     assert_contains "TP-CLI-24 language Spanish long" "$_out" "use Spanish for this menu"
-    assert_contains "TP-CLI-24 language row 64" "$_out" "64."
+    assert_contains "TP-CLI-24 language row 54" "$_out" "54."
     assert_contains "TP-CLI-24 language French" "$_out" "Français"
     assert_contains "TP-CLI-24 language French long" "$_out" "use French for this menu"
-    assert_contains "TP-CLI-24 language row 65" "$_out" "65."
+    assert_contains "TP-CLI-24 language row 55" "$_out" "55."
     assert_contains "TP-CLI-24 language German" "$_out" "Deutsch"
     assert_contains "TP-CLI-24 language German long" "$_out" "use German for this menu"
-    assert_contains "TP-CLI-24 language row 66" "$_out" "66."
+    assert_contains "TP-CLI-24 language row 56" "$_out" "56."
     assert_contains "TP-CLI-24 language Simplified Chinese" "$_out" "简体中文"
     assert_contains "TP-CLI-24 language Simplified Chinese long" "$_out" "use Simplified Chinese for this menu"
-    assert_contains "TP-CLI-24 language row 67" "$_out" "67."
+    assert_contains "TP-CLI-24 language row 57" "$_out" "57."
     assert_contains "TP-CLI-24 language Japanese" "$_out" "日本語"
     assert_contains "TP-CLI-24 language Japanese long" "$_out" "use Japanese for this menu"
-    assert_contains "TP-CLI-24 language row 68" "$_out" "68."
+    assert_contains "TP-CLI-24 language row 58" "$_out" "58."
     assert_contains "TP-CLI-24 language Korean" "$_out" "한국어"
     assert_contains "TP-CLI-24 language Korean long" "$_out" "use Korean for this menu"
+    assert_contains "TP-CLI-24 front language row 5" "$_out" "5."
+    assert_not_contains "TP-CLI-24 no reserved row 50" "$_out" "50."
+    assert_not_contains "TP-CLI-24 no reserved row 59" "$_out" "59."
+    assert_not_contains "TP-CLI-24 no reserved row 60" "$_out" "60."
+    assert_not_contains "TP-CLI-24 no old row 61" "$_out" "61."
+    assert_not_contains "TP-CLI-24 no reserved row 69" "$_out" "69."
     assert_contains "TP-CLI-24 language Back" "$_out" "0. Back"
     assert_file_missing "TP-CLI-24 Back does not write language" "${CI_HOME}/.local/${APP_NAME}/language"
-    _out=$(printf '%s\n' '6' '62' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
+    _out=$(printf '%s\n' '5' '50' '0' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
+    assert_contains "TP-CLI-24 reserved 50 warns" "$_out" "Unknown menu choice '50'"
+    assert_file_missing "TP-CLI-24 reserved 50 does not write language" "${CI_HOME}/.local/${APP_NAME}/language"
+    _out=$(printf '%s\n' '5' '69' '0' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
+    assert_contains "TP-CLI-24 reserved 69 warns" "$_out" "Unknown menu choice '69'"
+    assert_file_missing "TP-CLI-24 reserved 69 does not write language" "${CI_HOME}/.local/${APP_NAME}/language"
+    _out=$(printf '%s\n' '5' '61' '0' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
+    assert_contains "TP-CLI-24 old 61 warns" "$_out" "Unknown menu choice '61'"
+    assert_file_missing "TP-CLI-24 old 61 does not write language" "${CI_HOME}/.local/${APP_NAME}/language"
+    _out=$(printf '%s\n' '6' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
+    assert_contains "TP-CLI-24 old front 6 warns" "$_out" "Unknown menu choice '6'"
+    assert_not_contains "TP-CLI-24 old front 6 does not open language rows" "$_out" "51."
+    assert_file_missing "TP-CLI-24 old front 6 does not write language" "${CI_HOME}/.local/${APP_NAME}/language"
+    _out=$(printf '%s\n' '5' '52' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
     _ec=$?
     assert_eq "TP-CLI-24 choose Traditional Chinese exit 0" 0 "$_ec"
     assert_contains "TP-CLI-24 Traditional Chinese saved" "$_out" "選單語言是繁體中文"
@@ -350,7 +371,7 @@ run_test_cli() {
     _out=$(printf '%s\n' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
     assert_contains "TP-CLI-24 next run stays Traditional Chinese" "$_out" "用戶端"
     assert_not_contains "TP-CLI-24 next run is not English client-side" "$_out" "client-side"
-    _out=$(printf '%s\n' '6' '61' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
+    _out=$(printf '%s\n' '5' '51' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 sh "${SCRIPT}" 2>&1)
     _ec=$?
     assert_eq "TP-CLI-24 choose English exit 0" 0 "$_ec"
     assert_contains "TP-CLI-24 English saved" "$_out" "Menu language is English"
@@ -360,42 +381,42 @@ run_test_cli() {
     _out=$(printf '%s\n' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u SSHD_CLI_LANG sh "${SCRIPT}" 2>&1)
     assert_contains "TP-CLI-24 next run stays English" "$_out" "client-side"
     assert_not_contains "TP-CLI-24 next run is not Traditional Chinese client" "$_out" "用戶端"
-    _out=$(printf '%s\n' '6' '63' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u SSHD_CLI_LANG sh "${SCRIPT}" 2>&1)
+    _out=$(printf '%s\n' '5' '53' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u SSHD_CLI_LANG sh "${SCRIPT}" 2>&1)
     _ec=$?
     assert_eq "TP-CLI-24 choose Spanish exit 0" 0 "$_ec"
     assert_contains "TP-CLI-24 Spanish saved" "$_out" "El idioma del menú es español"
     assert_contains "TP-CLI-24 Spanish Exit" "$_out" "9. Salir"
     _lang=$(head -n 1 "${CI_HOME}/.local/${APP_NAME}/language" | tr -d '\r')
     assert_eq "TP-CLI-24 file is es" "es" "${_lang}"
-    _out=$(printf '%s\n' '6' '64' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u SSHD_CLI_LANG sh "${SCRIPT}" 2>&1)
+    _out=$(printf '%s\n' '5' '54' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u SSHD_CLI_LANG sh "${SCRIPT}" 2>&1)
     _ec=$?
     assert_eq "TP-CLI-24 choose French exit 0" 0 "$_ec"
     assert_contains "TP-CLI-24 French saved" "$_out" "La langue du menu est le français"
     assert_contains "TP-CLI-24 French Exit" "$_out" "9. Quitter"
     _lang=$(head -n 1 "${CI_HOME}/.local/${APP_NAME}/language" | tr -d '\r')
     assert_eq "TP-CLI-24 file is fr" "fr" "${_lang}"
-    _out=$(printf '%s\n' '6' '65' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u SSHD_CLI_LANG sh "${SCRIPT}" 2>&1)
+    _out=$(printf '%s\n' '5' '55' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u SSHD_CLI_LANG sh "${SCRIPT}" 2>&1)
     _ec=$?
     assert_eq "TP-CLI-24 choose German exit 0" 0 "$_ec"
     assert_contains "TP-CLI-24 German saved" "$_out" "Die Menüsprache ist Deutsch"
     assert_contains "TP-CLI-24 German Exit" "$_out" "9. Beenden"
     _lang=$(head -n 1 "${CI_HOME}/.local/${APP_NAME}/language" | tr -d '\r')
     assert_eq "TP-CLI-24 file is de" "de" "${_lang}"
-    _out=$(printf '%s\n' '6' '66' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u SSHD_CLI_LANG sh "${SCRIPT}" 2>&1)
+    _out=$(printf '%s\n' '5' '56' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u SSHD_CLI_LANG sh "${SCRIPT}" 2>&1)
     _ec=$?
     assert_eq "TP-CLI-24 choose Simplified Chinese exit 0" 0 "$_ec"
     assert_contains "TP-CLI-24 Simplified Chinese saved" "$_out" "菜单语言是简体中文"
     assert_contains "TP-CLI-24 front redraws in Simplified Chinese" "$_out" "客户端"
     _lang=$(head -n 1 "${CI_HOME}/.local/${APP_NAME}/language" | tr -d '\r')
     assert_eq "TP-CLI-24 file is zh-Hans" "zh-Hans" "${_lang}"
-    _out=$(printf '%s\n' '6' '67' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u SSHD_CLI_LANG sh "${SCRIPT}" 2>&1)
+    _out=$(printf '%s\n' '5' '57' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u SSHD_CLI_LANG sh "${SCRIPT}" 2>&1)
     _ec=$?
     assert_eq "TP-CLI-24 choose Japanese exit 0" 0 "$_ec"
     assert_contains "TP-CLI-24 Japanese saved" "$_out" "メニューの言語は日本語"
     assert_contains "TP-CLI-24 Japanese Exit" "$_out" "9. 終了"
     _lang=$(head -n 1 "${CI_HOME}/.local/${APP_NAME}/language" | tr -d '\r')
     assert_eq "TP-CLI-24 file is ja" "ja" "${_lang}"
-    _out=$(printf '%s\n' '6' '68' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u SSHD_CLI_LANG sh "${SCRIPT}" 2>&1)
+    _out=$(printf '%s\n' '5' '58' '9' | HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" GLOBAL_BIN="${CI_GLOBAL_BIN}" TTY=1 env -u SSHD_CLI_LANG sh "${SCRIPT}" 2>&1)
     _ec=$?
     assert_eq "TP-CLI-24 choose Korean exit 0" 0 "$_ec"
     assert_contains "TP-CLI-24 Korean saved" "$_out" "메뉴 언어는 한국어"
@@ -432,8 +453,8 @@ run_test_cli() {
     assert_not_contains "TP-CLI-24 Korean about is not About / Diagnostics" "$_out" "About / Diagnostics"
     _out=$(SSHD_CLI_LANG=en sh "${SCRIPT}" help 2>/dev/null)
     assert_contains "TP-CLI-24 English help still says Usage" "$_out" "Usage:"
-    assert_contains "TP-CLI-24 English help names Japanese" "$_out" "67 Japanese"
-    assert_contains "TP-CLI-24 English help names Korean" "$_out" "68 Korean"
+    assert_contains "TP-CLI-24 English help names Japanese" "$_out" "57 Japanese"
+    assert_contains "TP-CLI-24 English help names Korean" "$_out" "58 Korean"
     assert_contains "TP-CLI-24 English help tests heading" "$_out" "Tests (local folder; not install):"
     unset _out _ec _lang _mode
     ci_cleanup_env
@@ -593,7 +614,7 @@ run_test_cli() {
         'done' \
         'exec "${REAL_MKDIR}" "$@"' > "${_stub}/mkdir"
     chmod +x "${_stub}/mkdir"
-    _combined=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" PATH="${_stub}:${PATH}" MSYSTEM=MINGW64 env -u TERMUX_VERSION sh "${SCRIPT}" --json about 2>&1)
+    _combined=$(HOME="${CI_HOME}" USER_BIN="${CI_USER_BIN}" PATH="${_stub}:${PATH}" MSYSTEM=MINGW54 env -u TERMUX_VERSION sh "${SCRIPT}" --json about 2>&1)
     _ec=$?
     assert_eq "TP-CLI-19 git-bash tmp fail-soft exit 0" 0 "$_ec"
     assert_not_contains "TP-CLI-19 no cache ERROR" "${_combined}" "Cannot create cache"

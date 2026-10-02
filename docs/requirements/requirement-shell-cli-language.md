@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-language.md
-**Status**: Active (Version 1.3.1)
+**Status**: Active (Version 1.4.0)
 **Area**: shell
 **Key**: `requirement-shell-cli-language`
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -8,21 +8,21 @@
 
 This requirement is the product law for **menu language** on sshd-cli: English, Traditional Chinese, Spanish, French, German, Simplified Chinese, Japanese, and Korean, the saved code, the words the numbered menu prints, the human text of `help` and `about`, the worked samples of those boards, and the translation tables for the lines the samples do not show in every language.
 
-The numbered tree (which row is **6**, which child is **61** through **68**, Back, and the current-shell `read`) stays owned by `requirement-shell-cli-default-interaction`. The persistence directory stays owned by `requirement-shell-cli-storage`. This file owns the language codes, the `language` leaf, and the menu copy.
+The numbered tree (which row is **5**, which children are reserved **50** through **69**, Back, and the current-shell `read`) stays owned by `requirement-shell-cli-default-interaction`. This version assigns **51** through **58**. The persistence directory stays owned by `requirement-shell-cli-storage`. This file owns the language codes, the `language` leaf, and the menu copy.
 
 ### 1.1 Human-facing
 
-**In one sentence:** Menu **6** chooses English, 繁體中文, Español, Français, Deutsch, 简体中文, 日本語, or 한국어 for the numbered menu, for `help`, and for `about`, and the next run opens in that language.
+**In one sentence:** Menu **5** chooses English, 繁體中文, Español, Français, Deutsch, 简体中文, 日本語, or 한국어 for the numbered menu, for `help`, and for `about`, and the next run opens in that language.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
-| You / this login | Pick a language on the menu | `6` then `62`, `63`, `64`, `65`, `66`, `67`, or `68` |
+| You / this login | Pick a language on the menu | `5` then `52`, `53`, `54`, `55`, `56`, `57`, or `58` |
 | The other role | A script that must not wait | `sshd-cli status` |
 | Not this file | What `start` prints, the dns action board, the version one-liner | Those stay English |
 
 | Includes | Excludes |
 |----------|----------|
-| Codes `en`, `zh-Hant`, `es`, `fr`, `de`, `zh-Hans`, `ja`, and `ko`; front **6** / **61–68**; menu copy on the boards named in §2.4; human `help` and human `about` | Translating command output, the dns action board, Host and folder pickers, argv `version`, or JSON about fields |
+| Codes `en`, `zh-Hant`, `es`, `fr`, `de`, `zh-Hans`, `ja`, and `ko`; front **5** / block **50–69** (assigned **51–58**); menu copy on the boards named in §2.4; human `help` and human `about` | Translating command output, the dns action board, Host and folder pickers, argv `version`, or JSON about fields |
 | File `${HOME}/.local/${APP_NAME}/language` | Putting that file in the cache folder |
 
 ## 2. Core Rules / Requirements (Mandatory)
@@ -33,16 +33,16 @@ The numbered tree (which row is **6**, which child is **61** through **68**, Bac
 
 | Code | Name on the language board | Number | Default |
 |------|----------------------------|--------|---------|
-| `en` | English | **61** | yes |
-| `zh-Hant` | 繁體中文 | **62** | no |
-| `es` | Español | **63** | no |
-| `fr` | Français | **64** | no |
-| `de` | Deutsch | **65** | no |
-| `zh-Hans` | 简体中文 | **66** | no |
-| `ja` | 日本語 | **67** | no |
-| `ko` | 한국어 | **68** | no |
+| `en` | English | **51** | yes |
+| `zh-Hant` | 繁體中文 | **52** | no |
+| `es` | Español | **53** | no |
+| `fr` | Français | **54** | no |
+| `de` | Deutsch | **55** | no |
+| `zh-Hans` | 简体中文 | **56** | no |
+| `ja` | 日本語 | **57** | no |
+| `ko` | 한국어 | **58** | no |
 
-**MUST** accept only these eight codes in this version. **MUST** treat a missing file, an empty file, or any other first line as English for this process. **MUST NOT** rewrite a file whose first line is not one of these codes. **MUST NOT** add a ninth code without a new revision of this file.
+**MUST** accept only these eight codes in this version. The language board uses only numbers **50** through **69**. That block is twenty numbers, so this menu has **not more than 20 languages**. This version assigns eight: **51** through **58**. **50** and **59** through **69** are reserved and are not printed. A pick of one of those reserved numbers warns and reprints this board and does not write the file. Front **6** is not a row. **MUST NOT** assign a language row outside **50–69**. **MUST NOT** assign more than twenty language rows. **MUST** treat a missing file, an empty file, or any other first line as English for this process. **MUST NOT** rewrite a file whose first line is not one of these codes. **MUST NOT** add a ninth code without a new revision of this file.
 
 The short names **English**, **繁體中文**, **Español**, **Français**, **Deutsch**, **简体中文**, **日本語**, and **한국어** are the same words in every language (each language’s own name).
 
@@ -56,26 +56,26 @@ The short names **English**, **繁體中文**, **Español**, **Français**, **De
 
 ### 2.3 Menu numbers
 
-Front **6** opens `app_cmd_menu_language`. **61** saves `en`. **62** saves `zh-Hant`. **63** saves `es`. **64** saves `fr`. **65** saves `de`. **66** saves `zh-Hans`. **67** saves `ja`. **68** saves `ko`. Each is a valid leaf: an info line names the language, then the front board redisplays in that language. **0** / empty / EOF is Back and does not write the file. An invalid choice warns and reprints this board.
+Front **5** opens `app_cmd_menu_language`. **51** saves `en`. **52** saves `zh-Hant`. **53** saves `es`. **54** saves `fr`. **55** saves `de`. **56** saves `zh-Hans`. **57** saves `ja`. **58** saves `ko`. Each is a valid leaf: an info line names the language, then the front board redisplays in that language. **0** / empty / EOF is Back and does not write the file. An invalid choice warns and reprints this board. Numbers **50** through **69** are the only language rows (not more than 20 languages). **50** and **59** through **69** are reserved and are not printed. Front **6** is not a row.
 
 Typed `language`, `語言`, `语言`, `idioma`, `langue`, `Sprache`, `sprache`, `言語`, and `언어` on the front board open it. The language board accepts:
 
 | Row | Typed tokens |
 |-----|----------------|
-| **61** | `english`, `en`, `English` |
-| **62** | `traditional-chinese`, `zh-hant`, `zh-Hant`, `繁體中文` |
-| **63** | `spanish`, `es`, `Español`, `español` |
-| **64** | `french`, `fr`, `Français`, `français` |
-| **65** | `german`, `de`, `Deutsch`, `deutsch` |
-| **66** | `simplified-chinese`, `zh-hans`, `zh-Hans`, `简体中文` |
-| **67** | `japanese`, `ja`, `日本語` |
-| **68** | `korean`, `ko`, `한국어` |
+| **51** | `english`, `en`, `English` |
+| **52** | `traditional-chinese`, `zh-hant`, `zh-Hant`, `繁體中文` |
+| **53** | `spanish`, `es`, `Español`, `español` |
+| **54** | `french`, `fr`, `Français`, `français` |
+| **55** | `german`, `de`, `Deutsch`, `deutsch` |
+| **56** | `simplified-chinese`, `zh-hans`, `zh-Hans`, `简体中文` |
+| **57** | `japanese`, `ja`, `日本語` |
+| **58** | `korean`, `ko`, `한국어` |
 
 `language` is not an argv verb.
 
 The front board also accepts the displayed category short: `client-side`, `用戶端`, `客户端`, `cliente`, `client`, `Client`, `クライアント`, `클라이언트`; `server-side`, `伺服器端`, `服务器端`, `servidor`, `serveur`, `Server`, `server`, `サーバー`, `서버`; `self-management`, `自我管理`, `autogestión`, `autogestion`, `Selbstverwaltung`, `selbstverwaltung`, `自己管理`, `자기관리`. The sudoers short stays `sudoers` in every language.
 
-Row **6** is numbered on every host, including Termux, Git Bash, and Windows cmd. It is not a hide cause.
+Row **5** is numbered on every host, including Termux, Git Bash, and Windows cmd. It is not a hide cause.
 
 ### 2.4 What follows the saved language
 
@@ -85,7 +85,7 @@ Row **6** is numbered on every host, including Termux, Git Bash, and Windows cmd
 
 Row **71**’s English long text is `Write a JSON grant you can read`. That sentence stays inside `sshd_cmd_sudoers_menu`, which contains a current-shell `read`. **MUST NOT** put that sentence, or any row **71** long, in `app_menu_text`: the helper’s body must stay free of those four letters in a row so a command substitution stays legal. Each accepted code has its own arm of the `case` in `sshd_cmd_sudoers_menu` (§2.6). The other sudoers longs go through `app_menu_text`.
 
-**MUST** follow `APP_LANG` on human `help` and human `about`. Section headings and the words after each command token follow the code. The command token, the flag, the path, and the env name stay the Latin spelling in every language (`install`, `status`, `self-install`, `--json`, `SCRIPT_URL`, `~/.ssh/config`). English `help` still prints `Usage:` and `Tests (local folder; not install):`. The English menu sentence in `help` names **67** Japanese and **68** Korean. The other codes use their own heading: `用法：`, `Uso:`, `Utilisation :`, `Verwendung:`, `使い方:`, `사용법:`. English `about` still prints `About / Diagnostics`, `Cache folder used:`, and `Useful commands:`. Japanese about prints `概要 / 診断` and `使用中のキャッシュフォルダ:`. Korean about prints `개요 / 진단` and `사용 중인 캐시 폴더:`.
+**MUST** follow `APP_LANG` on human `help` and human `about`. Section headings and the words after each command token follow the code. The command token, the flag, the path, and the env name stay the Latin spelling in every language (`install`, `status`, `self-install`, `--json`, `SCRIPT_URL`, `~/.ssh/config`). English `help` still prints `Usage:` and `Tests (local folder; not install):`. The English menu sentence in `help` names **57** Japanese and **58** Korean, and names front **5**. The other codes use their own heading: `用法：`, `Uso:`, `Utilisation :`, `Verwendung:`, `使い方:`, `사용법:`. English `about` still prints `About / Diagnostics`, `Cache folder used:`, and `Useful commands:`. Japanese about prints `概要 / 診断` and `使用中のキャッシュフォルダ:`. Korean about prints `개요 / 진단` and `사용 중인 캐시 폴더:`.
 
 Three sentences contain the letters r, e, a, d in a row. They stay as `case` arms inside `app_help` and `app_about`, not inside `app_menu_text`. The English arms stay `Help text available in human-readable mode. Run without --json.`, `Machine-readable JSON (implies --quiet)`, and `Machine-readable output`. The help note `Use --json with version, about, version-check, install, self-install, self-update, self-uninstall, rc-test.` does not contain those letters and goes through `app_menu_text`.
 
@@ -134,15 +134,15 @@ Back and Exit on these boards:
 
 ### 2.4.1 Worked samples
 
-These fences are a live run with the terminal ink written as markdown: **bold** short, *italic* long. The version token is the live `VERSION`. These fences show `1.30.0`. The choose-prompt in the source ends with one space. These fences omit that space. **MUST** print the front board, and the opening of human `help` and human `about`, for each code as these samples say. **MUST NOT** invent a line the ship unit does not print. Deeper boards keep the English verb as the leaf short (§2.4). The language-board longs in a language other than English are §2.4.2. The §2.6 fences stay the full functions.
+These fences are a live run with the terminal ink written as markdown: **bold** short, *italic* long. The version token is the live `VERSION`. These fences show `1.31.0`. The language rows in the samples are **51** through **58**. The reserved numbers **50** and **59** through **69** are not printed. The choose-prompt in the source ends with one space. These fences omit that space. **MUST** print the front board, and the opening of human `help` and human `about`, for each code as these samples say. **MUST NOT** invent a line the ship unit does not print. Deeper boards keep the English verb as the leaf short (§2.4). The language-board longs in a language other than English are §2.4.2. The §2.6 fences stay the full functions.
 
 English (`en`), front board, then the language board, then the opening of `help` and `about`:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **client-side**: *this login OpenSSH client (~/.ssh/config, ssh, folders)*
 2. **server-side**: *this host OpenSSH sshd (listen, keys, port)*
-6. **language**: *display language for this menu*
+5. **language**: *display language for this menu*
 7. **sudoers**: *grant and drafts for passwordless sudo*
 8. **self-management**: *this CLI install, version, update, uninstall*
 9. Exit
@@ -150,15 +150,15 @@ Choose a number, or type the command name:
 ```
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*) — language
-61. **English**: *use English for this menu*
-62. **繁體中文**: *use Traditional Chinese for this menu*
-63. **Español**: *use Spanish for this menu*
-64. **Français**: *use French for this menu*
-65. **Deutsch**: *use German for this menu*
-66. **简体中文**: *use Simplified Chinese for this menu*
-67. **日本語**: *use Japanese for this menu*
-68. **한국어**: *use Korean for this menu*
+[INFO] **sshd-cli**(*1.31.0*) — language
+51. **English**: *use English for this menu*
+52. **繁體中文**: *use Traditional Chinese for this menu*
+53. **Español**: *use Spanish for this menu*
+54. **Français**: *use French for this menu*
+55. **Deutsch**: *use German for this menu*
+56. **简体中文**: *use Simplified Chinese for this menu*
+57. **日本語**: *use Japanese for this menu*
+58. **한국어**: *use Korean for this menu*
 0. Back
 Choose a number, or type the command name:
 ```
@@ -167,17 +167,17 @@ Choose a number, or type the command name:
 [INFO] sshd-cli — Simplify Termux to install sshd
 [INFO] Usage:
   sshd-cli [command] [options]
-[INFO] === sshd-cli 1.30.0 - About / Diagnostics ===
+[INFO] === sshd-cli 1.31.0 - About / Diagnostics ===
 [OK] sshd-cli is properly installed.
 ```
 
-Traditional Chinese (`zh-Hant`), after **62**:
+Traditional Chinese (`zh-Hant`), after **52**:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **用戶端**: *這個登入的 OpenSSH 用戶端（~/.ssh/config、ssh、資料夾）*
 2. **伺服器端**: *這台主機的 OpenSSH sshd（接聽、金鑰、連接埠）*
-6. **語言**: *這個選單的顯示語言*
+5. **語言**: *這個選單的顯示語言*
 7. **sudoers**: *免密碼 sudo 的授權與草稿*
 8. **自我管理**: *這個 CLI 的安裝、版本、更新、移除*
 9. 離開
@@ -188,17 +188,17 @@ Traditional Chinese (`zh-Hant`), after **62**:
 [INFO] sshd-cli — 簡化 Termux 安裝 sshd
 [INFO] 用法：
   sshd-cli [命令] [選項]
-[INFO] === sshd-cli 1.30.0 - 關於 / 診斷 ===
+[INFO] === sshd-cli 1.31.0 - 關於 / 診斷 ===
 [OK] sshd-cli 已正確安裝。
 ```
 
-Spanish (`es`), after **63**:
+Spanish (`es`), after **53**:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **cliente**: *cliente OpenSSH de este inicio (~/.ssh/config, ssh, carpetas)*
 2. **servidor**: *sshd OpenSSH de este equipo (escucha, claves, puerto)*
-6. **idioma**: *idioma de este menú*
+5. **idioma**: *idioma de este menú*
 7. **sudoers**: *concesión y borradores de sudo sin contraseña*
 8. **autogestión**: *instalación, versión, actualización y desinstalación de este CLI*
 9. Salir
@@ -209,17 +209,17 @@ Elija un número, o escriba el nombre del comando:
 [INFO] sshd-cli — simplificar la instalación de sshd en Termux
 [INFO] Uso:
   sshd-cli [comando] [opciones]
-[INFO] === sshd-cli 1.30.0 - Acerca de / diagnóstico ===
+[INFO] === sshd-cli 1.31.0 - Acerca de / diagnóstico ===
 [OK] sshd-cli está instalado correctamente.
 ```
 
-French (`fr`), after **64**:
+French (`fr`), after **54**:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **client**: *client OpenSSH de cette session (~/.ssh/config, ssh, dossiers)*
 2. **serveur**: *sshd OpenSSH de cet hôte (écoute, clés, port)*
-6. **langue**: *langue d'affichage de ce menu*
+5. **langue**: *langue d'affichage de ce menu*
 7. **sudoers**: *autorisation et brouillons pour sudo sans mot de passe*
 8. **autogestion**: *installation, version, mise à jour et retrait de ce CLI*
 9. Quitter
@@ -230,17 +230,17 @@ Choisissez un numéro, ou saisissez le nom de la commande :
 [INFO] sshd-cli — simplifier l'installation de sshd sur Termux
 [INFO] Utilisation :
   sshd-cli [commande] [options]
-[INFO] === sshd-cli 1.30.0 - À propos / diagnostic ===
+[INFO] === sshd-cli 1.31.0 - À propos / diagnostic ===
 [OK] sshd-cli est correctement installé.
 ```
 
-German (`de`), after **65**:
+German (`de`), after **55**:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **Client**: *OpenSSH-Client dieser Anmeldung (~/.ssh/config, ssh, Ordner)*
 2. **Server**: *OpenSSH-sshd dieses Rechners (wartet, Schlüssel, Port)*
-6. **Sprache**: *Anzeigesprache dieses Menüs*
+5. **Sprache**: *Anzeigesprache dieses Menüs*
 7. **sudoers**: *Freigabe und Entwürfe für sudo ohne Passwort*
 8. **Selbstverwaltung**: *Installation, Version, Aktualisierung und Entfernen dieses CLI*
 9. Beenden
@@ -251,17 +251,17 @@ Wählen Sie eine Nummer, oder geben Sie den Befehlsnamen ein:
 [INFO] sshd-cli — sshd auf Termux einfach installieren
 [INFO] Verwendung:
   sshd-cli [Befehl] [Optionen]
-[INFO] === sshd-cli 1.30.0 - Über / Diagnose ===
+[INFO] === sshd-cli 1.31.0 - Über / Diagnose ===
 [OK] sshd-cli ist ordnungsgemäß installiert.
 ```
 
-Simplified Chinese (`zh-Hans`), after **66**:
+Simplified Chinese (`zh-Hans`), after **56**:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **客户端**: *这个登录的 OpenSSH 客户端（~/.ssh/config、ssh、文件夹）*
 2. **服务器端**: *这台主机的 OpenSSH sshd（监听、密钥、端口）*
-6. **语言**: *这个菜单的显示语言*
+5. **语言**: *这个菜单的显示语言*
 7. **sudoers**: *免密码 sudo 的授权与草稿*
 8. **自我管理**: *这个 CLI 的安装、版本、更新、移除*
 9. 离开
@@ -272,17 +272,17 @@ Simplified Chinese (`zh-Hans`), after **66**:
 [INFO] sshd-cli — 简化 Termux 安装 sshd
 [INFO] 用法：
   sshd-cli [命令] [选项]
-[INFO] === sshd-cli 1.30.0 - 关于 / 诊断 ===
+[INFO] === sshd-cli 1.31.0 - 关于 / 诊断 ===
 [OK] sshd-cli 已正确安装。
 ```
 
-Japanese (`ja`), after **67**:
+Japanese (`ja`), after **57**:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **クライアント**: *このログインの OpenSSH クライアント（~/.ssh/config、ssh、フォルダ）*
 2. **サーバー**: *このホストの OpenSSH sshd（待ち受け、鍵、ポート）*
-6. **言語**: *このメニューの表示言語*
+5. **言語**: *このメニューの表示言語*
 7. **sudoers**: *パスワードなし sudo の認可と下書き*
 8. **自己管理**: *この CLI のインストール、バージョン、更新、削除*
 9. 終了
@@ -293,17 +293,17 @@ Japanese (`ja`), after **67**:
 [INFO] sshd-cli — Termux で sshd を簡単に導入する
 [INFO] 使い方:
   sshd-cli [コマンド] [オプション]
-[INFO] === sshd-cli 1.30.0 - 概要 / 診断 ===
+[INFO] === sshd-cli 1.31.0 - 概要 / 診断 ===
 [OK] sshd-cli は正しく配置されています。
 ```
 
-Korean (`ko`), after **68**:
+Korean (`ko`), after **58**:
 
 ```text
-[INFO] **sshd-cli**(*1.30.0*)
+[INFO] **sshd-cli**(*1.31.0*)
 1. **클라이언트**: *이 로그인의 OpenSSH 클라이언트(~/.ssh/config, ssh, 폴더)*
 2. **서버**: *이 호스트의 OpenSSH sshd(대기, 키, 포트)*
-6. **언어**: *이 메뉴의 표시 언어*
+5. **언어**: *이 메뉴의 표시 언어*
 7. **sudoers**: *비밀번호 없는 sudo의 허가와 초안*
 8. **자기관리**: *이 CLI의 설치, 버전, 업데이트, 제거*
 9. 종료
@@ -314,7 +314,7 @@ Korean (`ko`), after **68**:
 [INFO] sshd-cli — Termux에서 sshd 설치를 단순하게
 [INFO] 사용법:
   sshd-cli [명령] [옵션]
-[INFO] === sshd-cli 1.30.0 - 개요 / 진단 ===
+[INFO] === sshd-cli 1.31.0 - 개요 / 진단 ===
 [OK] sshd-cli가 올바르게 설치되어 있습니다.
 ```
 
@@ -328,70 +328,70 @@ Language-board longs:
 
 | UI | Row | Long |
 |----|-----|------|
-| `en` | **61** | `use English for this menu` |
-| `en` | **62** | `use Traditional Chinese for this menu` |
-| `en` | **63** | `use Spanish for this menu` |
-| `en` | **64** | `use French for this menu` |
-| `en` | **65** | `use German for this menu` |
-| `en` | **66** | `use Simplified Chinese for this menu` |
-| `en` | **67** | `use Japanese for this menu` |
-| `en` | **68** | `use Korean for this menu` |
-| `zh-Hant` | **61** | `這個選單改用英文` |
-| `zh-Hant` | **62** | `這個選單改用繁體中文` |
-| `zh-Hant` | **63** | `這個選單改用西班牙文` |
-| `zh-Hant` | **64** | `這個選單改用法文` |
-| `zh-Hant` | **65** | `這個選單改用德文` |
-| `zh-Hant` | **66** | `這個選單改用簡體中文` |
-| `zh-Hant` | **67** | `這個選單改用日文` |
-| `zh-Hant` | **68** | `這個選單改用韓文` |
-| `es` | **61** | `usar inglés en este menú` |
-| `es` | **62** | `usar chino tradicional en este menú` |
-| `es` | **63** | `usar español en este menú` |
-| `es` | **64** | `usar francés en este menú` |
-| `es` | **65** | `usar alemán en este menú` |
-| `es` | **66** | `usar chino simplificado en este menú` |
-| `es` | **67** | `usar japonés en este menú` |
-| `es` | **68** | `usar coreano en este menú` |
-| `fr` | **61** | `utiliser l'anglais pour ce menu` |
-| `fr` | **62** | `utiliser le chinois traditionnel pour ce menu` |
-| `fr` | **63** | `utiliser l'espagnol pour ce menu` |
-| `fr` | **64** | `utiliser le français pour ce menu` |
-| `fr` | **65** | `utiliser l'allemand pour ce menu` |
-| `fr` | **66** | `utiliser le chinois simplifié pour ce menu` |
-| `fr` | **67** | `utiliser le japonais pour ce menu` |
-| `fr` | **68** | `utiliser le coréen pour ce menu` |
-| `de` | **61** | `Englisch für dieses Menü verwenden` |
-| `de` | **62** | `Traditionelles Chinesisch für dieses Menü verwenden` |
-| `de` | **63** | `Spanisch für dieses Menü verwenden` |
-| `de` | **64** | `Französisch für dieses Menü verwenden` |
-| `de` | **65** | `Deutsch für dieses Menü verwenden` |
-| `de` | **66** | `Vereinfachtes Chinesisch für dieses Menü verwenden` |
-| `de` | **67** | `Japanisch für dieses Menü verwenden` |
-| `de` | **68** | `Koreanisch für dieses Menü verwenden` |
-| `zh-Hans` | **61** | `这个菜单改用英文` |
-| `zh-Hans` | **62** | `这个菜单改用繁体中文` |
-| `zh-Hans` | **63** | `这个菜单改用西班牙文` |
-| `zh-Hans` | **64** | `这个菜单改用法文` |
-| `zh-Hans` | **65** | `这个菜单改用德文` |
-| `zh-Hans` | **66** | `这个菜单改用简体中文` |
-| `zh-Hans` | **67** | `这个菜单改用日文` |
-| `zh-Hans` | **68** | `这个菜单改用韩文` |
-| `ja` | **61** | `このメニューを英語にする` |
-| `ja` | **62** | `このメニューを繁体字中国語にする` |
-| `ja` | **63** | `このメニューをスペイン語にする` |
-| `ja` | **64** | `このメニューをフランス語にする` |
-| `ja` | **65** | `このメニューをドイツ語にする` |
-| `ja` | **66** | `このメニューを簡体字中国語にする` |
-| `ja` | **67** | `このメニューを日本語にする` |
-| `ja` | **68** | `このメニューを韓国語にする` |
-| `ko` | **61** | `이 메뉴를 영어로` |
-| `ko` | **62** | `이 메뉴를 번체 중국어로` |
-| `ko` | **63** | `이 메뉴를 스페인어로` |
-| `ko` | **64** | `이 메뉴를 프랑스어로` |
-| `ko` | **65** | `이 메뉴를 독일어로` |
-| `ko` | **66** | `이 메뉴를 간체 중국어로` |
-| `ko` | **67** | `이 메뉴를 일본어로` |
-| `ko` | **68** | `이 메뉴를 한국어로` |
+| `en` | **51** | `use English for this menu` |
+| `en` | **52** | `use Traditional Chinese for this menu` |
+| `en` | **53** | `use Spanish for this menu` |
+| `en` | **54** | `use French for this menu` |
+| `en` | **55** | `use German for this menu` |
+| `en` | **56** | `use Simplified Chinese for this menu` |
+| `en` | **57** | `use Japanese for this menu` |
+| `en` | **58** | `use Korean for this menu` |
+| `zh-Hant` | **51** | `這個選單改用英文` |
+| `zh-Hant` | **52** | `這個選單改用繁體中文` |
+| `zh-Hant` | **53** | `這個選單改用西班牙文` |
+| `zh-Hant` | **54** | `這個選單改用法文` |
+| `zh-Hant` | **55** | `這個選單改用德文` |
+| `zh-Hant` | **56** | `這個選單改用簡體中文` |
+| `zh-Hant` | **57** | `這個選單改用日文` |
+| `zh-Hant` | **58** | `這個選單改用韓文` |
+| `es` | **51** | `usar inglés en este menú` |
+| `es` | **52** | `usar chino tradicional en este menú` |
+| `es` | **53** | `usar español en este menú` |
+| `es` | **54** | `usar francés en este menú` |
+| `es` | **55** | `usar alemán en este menú` |
+| `es` | **56** | `usar chino simplificado en este menú` |
+| `es` | **57** | `usar japonés en este menú` |
+| `es` | **58** | `usar coreano en este menú` |
+| `fr` | **51** | `utiliser l'anglais pour ce menu` |
+| `fr` | **52** | `utiliser le chinois traditionnel pour ce menu` |
+| `fr` | **53** | `utiliser l'espagnol pour ce menu` |
+| `fr` | **54** | `utiliser le français pour ce menu` |
+| `fr` | **55** | `utiliser l'allemand pour ce menu` |
+| `fr` | **56** | `utiliser le chinois simplifié pour ce menu` |
+| `fr` | **57** | `utiliser le japonais pour ce menu` |
+| `fr` | **58** | `utiliser le coréen pour ce menu` |
+| `de` | **51** | `Englisch für dieses Menü verwenden` |
+| `de` | **52** | `Traditionelles Chinesisch für dieses Menü verwenden` |
+| `de` | **53** | `Spanisch für dieses Menü verwenden` |
+| `de` | **54** | `Französisch für dieses Menü verwenden` |
+| `de` | **55** | `Deutsch für dieses Menü verwenden` |
+| `de` | **56** | `Vereinfachtes Chinesisch für dieses Menü verwenden` |
+| `de` | **57** | `Japanisch für dieses Menü verwenden` |
+| `de` | **58** | `Koreanisch für dieses Menü verwenden` |
+| `zh-Hans` | **51** | `这个菜单改用英文` |
+| `zh-Hans` | **52** | `这个菜单改用繁体中文` |
+| `zh-Hans` | **53** | `这个菜单改用西班牙文` |
+| `zh-Hans` | **54** | `这个菜单改用法文` |
+| `zh-Hans` | **55** | `这个菜单改用德文` |
+| `zh-Hans` | **56** | `这个菜单改用简体中文` |
+| `zh-Hans` | **57** | `这个菜单改用日文` |
+| `zh-Hans` | **58** | `这个菜单改用韩文` |
+| `ja` | **51** | `このメニューを英語にする` |
+| `ja` | **52** | `このメニューを繁体字中国語にする` |
+| `ja` | **53** | `このメニューをスペイン語にする` |
+| `ja` | **54** | `このメニューをフランス語にする` |
+| `ja` | **55** | `このメニューをドイツ語にする` |
+| `ja` | **56** | `このメニューを簡体字中国語にする` |
+| `ja` | **57** | `このメニューを日本語にする` |
+| `ja` | **58** | `このメニューを韓国語にする` |
+| `ko` | **51** | `이 메뉴를 영어로` |
+| `ko` | **52** | `이 메뉴를 번체 중국어로` |
+| `ko` | **53** | `이 메뉴를 스페인어로` |
+| `ko` | **54** | `이 메뉴를 프랑스어로` |
+| `ko` | **55** | `이 메뉴를 독일어로` |
+| `ko` | **56** | `이 메뉴를 간체 중국어로` |
+| `ko` | **57** | `이 메뉴를 일본어로` |
+| `ko` | **58** | `이 메뉴를 한국어로` |
 
 Choose-prompt. Every source string ends with one space. The samples omit it.
 
@@ -548,7 +548,7 @@ app_lang_save() {
 #### `app_menu_text`
 
 ```sh
-# Last updated: 2026-09-28
+# Last updated: 2026-10-02
 # ALIGNMENT: requirement-shell-cli-language.md
 # Menu copy for APP_LANG (en, zh-Hant, es, fr, de, zh-Hans, ja, ko). Pure data. No input builtin.
 # A missing key prints the key. Call from the current shell or a command
@@ -1825,14 +1825,14 @@ app_menu_text() {
             ;;
         help_menu)
             case "${_mt_lang}" in
-                zh-Hant) _mt_out="編號樹：1 用戶端、2 伺服器端、6 語言、7 sudoers、8 自我管理、9 離開。語言 61 English、62 繁體中文、63 Español、64 Français、65 Deutsch、66 简体中文、67 日本語、68 한국어。用戶端 11… dns/ssh/download/upload。伺服器 21… status/start/stop/restart。自我管理 81… install/version/about、87 self-install。子選單 0 返回。別名：main" ;;
-                es) _mt_out="Árbol numerado: 1 cliente, 2 servidor, 6 idioma, 7 sudoers, 8 autogestión, 9 Salir. Idiomas 61 English, 62 繁體中文, 63 Español, 64 Français, 65 Deutsch, 66 简体中文, 67 日本語, 68 한국어. Cliente 11… dns/ssh/download/upload. Servidor 21… status/start/stop/restart. Autogestión 81… install/version/about, 87 self-install. Submenús 0 Atrás. Alias: main" ;;
-                fr) _mt_out="Arbre numéroté : 1 client, 2 serveur, 6 langue, 7 sudoers, 8 autogestion, 9 Quitter. Langues 61 English, 62 繁體中文, 63 Español, 64 Français, 65 Deutsch, 66 简体中文, 67 日本語, 68 한국어. Client 11… dns/ssh/download/upload. Serveur 21… status/start/stop/restart. Autogestion 81… install/version/about, 87 self-install. Sous-menus 0 Retour. Alias : main" ;;
-                de) _mt_out="Nummerierter Baum: 1 Client, 2 Server, 6 Sprache, 7 sudoers, 8 Selbstverwaltung, 9 Beenden. Sprachen 61 English, 62 繁體中文, 63 Español, 64 Français, 65 Deutsch, 66 简体中文, 67 日本語, 68 한국어. Client 11… dns/ssh/download/upload. Server 21… status/start/stop/restart. Selbstverwaltung 81… install/version/about, 87 self-install. Untermenüs 0 Zurück. Alias: main" ;;
-                zh-Hans) _mt_out="编号树：1 客户端、2 服务器端、6 语言、7 sudoers、8 自我管理、9 离开。语言 61 English、62 繁體中文、63 Español、64 Français、65 Deutsch、66 简体中文、67 日本語、68 한국어。客户端 11… dns/ssh/download/upload。服务器 21… status/start/stop/restart。自我管理 81… install/version/about、87 self-install。子菜单 0 返回。别名：main" ;;
-                ja) _mt_out="番号の木: 1 クライアント、2 サーバー、6 言語、7 sudoers、8 自己管理、9 終了。言語 61 English、62 繁體中文、63 Español、64 Français、65 Deutsch、66 简体中文、67 日本語、68 한국어。クライアント 11… dns/ssh/download/upload。サーバー 21… status/start/stop/restart。自己管理 81… install/version/about、87 self-install。サブメニュー 0 戻る。別名: main" ;;
-                ko) _mt_out="번호 나무: 1 클라이언트, 2 서버, 6 언어, 7 sudoers, 8 자기관리, 9 종료. 언어 61 English, 62 繁體中文, 63 Español, 64 Français, 65 Deutsch, 66 简体中文, 67 日本語, 68 한국어. 클라이언트 11… dns/ssh/download/upload. 서버 21… status/start/stop/restart. 자기관리 81… install/version/about, 87 self-install. 하위 메뉴 0 뒤로. 별칭: main" ;;
-                *) _mt_out="Numbered tree: 1 client-side, 2 server-side, 6 language, 7 sudoers, 8 self-management, 9 Exit. Language 61 English, 62 Traditional Chinese, 63 Spanish, 64 French, 65 German, 66 Simplified Chinese, 67 Japanese, 68 Korean. Client 11… dns/ssh/download/upload; server 21… status/start/stop/restart; self-management 81… install/version/about, 87 self-install. Submenus 0 Back. Alias: main" ;;
+                zh-Hant) _mt_out="編號樹：1 用戶端、2 伺服器端、5 語言、7 sudoers、8 自我管理、9 離開。語言 51 English、52 繁體中文、53 Español、54 Français、55 Deutsch、56 简体中文、57 日本語、58 한국어。用戶端 11… dns/ssh/download/upload。伺服器 21… status/start/stop/restart。自我管理 81… install/version/about、87 self-install。子選單 0 返回。別名：main" ;;
+                es) _mt_out="Árbol numerado: 1 cliente, 2 servidor, 5 idioma, 7 sudoers, 8 autogestión, 9 Salir. Idiomas 51 English, 52 繁體中文, 53 Español, 54 Français, 55 Deutsch, 56 简体中文, 57 日本語, 58 한국어. Cliente 11… dns/ssh/download/upload. Servidor 21… status/start/stop/restart. Autogestión 81… install/version/about, 87 self-install. Submenús 0 Atrás. Alias: main" ;;
+                fr) _mt_out="Arbre numéroté : 1 client, 2 serveur, 5 langue, 7 sudoers, 8 autogestion, 9 Quitter. Langues 51 English, 52 繁體中文, 53 Español, 54 Français, 55 Deutsch, 56 简体中文, 57 日本語, 58 한국어. Client 11… dns/ssh/download/upload. Serveur 21… status/start/stop/restart. Autogestion 81… install/version/about, 87 self-install. Sous-menus 0 Retour. Alias : main" ;;
+                de) _mt_out="Nummerierter Baum: 1 Client, 2 Server, 5 Sprache, 7 sudoers, 8 Selbstverwaltung, 9 Beenden. Sprachen 51 English, 52 繁體中文, 53 Español, 54 Français, 55 Deutsch, 56 简体中文, 57 日本語, 58 한국어. Client 11… dns/ssh/download/upload. Server 21… status/start/stop/restart. Selbstverwaltung 81… install/version/about, 87 self-install. Untermenüs 0 Zurück. Alias: main" ;;
+                zh-Hans) _mt_out="编号树：1 客户端、2 服务器端、5 语言、7 sudoers、8 自我管理、9 离开。语言 51 English、52 繁體中文、53 Español、54 Français、55 Deutsch、56 简体中文、57 日本語、58 한국어。客户端 11… dns/ssh/download/upload。服务器 21… status/start/stop/restart。自我管理 81… install/version/about、87 self-install。子菜单 0 返回。别名：main" ;;
+                ja) _mt_out="番号の木: 1 クライアント、2 サーバー、5 言語、7 sudoers、8 自己管理、9 終了。言語 51 English、52 繁體中文、53 Español、54 Français、55 Deutsch、56 简体中文、57 日本語、58 한국어。クライアント 11… dns/ssh/download/upload。サーバー 21… status/start/stop/restart。自己管理 81… install/version/about、87 self-install。サブメニュー 0 戻る。別名: main" ;;
+                ko) _mt_out="번호 나무: 1 클라이언트, 2 서버, 5 언어, 7 sudoers, 8 자기관리, 9 종료. 언어 51 English, 52 繁體中文, 53 Español, 54 Français, 55 Deutsch, 56 简体中文, 57 日本語, 58 한국어. 클라이언트 11… dns/ssh/download/upload. 서버 21… status/start/stop/restart. 자기관리 81… install/version/about, 87 self-install. 하위 메뉴 0 뒤로. 별칭: main" ;;
+                *) _mt_out="Numbered tree: 1 client-side, 2 server-side, 5 language, 7 sudoers, 8 self-management, 9 Exit. Language 51 English, 52 Traditional Chinese, 53 Spanish, 54 French, 55 German, 56 Simplified Chinese, 57 Japanese, 58 Korean. Client 11… dns/ssh/download/upload; server 21… status/start/stop/restart; self-management 81… install/version/about, 87 self-install. Submenus 0 Back. Alias: main" ;;
             esac
             ;;
         about_title)
@@ -2231,23 +2231,23 @@ app_menu_text() {
 #### `app_cmd_menu_language`
 
 ```sh
-# Last updated: 2026-09-28
+# Last updated: 2026-10-02
 # ALIGNMENT: requirement-shell-cli-language.md · requirement-shell-cli-default-interaction.md
-# Parent 6. 61 stores en. 62 stores zh-Hant. 63 stores es. 64 stores fr.
-# 65 stores de. 66 stores zh-Hans. 67 stores ja. 68 stores ko.
-# Each returns to the front board.
+# Parent 5. Language rows are reserved 50-69 (at most 20 languages).
+# Assigned: 51 en, 52 zh-Hant, 53 es, 54 fr, 55 de, 56 zh-Hans, 57 ja, 58 ko.
+# 50 and 59-69 stay unprinted. Each assigned row returns to the front board.
 # 0 / empty / EOF is Back. The choice is a current-shell input builtin.
 app_cmd_menu_language() {
     while true; do
         out_info "**${APP_NAME}**(*${VERSION}*) — $(app_menu_text cat_language)"
-        out_menu_choice "61" "English" "$(app_menu_text lang_en_long)"
-        out_menu_choice "62" "繁體中文" "$(app_menu_text lang_zh_long)"
-        out_menu_choice "63" "Español" "$(app_menu_text lang_es_long)"
-        out_menu_choice "64" "Français" "$(app_menu_text lang_fr_long)"
-        out_menu_choice "65" "Deutsch" "$(app_menu_text lang_de_long)"
-        out_menu_choice "66" "简体中文" "$(app_menu_text lang_zh_hans_long)"
-        out_menu_choice "67" "日本語" "$(app_menu_text lang_ja_long)"
-        out_menu_choice "68" "한국어" "$(app_menu_text lang_ko_long)"
+        out_menu_choice "51" "English" "$(app_menu_text lang_en_long)"
+        out_menu_choice "52" "繁體中文" "$(app_menu_text lang_zh_long)"
+        out_menu_choice "53" "Español" "$(app_menu_text lang_es_long)"
+        out_menu_choice "54" "Français" "$(app_menu_text lang_fr_long)"
+        out_menu_choice "55" "Deutsch" "$(app_menu_text lang_de_long)"
+        out_menu_choice "56" "简体中文" "$(app_menu_text lang_zh_hans_long)"
+        out_menu_choice "57" "日本語" "$(app_menu_text lang_ja_long)"
+        out_menu_choice "58" "한국어" "$(app_menu_text lang_ko_long)"
         out_plain "$(app_menu_text line_back)"
         out_msg_n "$(app_menu_text line_prompt)"
         _choice=""
@@ -2256,7 +2256,7 @@ app_cmd_menu_language() {
             return 0
         fi
         case "${_choice}" in
-            61|english|en|English)
+            51|english|en|English)
                 if app_lang_save en; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -2265,7 +2265,7 @@ app_cmd_menu_language() {
                 unset _choice
                 return 0
                 ;;
-            62|traditional-chinese|zh-hant|zh-Hant|繁體中文)
+            52|traditional-chinese|zh-hant|zh-Hant|繁體中文)
                 if app_lang_save zh-Hant; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -2274,7 +2274,7 @@ app_cmd_menu_language() {
                 unset _choice
                 return 0
                 ;;
-            63|spanish|es|Español|español)
+            53|spanish|es|Español|español)
                 if app_lang_save es; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -2283,7 +2283,7 @@ app_cmd_menu_language() {
                 unset _choice
                 return 0
                 ;;
-            64|french|fr|Français|français)
+            54|french|fr|Français|français)
                 if app_lang_save fr; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -2292,7 +2292,7 @@ app_cmd_menu_language() {
                 unset _choice
                 return 0
                 ;;
-            65|german|de|Deutsch|deutsch)
+            55|german|de|Deutsch|deutsch)
                 if app_lang_save de; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -2301,7 +2301,7 @@ app_cmd_menu_language() {
                 unset _choice
                 return 0
                 ;;
-            66|simplified-chinese|zh-hans|zh-Hans|简体中文)
+            56|simplified-chinese|zh-hans|zh-Hans|简体中文)
                 if app_lang_save zh-Hans; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -2310,7 +2310,7 @@ app_cmd_menu_language() {
                 unset _choice
                 return 0
                 ;;
-            67|japanese|ja|日本語)
+            57|japanese|ja|日本語)
                 if app_lang_save ja; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -2319,7 +2319,7 @@ app_cmd_menu_language() {
                 unset _choice
                 return 0
                 ;;
-            68|korean|ko|한국어)
+            58|korean|ko|한국어)
                 if app_lang_save ko; then
                     out_info "$(app_menu_text lang_saved)"
                 else
@@ -2393,7 +2393,7 @@ app_cmd_menu_language() {
 
 ## Under command line for normal user only
 
-The language file lives under this login’s `$HOME`. No sudo, no root path. Row **6** stays numbered when Termux, Git Bash, or Windows cmd hides sudoers. Changing language does not change who may run a verb.
+The language file lives under this login’s `$HOME`. No sudo, no root path. Row **5** stays numbered when Termux, Git Bash, or Windows cmd hides sudoers. Changing language does not change who may run a verb.
 
 ## 3. Design Principles (CIAO / CIAO-Lite)
 
@@ -2407,7 +2407,7 @@ The language file lives under this login’s `$HOME`. No sudo, no root path. Row
 **Future AI assistants or maintainers MUST NOT**:
 
 - Default the menu to a code other than English.
-- Hide row **6**, or number the language children **1** and **2**.
+- Hide row **5**, or number the language children **1** and **2**.
 - Put `read` inside `app_menu_text`, `app_lang_load`, or `app_lang_save`, including inside a catalog sentence.
 - Capture `app_cmd_menu_language` with `$()` or backticks.
 - Call `app_lang_load` again after a pick in the same process.
@@ -2425,8 +2425,8 @@ The language file lives under this login’s `$HOME`. No sudo, no root path. Row
 
 This requirement is satisfied when all of the following hold:
 
-1. Front **6**’s category short follows the code (`language`, `語言`, `语言`, `idioma`, `langue`, `Sprache`, `言語`, `언어`), on every host.
-2. **61** stores `en`, **62** stores `zh-Hant`, **63** stores `es`, **64** stores `fr`, **65** stores `de`, **66** stores `zh-Hans`, **67** stores `ja`, and **68** stores `ko`, mode 0600, and the front board redisplays in that language.
+1. Front **5**’s category short follows the code (`language`, `語言`, `语言`, `idioma`, `langue`, `Sprache`, `言語`, `언어`), on every host.
+2. **51** stores `en`, **52** stores `zh-Hant`, **53** stores `es`, **54** stores `fr`, **55** stores `de`, **56** stores `zh-Hans`, **57** stores `ja`, and **58** stores `ko`, mode 0600, and the front board redisplays in that language.
 3. **0** on the language board does not write the file.
 4. A later interactive run with the same `$HOME` opens in the saved language. An unrecognized file still opens in English and is left as written.
 5. `SSHD_CLI_LANG` set to one of the eight codes shows that language even when the file says `en`.
@@ -2435,12 +2435,13 @@ This requirement is satisfied when all of the following hold:
 8. §2.6 quotes the current helpers from `./sshd-cli`.
 9. §2.4.1 matches a live front board and the opening of human `help` and human `about` for each code. §2.4.2 lists the language-board longs, the choose-prompt, the menu-hidden sentences, the unknown-choice warns, row **71**, and the help and about lines that stay `case` arms.
 10. **TP-CLI-24** is **have**.
+11. The language board prints **51** through **58** only. It does not print **50** or **59** through **69**. Front **6** is not a row. Choosing **50**, **69**, or the old number **61** warns and does not write the file.
 
 ### Design-time verification
 
 | TP family / ID | Suite | Status |
 |----------------|-------|--------|
-| **TP-CLI-24** **6** / **61–68**, file, unrecognized line, `SSHD_CLI_LANG`, Japanese and Korean `help` and `about` | `tests/test_cli.sh` | have |
+| **TP-CLI-24** menu **5** / block **50–69** (assigned **51–58**), file, unrecognized line, `SSHD_CLI_LANG`, Japanese and Korean `help` and `about` | `tests/test_cli.sh` | have |
 | **TP-CLI-14** English front lists `language` | `tests/test_cli.sh` | have |
 | **TP-SSHD-04** Termux front still lists `language` | `tests/test_cli.sh` | have |
 
@@ -2451,9 +2452,9 @@ This requirement is satisfied when all of the following hold:
 | Artifact | Role |
 |----------|------|
 | `docs/requirements/index.md` | Registry SSOT |
-| `docs/requirements/requirement-shell-cli-default-interaction.md` | Numbered tree, row **6** / **61–68**, current-shell `read` |
+| `docs/requirements/requirement-shell-cli-default-interaction.md` | Numbered tree, row **5** / block **50–69**, current-shell `read` |
 | `docs/requirements/requirement-shell-cli-storage.md` | Persistence directory that holds the `language` leaf |
-| `docs/requirements/requirement-shell-cli-interface.md` | Dual mention of front **6** |
+| `docs/requirements/requirement-shell-cli-interface.md` | Dual mention of front **5** and block **50–69** |
 | `docs/requirements/requirement-shell-output-requirements.md` | Operator text goes through `out_*` |
 | `./sshd-cli` | Implementation |
 | `tests/test_cli.sh` | **TP-CLI-24** |
@@ -2468,6 +2469,7 @@ This requirement is satisfied when all of the following hold:
 | 2026-09-28 | v1.2.0: Japanese (`ja`, **67**), Korean (`ko`, **68**). Human `help` and human `about` follow `APP_LANG`. `app_lang_load` runs once in `app_main`. | Grok (owner request) |
 | 2026-09-28 | v1.3.0: worked samples of each front board and of the opening of `help` and `about` (§2.4.1). Translation tables for the language-board longs, prompts, hide lines, warns, row **71**, and the help/about lines that stay `case` arms (§2.4.2). | Grok (owner request) |
 | 2026-09-30 | v1.3.1: `help_fix_config` in the §2.6 `app_menu_text` fence. Live sample tokens follow `VERSION` **1.30.0**. | Grok (owner request) |
+| 2026-10-02 | v1.4.0: front **5**. Language numbers **50–69** (at most 20). Assigned **51–58**. Samples follow `VERSION` **1.31.0**. | Grok (owner request) |
 
 ## 8. Terminology
 
@@ -2482,6 +2484,6 @@ Words this requirement uses. Each row is the term and the definition this file m
 | **Worked sample** | A markdown transcription of a live board, or of the opening of `help` and `about`. Bold is the short. Italic is the long. The version token is the live `VERSION`. The source choose-prompt ends with a space that the sample omits. |
 | **Do not capture `read`** | A `read`, and any helper whose body contains `read`, runs in the current shell. `app_cmd_menu_language` is that kind of helper. `app_menu_text` is not, and its body must stay free of those letters so a command substitution stays legal. |
 
-**Last Updated**: 2026-09-30 (1.3.1 `help_fix_config` and live `VERSION` **1.30.0** in the samples. 1.3.0 worked samples and translation tables. 1.2.0 adds `ja`, `ko`, and human help/about. 1.1.0 adds `es`, `fr`, `de`, `zh-Hans`)
+**Last Updated**: 2026-10-02 (1.4.0 front **5**, language block **50–69** (assigned **51–58**), samples follow VERSION **1.31.0**. 1.3.1 `help_fix_config` and live `VERSION` **1.30.0** in the samples. 1.3.0 worked samples and translation tables. 1.2.0 adds `ja`, `ko`, and human help/about. 1.1.0 adds `es`, `fr`, `de`, `zh-Hans`)
 **Owner**: sshd-cli project maintainers
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

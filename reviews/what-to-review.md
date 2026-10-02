@@ -4,8 +4,8 @@
 **Class:** software-development · domain SSOT `requirement-domain-sshd` · online-install channel + TTY menu / non-TTY CLI self-install.  
 **Always load first:** `reviews/lessons.md`
 
-**Last plan update:** 2026-09-30  
-**Ship unit VERSION:** 1.30.0  
+**Last plan update:** 2026-10-02  
+**Ship unit VERSION:** 1.31.0  
 **Suite baseline:** see `reviews/test-plan.md`
 
 ---
@@ -15,7 +15,8 @@
 | # | Check | Notes |
 |---|--------|-------|
 | P1 | Read `docs/requirements/index.md` | Class + 17 shell + domain sshd + 3 pointers (22 Active, including `requirement-shell-cli-self-install`) |
-| P2 | Confirm ship unit `src/sshd-cli` / `./sshd-cli` | `APP_NAME` / `VERSION` hard-assign (**1.30.0**); same bytes |
+| P2 | Confirm ship unit `src/sshd-cli` / `./sshd-cli` | `APP_NAME` / `VERSION` hard-assign (**1.31.0**); same bytes |
+| P2a | Language menu numbers | Front **5** language. Block **50–69** is at most 20 languages. Assigned **51–58**. **50** and **59–69** are not printed. Front **6** is not a row. **TP-CLI-24** |
 | P3 | Load `reviews/lessons.md` and re-check open L-* that still apply | Skip L-SUDOERS / restore lessons as parent-only |
 | P4 | Run `./tests/run.sh` | Record PASS/FAIL/SKIP in report |
 | P5 | Confirm install **channel** is `cloudgen/sshd-cli` | `SCRIPT_URL` default raw GitHub |
@@ -66,3 +67,14 @@
 - [ ] §1.1 says **project nature**, not **project class**
 - [ ] Product README Description uses the same voice pack; Features/Usage do not lead with catalog codes
 - [ ] README does **not** recommend `sudo curl | sh` for Termux / Git Bash / Windows cmd
+
+
+## Language menu numbers (2026-10-02)
+
+- [x] Front row is **5** language on every host, including Termux / Git Bash / Windows cmd
+- [x] Language rows are reserved **50–69** (twenty numbers, not more than 20 languages)
+- [x] Assigned rows are **51** English, **52** 繁體中文, **53** Español, **54** Français, **55** Deutsch, **56** 简体中文, **57** 日本語, **58** 한국어
+- [x] **50** and **59–69** are not printed; choosing **50**, **69**, or old **61** warns and does not write `language`
+- [x] Front **6** is not a row
+- [x] Requirements, review matrix, test plan, and **TP-CLI-24** name the same numbers
+- [x] `src/sshd-cli` and `./sshd-cli` are the same bytes, and `sshd-cli.sha256` is the bare hex of that file

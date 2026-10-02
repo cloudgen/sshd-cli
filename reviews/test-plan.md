@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.30.0  
-**Last plan update:** 2026-09-28  
-**Last suite run:** PASS=844 FAIL=22 SKIP=0 (`./tests/run.sh`, 2026-09-28, product 1.28.0). **TP-CLI-23** passed. Menu **7** / **71–75** passed (TP-CLI-14, TP-CFG-17, TP-SSHD-04). The 22 failures are pre-existing TP-DL-* `tar xzf` cases on the fake download archive (same class on unchanged HEAD). Upload cases and the menu cases passed.
+**Product VERSION:** 1.31.0  
+**Last plan update:** 2026-10-02  
+**Last suite run:** PASS=1065 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-02, product 1.31.0). **TP-CLI-14** and **TP-CLI-24** passed: front **5** language, block **50–69** (assigned **51–58**); **50**, **69**, and old **61** do not write the file; front **6** warns and does not open the language board. Prior run: PASS=844 FAIL=22 SKIP=0 (`./tests/run.sh`, 2026-09-28, product 1.28.0). Those 22 were TP-DL-* `tar xzf` cases. This run’s TP-DL-* cases passed.
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -86,7 +86,7 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-CLI-13 | backup/restore/sudoers verbs unknown | test_cli | requirement-shell-cli-interface | **have** |
 | TP-CLI-14 | empty argv interactive → front 1/2/7/8/9 (sudoers **7**; no install); client 11 dns / 12 ssh / 13 download / 14 upload; no client **17** | test_cli | requirement-shell-cli-default-interaction · requirement-shell-cli-zero-arguments · requirement-domain-sshd | **have** |
 | TP-CLI-23 | switch-only: TTY `--debug` / `--force` menu and no install; `--quiet` / `--json` / non-TTY `--debug` self-install; TTY `--json` places the CLI; `--debug status` stays status | test_cli | requirement-shell-cli-zero-arguments · requirement-shell-cli-default-interaction · requirement-shell-cli-self-install | **have** |
-| TP-CLI-24 | Menu **6** language: **61** English, **62** Traditional Chinese, **63** Spanish, **64** French, **65** German, **66** Simplified Chinese, **67** Japanese, **68** Korean, file `language` mode 600, unrecognized line stays English, `SSHD_CLI_LANG` overrides the file, Japanese and Korean `help` and `about` | test_cli | requirement-shell-cli-language · requirement-shell-cli-default-interaction · requirement-shell-cli-storage | **have** |
+| TP-CLI-24 | Menu **5** language, block **50–69** (at most 20; **50** and **59–69** unprinted): **51** English, **52** Traditional Chinese, **53** Spanish, **54** French, **55** German, **56** Simplified Chinese, **57** Japanese, **58** Korean, file `language` mode 600, unrecognized line stays English, `SSHD_CLI_LANG` overrides the file, Japanese and Korean `help` and `about` | test_cli | requirement-shell-cli-language · requirement-shell-cli-default-interaction · requirement-shell-cli-storage | **have** |
 | TP-CLI-21 | TTY **82** / typed `version` run about; argv `version` stays thin JSON type | test_cli | requirement-shell-cli-default-interaction · requirement-shell-cli-interface · **INC-20260914-001** | **have** |
 | TP-CLI-22 | Finished TTY leaf redisplays the **front board** (not the submenu); typed leaf on front stays on front | test_cli | requirement-shell-cli-default-interaction | **have** |
 | TP-CLI-15 | status Connect: live ssh -p user@ipv4; no `<this-host>` | test_cli | requirement-domain-sshd | **have** |

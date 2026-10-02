@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-interface.md  
-**Status**: Active (Version 1.14.8)  
+**Status**: Active (Version 1.14.9)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -134,7 +134,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | **Primary executable** | Repo root `./sshd-cli` (POSIX `/bin/sh`, single-file for `curl \| sh`) |
 | **Dispatcher** | `app_main` (always invoked at end of script: `app_main "$@"` — no `${0##*/}` / APP_NAME basename gate; required for `curl \| sh`) |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION` default `1.30.0` (script header / config block: `VERSION="1.30.0"`) |
+| **Version SSOT** | `VERSION` default `1.31.0` (script header / config block: `VERSION="1.31.0"`) |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`, or `${PREFIX}/bin` when Termux `PREFIX/bin` exists; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Interactive rc write path** | `BASHRC` default `${HOME}/.bashrc`. `install` PATH ensure creates/modifies this file. Tests/CI **MAY** set `BASHRC` to a file in a temp folder. Dual mention: `requirement-shell-path-and-shell-support`. |
 | **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`). **`help` Environment also lists `BASHRC`.** |
@@ -168,7 +168,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | `ssh` | Type 0 domain | `sshd_cmd_ssh` | OpenSSH client to a concrete Host alias from this login `~/.ssh/config` (TTY numbered pick then user with default; operand `<n\|name>`). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli ssh 1` |
 | `download` | Type 0 domain | `sshd_cmd_download` | tar.gz a remote folder over ssh and extract into cwd (TTY Host pick, then user with default, then numbered previous folders or a typed path; `~/folder` allowed). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli download 1 /opt/app` · `sshd-cli download 1 ~/box/app` |
 | `upload` | Type 0 domain | `sshd_cmd_upload` | tar.gz a **local** folder over ssh and extract under the remote login home (TTY Host pick, then user with default, then numbered previous **local** folders or a typed path; `~/folder` is this login). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli upload 1 ./box` · `sshd-cli upload 1 ~/box/app` |
-| `menu` / `main` | Type 0 | `app_cmd_menu` | Numbered tree on a terminal (`main` is an unlisted alias of `menu`). Same handler as an interactive zero-cli-verb. Front **1** client-side / **2** server-side / **6** language / **7** sudoers (POSIX Linux) / **8** self-management / **9** Exit. **6** opens **61** English / **62** Traditional Chinese / **63** Spanish / **64** French / **65** German / **66** Simplified Chinese / **67** Japanese / **68** Korean. Dual mention: `requirement-shell-cli-default-interaction` · `requirement-shell-cli-language` · `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive` |
+| `menu` / `main` | Type 0 | `app_cmd_menu` | Numbered tree on a terminal (`main` is an unlisted alias of `menu`). Same handler as an interactive zero-cli-verb. Front **1** client-side / **2** server-side / **5** language / **7** sudoers (POSIX Linux) / **8** self-management / **9** Exit. **5** opens the language block **50–69** (not more than 20 languages): **51** English / **52** Traditional Chinese / **53** Spanish / **54** French / **55** German / **56** Simplified Chinese / **57** Japanese / **58** Korean. **50** and **59–69** are reserved and are not printed. Front **6** is not a row. Dual mention: `requirement-shell-cli-default-interaction` · `requirement-shell-cli-language` · `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive` |
 | `wake-lock` | Type 0 | `sshd_cmd_wake_lock` | Acquire Android wake lock again (`termux-wake-lock`). Termux: fail closed if helper missing. Off Termux: success no-op. Dual mention: `requirement-shell-termux-ish` |
 | `wake-unlock` | Type 0 | `sshd_cmd_wake_unlock` | Release Android wake lock (`termux-wake-unlock`). Operator-owned. **MUST NOT** auto-run from `stop`. Dual mention: `requirement-shell-termux-ish` |
 | `backup-config` | Type 1 deposit (POSIX Linux) | `sshd_cmd_backup_config` | Copy this login `~/.ssh/config` to `/var/sshd-cli/config`. Dual mention: `requirement-shell-config-backup` · `requirement-shell-sudoer` · `requirement-domain-sshd`. Sample: `sshd-cli backup-config` |
@@ -344,6 +344,6 @@ This requirement is satisfied for the sshd-cli shell CLI when all of the followi
 
 ---
 
-**Last Updated**: 2026-09-30 (1.14.8 `fix-config` and the automatic client-config pass. Product `VERSION="1.30.0"`. 1.14.7 language **67–68**; human help and about follow the saved language. 1.14.6 language **63–66**. 1.14.5 front **6** language. 1.14.4 `menu`/`main` handler is `app_cmd_menu`. Zero-cli-verb gate is live after flag parse. Prior: 2026-09-27 `about` cache lines)  
+**Last Updated**: 2026-10-02 (1.14.9 front **5** language, block **50–69**. Product `VERSION="1.31.0"`. 1.14.8 `fix-config` and the automatic client-config pass. Product `VERSION="1.30.0"`. 1.14.7 language **67–68**; human help and about follow the saved language. 1.14.6 language **63–66**. 1.14.5 front **6** language. 1.14.4 `menu`/`main` handler is `app_cmd_menu`. Zero-cli-verb gate is live after flag parse. Prior: 2026-09-27 `about` cache lines)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 5, 6, 10, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

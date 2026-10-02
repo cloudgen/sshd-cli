@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.31.0] - 2026-10-02
+
+### Changed
+
+- **Menu language number.** Front **5** Language replaces front **6**. Language rows are reserved **50–69** (not more than 20 languages). Assigned: **51** English (`en`), **52** Traditional Chinese (`zh-Hant`), **53** Spanish (`es`), **54** French (`fr`), **55** German (`de`), **56** Simplified Chinese (`zh-Hans`), **57** Japanese (`ja`), **58** Korean (`ko`). **50** and **59–69** stay reserved and are not printed. Front **6** is not a row. Tests **TP-CLI-24**. Law: `requirement-shell-cli-default-interaction` **1.15.0** · `requirement-shell-cli-language` **1.4.0** · `requirement-shell-cli-interface` **1.14.9** · `requirement-domain-sshd` **1.27.1**.
+
 ## [1.30.0] - 2026-09-30
 
 ### Added
