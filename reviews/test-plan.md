@@ -3,7 +3,7 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.36.1  
+**Product VERSION:** 1.36.2  
 **Last plan update:** 2026-11-16  
 **Last suite run:** PASS=1269 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-11-16, product 1.36.1). **TP-OS-GB-01** .. **TP-OS-GB-04**, **TP-OS-CMD-01**, **TP-OS-CMD-02**, and **TP-UP-01** .. **TP-UP-19** passed. Prior run: PASS=1224 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-11-16, product 1.36.0). **TP-UP-01** .. **TP-UP-14** passed. Prior run: PASS=1142 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-16, product 1.35.1). **TP-OS-GB-01** .. **TP-OS-GB-04** and **TP-OS-CMD-01** passed. Prior run: PASS=1107 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-14, product 1.35.0). **TP-SSHD-17** passed: a missing sshd names `dnf` on Fedora and RHEL and `apt` on Debian and Ubuntu, and says this program does not run that command. Git Bash, Windows cmd, and macOS each have their own next step. Prior run: PASS=1100 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-14, product 1.34.0). **TP-CLI-14**, **TP-CLI-21**, **TP-CLI-24**, **TP-SSHD-04**, and **TP-CFG-04** / **05** / **09** / **17** passed: front **5** sudoers (**51–55**), **6** self-management (TTY **62** runs about), **7** language block **70–89** (assigned **71–83**); front **8** warns; Termux / Git Bash / Windows cmd omit row **5**. Prior run: PASS=1099 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-10, product 1.33.0). **TP-SSHD-04**, **TP-CFG-04**, **TP-CFG-05**, and **TP-CFG-09** passed: Termux / Git Bash / Windows cmd print `sudoers not available for termux` / `gitbash` / `windows-cmd` before the front numbers and omit row **7**. Prior run: PASS=1091 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-02, product 1.32.0). **TP-CLI-14** and **TP-CLI-24** passed: front **5** language, block **50–69** (assigned **51–63**); **50**, **64**, and **69** do not write the file; front **6** warns and does not open the language board. Earlier: PASS=1065 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-02, product 1.31.0), assigned **51–58**. Earlier: PASS=844 FAIL=22 SKIP=0 (`./tests/run.sh`, 2026-09-28, product 1.28.0). Those 22 were TP-DL-* `tar xzf` cases. The 1.31.0 run’s TP-DL-* cases passed.
 
@@ -252,7 +252,7 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-UP-02 | non-interactive replace: backup `name.yyyyMMdd.bak`, tar.gz to `/tmp`, `cp -rP`, temps gone | test_upplace | requirement-domain-upplace | **have** |
 | TP-UP-03 | local `~/folder` expands on this login | test_upplace | requirement-domain-upplace | **have** |
 | TP-UP-04 | missing same-named directory stops; no rename, no scp | test_upplace | requirement-domain-upplace · requirement-shell-exit-condition | **have** |
-| TP-UP-05 | different basename stops | test_upplace | requirement-domain-upplace | **have** |
+| TP-UP-05 | a different basename is the parent; a missing child stops and the typed folder stays | test_upplace | requirement-domain-upplace | **have** |
 | TP-UP-06 | target equal to the remote home stops | test_upplace | requirement-domain-upplace | **have** |
 | TP-UP-07 | `~`, `~/`, relative, `~user`, metacharacters, and `/` are refused locally | test_upplace | requirement-domain-upplace | **have** |
 | TP-UP-08 | `Host *` is not an upplace row | test_upplace | requirement-domain-upplace | **have** |
@@ -267,6 +267,7 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-UP-17 | when local `/tmp` is not usable the zip is built under the cache folder | test_upplace | requirement-domain-upplace · requirement-shell-cli-storage | **have** |
 | TP-UP-18 | when remote `/tmp` is not usable the zip lands in the remote cache folder | test_upplace | requirement-domain-upplace | **have** |
 | TP-UP-19 | a missing zip stops before the rename and names zip | test_upplace | requirement-domain-upplace · requirement-shell-exit-condition | **have** |
+| TP-UP-20 | a parent path joins the local basename (`~/sites` → `~/sites/app`), including a trailing slash; JSON records the joined target; the parent is not renamed | test_upplace | requirement-domain-upplace | **have** |
 
 ### TP-OS (folder transfer by OS family)
 

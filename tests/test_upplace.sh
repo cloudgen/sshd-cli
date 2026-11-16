@@ -229,7 +229,7 @@ run_test_upplace() {
     assert_eq "TP-UP-04 missing did not scp" "" "$(cat "${_scp_log}")"
     assert_file_missing "TP-UP-04 no bak created" "${UP_REMOTE}/sites/missing.${_day}.bak"
 
-    # TP-UP-05 basename mismatch
+    # TP-UP-05 a different basename is the parent; a missing child is not renamed
     mkdir -p "${UP_REMOTE}/sites/other"
     printf 'keep\n' > "${UP_REMOTE}/sites/other/keep.txt"
     : > "${_ssh_log}"
@@ -240,10 +240,12 @@ run_test_upplace() {
         SSHD_CLI_REMOTE_HOME="${UP_REMOTE}" SSHD_CLI_FAKE_TMP="${UP_FAKE}" \
         sh "${SCRIPT}" upplace "${H_UP}" "${CI_HOME}/box/app" '~/sites/other' 2>&1 >/dev/null)
     _ec=$?
-    assert_eq "TP-UP-05 name exit 1" 1 "${_ec}"
-    assert_contains "TP-UP-05 name mismatch" "${_err}" "is not named app"
+    assert_eq "TP-UP-05 parent-missing exit 1" 1 "${_ec}"
+    assert_contains "TP-UP-05 parent-missing names folder" "${_err}" "has no folder named app"
+    assert_contains "TP-UP-05 parent-missing names joined target" "${_err}" "~/sites/other/app"
     assert_file_exists "TP-UP-05 other untouched" "${UP_REMOTE}/sites/other/keep.txt"
-    assert_eq "TP-UP-05 name did not scp" "" "$(cat "${_scp_log}")"
+    assert_file_missing "TP-UP-05 parent was not renamed" "${UP_REMOTE}/sites/other.${_day}.bak"
+    assert_eq "TP-UP-05 parent-missing did not scp" "" "$(cat "${_scp_log}")"
 
     # TP-UP-06 target is the remote home
     : > "${_ssh_log}"
@@ -513,6 +515,56 @@ run_test_upplace() {
     assert_file_exists "TP-UP-19 folder not renamed" "${UP_REMOTE}/sites/app/old.txt"
     assert_file_missing "TP-UP-19 no bak" "${UP_REMOTE}/sites/app.${_day}.bak"
     /bin/rm -rf "${_noz}"
+
+    # TP-UP-20 parent path joins the local basename (~/sites → ~/sites/app)
+    /bin/rm -rf "${UP_REMOTE}/sites/app" "${UP_REMOTE}/sites/app.${_day}.bak" "${UP_REMOTE}/sites.${_day}.bak"
+    mkdir -p "${UP_REMOTE}/sites/app"
+    printf 'old\n' > "${UP_REMOTE}/sites/app/old.txt"
+    : > "${_ssh_log}"
+    : > "${_scp_log}"
+    _out=$(HOME="${CI_HOME}" TMPDIR="${CI_HOME}/ltmp" \
+        SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SCP="${_fake_scp}" \
+        SSHD_CLI_SSH_LOG="${_ssh_log}" SSHD_CLI_SCP_LOG="${_scp_log}" \
+        SSHD_CLI_REMOTE_HOME="${UP_REMOTE}" SSHD_CLI_FAKE_TMP="${UP_FAKE}" \
+        sh "${SCRIPT}" upplace "${H_UP}" "${CI_HOME}/box/app" '~/sites' 2>"${CI_HOME}/up.err")
+    _ec=$?
+    assert_eq "TP-UP-20 parent exit 0" 0 "${_ec}"
+    assert_contains "TP-UP-20 success names joined target" "${_out}" "~/sites/app"
+    assert_contains "TP-UP-20 success names backup" "${_out}" "app.${_day}.bak"
+    assert_file_exists "TP-UP-20 new file replaced" "${UP_REMOTE}/sites/app/new.txt"
+    assert_file_missing "TP-UP-20 old file not merged" "${UP_REMOTE}/sites/app/old.txt"
+    assert_file_exists "TP-UP-20 bak keeps old file" "${UP_REMOTE}/sites/app.${_day}.bak/old.txt"
+    assert_file_missing "TP-UP-20 parent itself was not renamed" "${UP_REMOTE}/sites.${_day}.bak"
+    if [ -d "${UP_REMOTE}/sites" ]; then
+        t_pass "TP-UP-20 parent directory remains"
+    else
+        t_fail "TP-UP-20 parent directory remains"
+    fi
+
+    /bin/rm -rf "${UP_REMOTE}/sites/app" "${UP_REMOTE}/sites/app.${_day}.bak"
+    mkdir -p "${UP_REMOTE}/sites/app"
+    printf 'old\n' > "${UP_REMOTE}/sites/app/old.txt"
+    _out=$(HOME="${CI_HOME}" TMPDIR="${CI_HOME}/ltmp" \
+        SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SCP="${_fake_scp}" \
+        SSHD_CLI_SSH_LOG="${_ssh_log}" SSHD_CLI_SCP_LOG="${_scp_log}" \
+        SSHD_CLI_REMOTE_HOME="${UP_REMOTE}" SSHD_CLI_FAKE_TMP="${UP_FAKE}" \
+        sh "${SCRIPT}" upplace "${H_UP}" "${CI_HOME}/box/app" '~/sites/' 2>"${CI_HOME}/up.err")
+    _ec=$?
+    assert_eq "TP-UP-20 trailing-slash parent exit 0" 0 "${_ec}"
+    assert_contains "TP-UP-20 trailing slash names joined target" "${_out}" "~/sites/app"
+    assert_file_exists "TP-UP-20 trailing slash replaced new.txt" "${UP_REMOTE}/sites/app/new.txt"
+
+    /bin/rm -rf "${UP_REMOTE}/sites/app" "${UP_REMOTE}/sites/app.${_day}.bak"
+    mkdir -p "${UP_REMOTE}/sites/app"
+    printf 'old\n' > "${UP_REMOTE}/sites/app/old.txt"
+    _j=$(HOME="${CI_HOME}" TMPDIR="${CI_HOME}/ltmp" \
+        SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SCP="${_fake_scp}" \
+        SSHD_CLI_REMOTE_HOME="${UP_REMOTE}" SSHD_CLI_FAKE_TMP="${UP_FAKE}" \
+        sh "${SCRIPT}" --json upplace "${H_UP}" "${CI_HOME}/box/app" '~/sites' 2>"${CI_HOME}/up.err")
+    _ec=$?
+    assert_eq "TP-UP-20 json parent exit 0" 0 "${_ec}"
+    assert_contains "TP-UP-20 json target is joined" "${_j}" '"target":"~/sites/app"'
+    assert_contains "TP-UP-20 json destination is joined" "${_j}" '"destination":"~/sites/app"'
 
     if [ -n "${UP_SAND:-}" ] && [ -d "${UP_SAND}" ]; then
         /bin/rm -rf "${UP_SAND}"

@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-upplace.md
-**Status**: Active (Version 1.1.0)
+**Status**: Active (Version 1.2.0)
 **Area**: domain
 **Key**: `requirement-domain-upplace`
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -8,7 +8,7 @@
 
 This file owns the **upplace** verb: upload a local folder and replace the remote folder that has the same name. The one domain SSOT stays `requirement-domain-sshd`. That file names the verb and points here. It does not restate this law.
 
-The operator answers the same opening questions as **upload** (Host, then user, then the local folder). The remote target folder is the **last** question. The program checks that folder on the remote host before it renames or copies anything. A missing folder, a different name, the remote home, or an existing backup stops the rest of the task, prints the error, and returns to the main menu. A match renames the remote folder to `XXXX.yyyyMMdd.bak`, then sends a `tar.gz` to remote `/tmp`, expands it there, and `cp -rP` into the original parent. Temp files on both sides are removed.
+The operator answers the same opening questions as **upload** (Host, then user, then the local folder). The remote target folder is the **last** question. The operator may type the same-named folder (`~/sites/app` when the local folder is `app`) or that folder's parent (`~/sites`). A parent is joined with the local basename before anything is renamed. The program checks the resolved folder on the remote host before it renames or copies anything. A missing folder, the remote home, or an existing backup stops the rest of the task, prints the error, and returns to the main menu. A match renames the remote folder to `XXXX.yyyyMMdd.bak`, then sends a `tar.gz` to remote `/tmp`, expands it there, and `cp -rP` into the original parent. The typed parent itself is not renamed. Temp files on both sides are removed.
 
 ### 1.1 Human-facing
 
@@ -23,8 +23,8 @@ The operator answers the same opening questions as **upload** (Host, then user, 
 | Includes | Excludes |
 |----------|----------|
 | Host, user, local folder, then the target path | Asking for the remote destination before the local folder |
-| Absolute target, or `~/folder` under that ssh user’s home | A relative path, `~` alone, `~/`, or `~user` |
-| Same basename, existing directory, not the remote home | Creating a new remote folder, or replacing `$HOME` |
+| Absolute target, or `~/folder` under that ssh user’s home. A parent of the same-named folder is joined with the local basename | A relative path, `~` alone, `~/`, or `~user` |
+| Resolved basename equal to the local folder, existing directory, not the remote home | Creating a new remote folder, replacing `$HOME`, or renaming the typed parent |
 | Rename to `name.yyyyMMdd.bak`, then `tar.gz` via `/tmp`, then `cp -rP` | `rsync`, `sudo`, or merging into the old folder |
 | Remove the temp archive and the temp folder on both hosts | Leaving `/tmp` files behind after success or after a failed copy |
 
@@ -37,7 +37,8 @@ The operator answers the same opening questions as **upload** (Host, then user, 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
 | Replace a site folder | The remote folder must already be named like the local folder. The old one is renamed with today’s date, then the new tree replaces it. The remote home itself is refused. | `sshd-cli upplace phone ./app ~/sites/app` |
-| Stop when the name is not there | Nothing is renamed and nothing is uploaded. The error is shown and the main menu returns. | A target whose basename is not the local folder name, or a missing directory of that name |
+| Type the parent | The same replace. `~/sites` and local folder `app` resolve to `~/sites/app`. A trailing slash is stripped first. The parent directory is not renamed. | `sshd-cli upplace phone ./app ~/sites` |
+| Stop when the name is not there | Nothing is renamed and nothing is uploaded. The error is shown and the main menu returns. | A missing directory at the resolved path (`~/sites/app`, or `~/sites/other/app` when the typed path was `~/sites/other`) |
 
 ## 2. Core Rules / Requirements (Mandatory)
 
@@ -56,7 +57,7 @@ The operator answers the same opening questions as **upload** (Host, then user, 
 | Host | no | numbered Host pick (same list as `dns`) | none | first operand present |
 | user | no | user [default] | Host `User` if set, else this login (`id -un`) | non-interactive / `--json` / quiet / no TTY |
 | local folder | no | local folder (absolute, relative, or `~/folder` on this login) | numbered previous local paths for that Host | never; empty is fail-closed |
-| target | no | target folder on that host (absolute, or `~/folder` under that ssh user home) | none (no history list) | never; empty is fail-closed |
+| target | no | target folder on that host (the same-named folder, or its parent; absolute or `~/folder` under that ssh user home) | none (no history list) | never; empty is fail-closed |
 
 | Mode | MUST | MUST NOT |
 |------|------|----------|
@@ -64,9 +65,10 @@ The operator answers the same opening questions as **upload** (Host, then user, 
 | **Host pick** | Same concrete Host list as `dns` / `ssh` / `upload`. TTY with no first operand: pick Host. `0` or empty leaves with status 0 and no error. Non-interactive: require `<n\|name>` | Follow `Include`; treat `Host *` as a concrete entry |
 | **User (TTY)** | Same contract as `upload`. `-l` only when the user is non-empty. An empty saved User omits `-l` | Skip the user prompt on TTY; hang under `--json` / quiet / no TTY; `$()` a `read` helper |
 | **Local folder** | Same memory file as `upload` (`{{HOME}}/.local/{{APP_NAME}}/upload-folders`). A `~/folder` prefix expands against **this login’s** `HOME` only. The path **MUST** be a directory. Out-of-range number warns and redisplays. Empty → `out_die` | Share `download-folders`; call the upload validator; treat the path as remote |
-| **Target** | Absolute, or `~/` relative to the **remote ssh user’s** home. Quote with the download remote-quote so `~/folder` becomes `"$HOME"/'folder'` for the remote shell. Do not expand that `~` against this login. No target history file | Accept a relative path, `~`, `~/`, `~user`, `.`, `..`, `/` alone, or a leading `-` |
-| **Home guard** | Compare the resolved remote path to `"$HOME"` (and `"${HOME%/}"`) **before** the basename check. Refuse when they are the same, even if the basename equals the home directory’s name. Also refuse `/` | Rename or replace the remote home |
-| **Name check** | The target **MUST** be an existing directory whose basename equals the local folder basename | Treat a different basename as “missing”; create the folder; merge into the old tree |
+| **Target** | Absolute, or `~/` relative to the **remote ssh user’s** home. The same-named folder, or the parent of that folder. Quote with the download remote-quote so `~/folder` becomes `"$HOME"/'folder'` for the remote shell. Do not expand that `~` against this login. No target history file | Accept a relative path, `~`, `~/`, `~user`, `.`, `..`, `/` alone, or a leading `-` |
+| **Parent** | When the typed target’s basename is not the local folder basename, probe that typed path first. If it is the remote home, `upplace_home` and do not join. Otherwise set the target to `<typed>/<basename>` and use that path for the info line, the second probe, the rename, the copy, and the JSON `target` and `destination`. A trailing slash is stripped before this test. The parent directory is not renamed | Join when the typed path is the remote home; join a second time; replace the parent; create `<typed>/<basename>` when it is absent |
+| **Home guard** | Compare the path under test to `"$HOME"` (and `"${HOME%/}"`) **before** the basename check. On a parent input, that comparison runs on the typed path before the join, then again on the joined path. Refuse when they are the same, even if the basename equals the home directory’s name. Also refuse `/` | Rename or replace the remote home |
+| **Name check** | After the parent join, the target **MUST** be an existing directory whose basename equals the local folder basename | Treat a different resolved basename as “missing”; create the folder; merge into the old tree |
 | **Probe order** | String-equal home; if a directory, `pwd -P` (fallback `pwd`) compared to home; then basename versus the wanted name; then, if it is not a directory, missing | Rename or upload before this check returns success |
 | **Date** | `yyyyMMdd` from **this login’s** `date +%Y%m%d`, not the remote clock | Use the remote date; continue when `date` fails |
 | **Backup name** | `{{BASENAME}}.{{YYYYMMDD}}.bak` beside the target (same parent). If that name already exists, stop **before** `mv` | Clobber an existing `.bak` |
@@ -86,7 +88,7 @@ The operator answers the same opening questions as **upload** (Host, then user, 
 | missing | `upplace_missing` | `Cannot upplace: <host> has no folder named <basename> at <target>.` |
 | backup exists | `upplace_bak` | `Cannot upplace: backup <basename>.<yyyyMMdd>.bak already exists beside <target> on <host>.` |
 
-A path whose basename differs is the **name** stop, even when that path is absent. A missing directory whose basename matches is the **missing** stop.
+A typed path whose basename differs is the parent of the local folder, unless that typed path is the remote home (`upplace_home`, no join). The joined path is then checked. A missing directory at the joined path is the **missing** stop. The **name** stop remains when the resolved path’s basename is still not the local folder name. A missing directory whose basename already matches is the **missing** stop, and that path is not joined again.
 
 **Success text:** `Replaced <target> on <host> (previous folder saved as <basename>.<yyyyMMdd>.bak).`
 
@@ -119,7 +121,7 @@ Worked sample basename: `app.20261116.bak` (local folder `app`, this login’s d
 | Item | Value |
 |------|--------|
 | Product | `sshd-cli` |
-| Version | `1.36.1` (`VERSION="1.36.1"`) |
+| Version | `1.36.2` (`VERSION="1.36.2"`) |
 | Handler | `sshd_cmd_upplace` |
 | Menu | client **19**, short `upplace` |
 | Typed leaf | `upplace` runs the handler and returns 0 so the front board returns |
@@ -140,8 +142,8 @@ Worked sample basename: `app.20261116.bak` (local folder `app`, this login’s d
 | English menu long | `upload a local folder and replace the same-named remote folder (backup, then tar.gz)` |
 | English help | `tar.gz a local folder, back up the same-named remote folder, and replace it; on Windows, zip, and a cache folder when /tmp is missing (TTY: Host, user, local folder, then target ~/folder or absolute; never the remote home)` |
 | Local prompt | `Local folder to upplace (absolute, relative, or ~/folder on this login):` |
-| Target prompt | `Target folder on that host (absolute, or ~/folder under that ssh user home):` |
-| Proof | **TP-UP-01** .. **TP-UP-19** in `tests/test_upplace.sh`. **TP-CLI-14** and **TP-SSHD-04** assert row **19** |
+| Target prompt | `Target folder on that host (the same-named folder, or its parent; absolute or ~/folder under that ssh user home):` |
+| Proof | **TP-UP-01** .. **TP-UP-20** in `tests/test_upplace.sh`. **TP-UP-20** is the parent join (`~/sites` → `~/sites/app`). **TP-CLI-14** and **TP-SSHD-04** assert row **19** |
 
 ### 2.3 Why this requirement exists
 
@@ -173,7 +175,7 @@ When the ship unit detects Termux, Git Bash, or Windows cmd, Type 1 and Type 2 s
 
 1. Ask for the remote target before the local folder.
 2. Replace, rename, or `cp` onto the remote `$HOME` or `/`.
-3. Continue after a missing same-named directory, a basename mismatch, or an existing `.bak`.
+3. Continue after a missing same-named directory or an existing `.bak`. A typed basename that differs is the parent of the same-named folder. Do not rename that parent. Do not join when the typed path is the remote home.
 4. Use `out_die` for those pre-check stops. They return 1 so the menu can show the front board again.
 5. Use `rsync`, `cp -a`, or `sudo` for this verb.
 6. Send the archive to the remote home. The destination is `/tmp` when that directory is usable, otherwise the cache folder named above.
@@ -223,9 +225,10 @@ Copied substance for the words this requirement uses. No harness paths.
 
 | Date | Status | Notes |
 |------|--------|-------|
+| 2026-11-16 | Active 1.2.0 | A target whose basename is not the local folder is that folder’s parent (`~/sites` and local `app` resolve to `~/sites/app`). The remote home is refused before the join. The parent is not renamed. Product `1.36.2`. **TP-UP-05** is the missing child. **TP-UP-20** is the parent replace |
 | 2026-11-16 | Active 1.1.0 | Windows `upload` and `upplace` use a zip. When `/tmp` is missing, the stage is the cache folder. A non-Windows pair stays `tar.gz` to `/tmp`. Product `1.36.1`. **TP-UP-15** .. **TP-UP-19** |
 | 2026-11-16 | Active 1.0.0 | `upplace` on client **19**. Product `1.36.0`. Pre-check stops return to the menu. Backup `name.yyyyMMdd.bak`, then `tar.gz` to `/tmp`, `cp -rP`, cleanup both sides. **TP-UP-01** .. **TP-UP-14** |
 
-**Last Updated**: 2026-11-16 (1.1.0 Windows zip and cache folder when `/tmp` is missing. 1.0.0 client **19**)
+**Last Updated**: 2026-11-16 (1.2.0 parent target joins the local basename. 1.1.0 Windows zip and cache folder when `/tmp` is missing. 1.0.0 client **19**)
 **Owner**: Cloudgen Wong
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

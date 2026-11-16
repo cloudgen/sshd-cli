@@ -58,7 +58,7 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config / sync-from-remote).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.36.1"
+VERSION="1.36.2"
 : "${VERSION:=1.29.0}"
 
 # Runtime flags (safe defaults)
@@ -8788,9 +8788,12 @@ sshd_cmd_upload() {
 #
 # GENERAL PURPOSE:
 # Ask the same Host, user, and local folder questions as upload, then ask the
-# remote target last (absolute, or ~/folder under that ssh user). SSH checks
-# that the target is an existing directory whose basename is the local folder
-# name and that it is not the remote home. On that miss, print an error and
+# remote target last (absolute, or ~/folder under that ssh user). A typed
+# path whose basename is not the local folder is that folder's parent: the
+# replaced path is parent/basename. The remote home is refused before that
+# join. SSH then checks that the resolved path is an existing directory
+# with that basename and that it is not the remote home. On that miss, print
+# an error and
 # return to the menu (direct use exits 1) with no rename and no upload.
 # On a hit, rename the remote folder to basename.YYYYMMDD.bak (this login's
 # date). A non-Windows pair uses tar.gz and /tmp. This login on Windows, or
@@ -8819,7 +8822,7 @@ sshd_upplace_clear() {
         _arch_path _scp_to _cmd _next _json_user _up_renamed _up_local_stage \
         _up_next _up_zip _scratch _zw _stage_leaf _os_txt \
         _fr_msg _fr_clean _fr_rb SSHD_UP_OUT SSHD_UP_ERR SSHD_UP_RC \
-        SSHD_UP_TOK SSHD_UP_TARGET SSHD_UL_FOLDER
+        SSHD_UP_TOK SSHD_UP_TARGET SSHD_UL_FOLDER _tbn
 }
 
 sshd_upplace_local_clean() {
@@ -9485,7 +9488,7 @@ sshd_upplace_walk_target() {
     _ut_dns="${1-}"
     _ut_folder="${2-}"
     SSHD_UP_TARGET=""
-    out_msg_n "Target folder on that host (absolute, or ~/folder under that ssh user home): "
+    out_msg_n "Target folder on that host (the same-named folder, or its parent; absolute or ~/folder under that ssh user home): "
     _ut_pick=""
     read -r _ut_pick || true
     if [ -z "${_ut_pick}" ]; then
@@ -9614,6 +9617,39 @@ sshd_cmd_upplace() {
     else
         _next="ssh ${_dns}"
     fi
+    # Parent shorthand. The typed folder is not renamed. The remote home is
+    # refused on the typed path before parent/basename is built.
+    _tbn=$(basename "${_target}")
+    if [ "${_tbn}" != "${_base}" ]; then
+        _cmd=$(sshd_upplace_remote_probe "${_q_target}" "${_q_base}")
+        if ! sshd_upplace_ssh "${_bin}" "${_user}" "${_dns}" "${_cmd}"; then
+            out_die "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+        fi
+        case "${SSHD_UP_TOK}" in
+            __UPPLACE_HOME__)
+                if ! sshd_upplace_stop "Cannot upplace: target ${_target} is the remote home." "upplace_home"; then
+                    sshd_upplace_clear
+                    return 1
+                fi
+                ;;
+            __UPPLACE_NAME__)
+                _target="${_target}/${_base}"
+                sshd_upplace_validate_target "${_target}" "upplace ${_dns} ${_folder} ~/folder"
+                _q_target=$(sshd_download_remote_quote "${_target}")
+                ;;
+            __UPPLACE_MISSING__)
+                if ! sshd_upplace_stop "Cannot upplace: ${_dns} has no folder named ${_base} at ${_target}." "upplace_missing"; then
+                    sshd_upplace_clear
+                    return 1
+                fi
+                ;;
+            *)
+                sshd_upplace_show_err
+                out_die "Cannot upplace: ssh ${_dns} failed. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+                ;;
+        esac
+    fi
+    unset _tbn
     out_info "Replacing ${_folder} onto ${_target} on ${_dns} as ${_user:-${DNS_R_USER:-this login}} (backup ${_base}.${_date}.bak)"
     _cmd=$(sshd_upplace_remote_probe "${_q_target}" "${_q_base}")
     if ! sshd_upplace_ssh "${_bin}" "${_user}" "${_dns}" "${_cmd}"; then

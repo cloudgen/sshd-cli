@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - README pictures of the numbered boards, captured from the 1.35.1 ship unit on a terminal. Translated front boards keep **5** sudoers, **6** self-management, and **7** language.
 
+## [1.36.2] - 2026-11-16
+
+### Changed
+
+- **upplace parent path.** The target may be the same-named remote folder or the parent of that folder. Local folder `app` and target `~/sites` resolve to `~/sites/app` (a trailing slash is stripped first). The remote home is refused on the typed path before that join. The parent directory is not renamed. A missing child stops with no upload. Law: `requirement-domain-upplace` **1.2.0** · `requirement-domain-sshd` **1.29.1** · `requirement-shell-cli-interface` **1.14.19** · `requirement-shell-exit-condition` **1.0.4**. Tests **TP-UP-05** (missing child) and **TP-UP-20** (parent replace, trailing slash, JSON joined target).
+
+- README boards recaptured from the 1.36.2 ship unit. The status line is **1.36.2**. `screenshots/sudoers.png` has no version token and stays. Worked samples in `requirement-shell-cli-language` **1.7.5** follow this version.
+
 ## [1.36.1] - 2026-11-16
 
 ### Fixed

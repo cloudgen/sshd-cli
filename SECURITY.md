@@ -4,7 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| **1.36.1** (current) | Yes — report security issues against this release |
+| **1.36.2** (current) | Yes — report security issues against this release |
+| **1.36.1** | Yes — report security issues against this release |
 | **1.36.0** | Yes — report security issues against this release |
 | **1.35.1** | Yes — report security issues against this release |
 | **1.35.0** | Yes — report security issues against this release |

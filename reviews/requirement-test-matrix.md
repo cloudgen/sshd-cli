@@ -1,7 +1,7 @@
 # Requirement ↔ test matrix — sshd-cli
 
 **Updated:** 2026-10-16  
-**Product VERSION:** 1.36.1  
+**Product VERSION:** 1.36.2  
 **Suite:** `tests/run.sh`
 
 | Requirement key | Area | TP families | Coverage notes |

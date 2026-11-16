@@ -5,7 +5,7 @@
 **Always load first:** `reviews/lessons.md`
 
 **Last plan update:** 2026-11-16  
-**Ship unit VERSION:** 1.36.1  
+**Ship unit VERSION:** 1.36.2  
 **Suite baseline:** see `reviews/test-plan.md`
 
 ---
@@ -15,7 +15,7 @@
 | # | Check | Notes |
 |---|--------|-------|
 | P1 | Read `docs/requirements/index.md` | 34 Active (class + 28 shell + domain sshd + `requirement-domain-upplace` + 3 pointers), including `requirement-shell-exit-condition` and the nine CLI coding homes. The Git Bash home owns the MSYS gzip-stdin ban. From **1.35.1** an MSYS reader uses a finished file |
-| P2 | Confirm ship unit `src/sshd-cli` / `./sshd-cli` | `APP_NAME` / `VERSION` hard-assign (**1.36.1**); same bytes |
+| P2 | Confirm ship unit `src/sshd-cli` / `./sshd-cli` | `APP_NAME` / `VERSION` hard-assign (**1.36.2**); same bytes |
 | P2a | Language menu numbers | Front **7** language. Block **70–89** is at most 20 languages. Assigned **71–83**. **70** and **84–89** are not printed. Front **8** is not a row. **TP-CLI-24** |
 | P3 | Load `reviews/lessons.md` and re-check open L-* that still apply | Skip L-SUDOERS / restore lessons as parent-only |
 | P4 | Run `./tests/run.sh` | Record PASS/FAIL/SKIP in report |

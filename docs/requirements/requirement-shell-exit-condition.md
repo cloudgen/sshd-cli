@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-exit-condition.md  
-**Status**: Active (Version 1.0.3)  
+**Status**: Active (Version 1.0.4)  
 **Area**: shell  
 **Key**: `requirement-shell-exit-condition`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -336,7 +336,7 @@ Human mode uses `out_error` (`[ERROR]` on stderr). JSON mode uses `out_json_erro
 | EX-RET-16 | TTY `self-uninstall` confirm answered no | `inst_self_uninstall_confirm_and_remove` | (human only) | `Uninstall cancelled by user.` (plain text, then status 1) |
 | EX-RET-17 | `rm` of the install path failed | `inst_self_uninstall_confirm_and_remove` | `permission_denied` | `Failed to remove <path> (permission denied?)` |
 | EX-RET-18 | `upplace` target is the remote home, before any rename | `sshd_upplace_stop` | `upplace_home` | `Cannot upplace: target <target> is the remote home.` |
-| EX-RET-19 | `upplace` target basename is not the local folder name | `sshd_upplace_stop` | `upplace_name` | `Cannot upplace: target <target> is not named <basename>.` |
+| EX-RET-19 | `upplace` resolved target basename is not the local folder name. A typed parent is joined first (`<typed>/<basename>`), after the typed path is refused when it is the remote home. This stop is the resolved path | `sshd_upplace_stop` | `upplace_name` | `Cannot upplace: target <target> is not named <basename>.` |
 | EX-RET-20 | `upplace` same-named directory is absent | `sshd_upplace_stop` | `upplace_missing` | `Cannot upplace: <host> has no folder named <basename> at <target>.` |
 | EX-RET-21 | `upplace` backup name already exists | `sshd_upplace_stop` | `upplace_bak` | `Cannot upplace: backup <basename>.<yyyyMMdd>.bak already exists beside <target> on <host>.` |
 
@@ -646,9 +646,10 @@ When the ship unit detects Termux, Git Bash, Windows cmd, or the same class, adm
 |------|--------|-------|
 | 2026-10-10 | Active 1.0.0 | Exit catalog from `out_die` and the direct-command `return 1` messages in `src/sshd-cli`. Shape referenced from sibling tmpl-to-prj. Rows are this ship unit |
 | 2026-10-14 | Active 1.0.1 | EX-DIE-25 is the POSIX Linux missing-sshd hint. EX-DIE-197 Git Bash, EX-DIE-198 Windows cmd, EX-DIE-199 macOS. The program does not run `apt` or `dnf` |
+| 2026-11-16 | Active 1.0.4 | EX-RET-19 applies after `upplace` joins a parent target. The typed remote home stays EX-RET-18 and is not joined |
 | 2026-11-16 | Active 1.0.3 | EX-DIE-230 through EX-DIE-242 are the Windows zip fatals for `upload` and `upplace`. EX-DIE-200 through EX-DIE-229 stay the earlier `upplace` rows |
 | 2026-11-16 | Active 1.0.2 | EX-DIE-200 through EX-DIE-229 are `upplace` fatals. EX-RET-18 through EX-RET-21 are the pre-check stops (home, name, missing, backup). EX-OK-01 includes `upplace` |
 
-**Last Updated**: 2026-11-16 (1.0.3 Windows zip fatals EX-DIE-230..242. 1.0.2 `upplace` fatals EX-DIE-200..229 and pre-check stops EX-RET-18..21. 1.0.1 missing-sshd next step by family. 2026-10-10)  
+**Last Updated**: 2026-11-16 (1.0.4 `upplace` parent join before EX-RET-19. 1.0.3 Windows zip fatals EX-DIE-230..242. 1.0.2 `upplace` fatals EX-DIE-200..229 and pre-check stops EX-RET-18..21. 1.0.1 missing-sshd next step by family. 2026-10-10)  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
