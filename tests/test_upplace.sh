@@ -63,6 +63,15 @@ if [ -n "${log}" ]; then
     printf '%s\n' "$*" >> "${log}"
     printf 'CMD<<\n%s\n>>CMD\n' "${cmd}" >> "${log}"
 fi
+case "${cmd}" in
+    *__SSHD_CLI_UNAME__*)
+        if [ -n "${SSHD_CLI_FAKE_UNAME:-}${SSHD_CLI_FAKE_OSTYPE:-}" ]; then
+            printf '%s\n' "__SSHD_CLI_UNAME__${SSHD_CLI_FAKE_UNAME:-Linux}"
+            printf '%s\n' "__SSHD_CLI_OSTYPE__${SSHD_CLI_FAKE_OSTYPE:-}"
+            exit 0
+        fi
+        ;;
+esac
 home="${SSHD_CLI_REMOTE_HOME:-}"
 fake="${SSHD_CLI_FAKE_TMP:-}"
 if [ -z "${home}" ] || [ -z "${fake}" ]; then
@@ -72,6 +81,10 @@ fi
 rewritten=$(printf '%s\n' "${cmd}" | sed \
     -e "s|/tmp/\\.sshd-cli|${fake}/.sshd-cli|g" \
     -e "s|/tmp/sshd-cli\\.upstage|${fake}/sshd-cli.upstage|g")
+if [ "${SSHD_CLI_FAKE_NO_TMP:-}" = "1" ]; then
+    rewritten=$(printf '%s\n' "${rewritten}" | sed \
+        -e 's|\[ -d /tmp \] && \[ -w /tmp \] && \[ -x /tmp \]|[ -d /no/such/tmp ]|')
+fi
 HOME="${home}" sh -c "${rewritten}"
 exit $?
 FAKESSH
@@ -96,9 +109,13 @@ dst="${last}"
 remote="${dst#*:}"
 fake="${SSHD_CLI_FAKE_TMP:-}"
 case "${remote}" in
-    /tmp/*)
+    /tmp/.sshd-cli*|/tmp/sshd-cli.upstage*)
         base=$(basename "${remote}")
         cp "${src}" "${fake}/${base}" || exit 1
+        ;;
+    /*)
+        mkdir -p "$(dirname "${remote}")" || exit 1
+        cp "${src}" "${remote}" || exit 1
         ;;
     *)
         printf '%s\n' "fake scp dest not /tmp" >&2
@@ -127,6 +144,8 @@ run_test_upplace() {
     require_cmd sh
     require_cmd tar
     require_cmd gzip
+    require_cmd zip
+    require_cmd unzip
     require_cmd awk
     require_cmd sed
 
@@ -370,6 +389,130 @@ run_test_upplace() {
     _ec=$?
     assert_eq "TP-UP-14 missing operand exit 1" 1 "${_ec}"
     assert_contains "TP-UP-14 missing operand names upplace" "${_err}" "upplace needs a target folder"
+
+    # TP-UP-15 this login Windows cmd uses zip and still lands the archive in /tmp
+    /bin/rm -rf "${UP_REMOTE}/sites/app" "${UP_REMOTE}/sites/app.${_day}.bak"
+    mkdir -p "${UP_REMOTE}/sites/app"
+    printf 'old\n' > "${UP_REMOTE}/sites/app/old.txt"
+    : > "${_ssh_log}"
+    : > "${_scp_log}"
+    _out=$(OS=Windows_NT HOME="${CI_HOME}" TMPDIR="${CI_HOME}/ltmp" \
+        SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SCP="${_fake_scp}" \
+        SSHD_CLI_SSH_LOG="${_ssh_log}" SSHD_CLI_SCP_LOG="${_scp_log}" \
+        SSHD_CLI_REMOTE_HOME="${UP_REMOTE}" SSHD_CLI_FAKE_TMP="${UP_FAKE}" \
+        sh "${SCRIPT}" upplace "${H_UP}" "${CI_HOME}/box/app" '~/sites/app' 2>"${CI_HOME}/up.err")
+    _ec=$?
+    _log=$(cat "${_ssh_log}")
+    _slog=$(cat "${_scp_log}")
+    assert_eq "TP-UP-15 windows zip exit 0" 0 "${_ec}"
+    assert_contains "TP-UP-15 success names backup" "${_out}" "app.${_day}.bak"
+    assert_file_exists "TP-UP-15 new file replaced" "${UP_REMOTE}/sites/app/new.txt"
+    assert_contains "TP-UP-15 ssh log has cp -rP" "${_log}" "cp -rP"
+    assert_contains "TP-UP-15 ssh log has unzip" "${_log}" "unzip -q -o"
+    assert_not_contains "TP-UP-15 no tar xzf" "${_log}" "tar xzf"
+    assert_contains "TP-UP-15 scp dest is /tmp" "${_slog}" ":/tmp/"
+    assert_contains "TP-UP-15 scp zip" "${_slog}" ".zip"
+    assert_not_contains "TP-UP-15 scp is not tar.gz" "${_slog}" ".tar.gz"
+    assert_not_contains "TP-UP-15 scp is not the home" "${_slog}" ":app"
+    _left=$(find "${UP_FAKE}" -mindepth 1 -print 2>/dev/null | head -n 5)
+    assert_eq "TP-UP-15 remote temp gone" "" "${_left}"
+
+    # TP-UP-16 this login Git Bash uses zip the same way
+    /bin/rm -rf "${UP_REMOTE}/sites/app" "${UP_REMOTE}/sites/app.${_day}.bak"
+    mkdir -p "${UP_REMOTE}/sites/app"
+    printf 'old\n' > "${UP_REMOTE}/sites/app/old.txt"
+    : > "${_ssh_log}"
+    : > "${_scp_log}"
+    _out=$(MSYSTEM=MINGW64 HOME="${CI_HOME}" TMPDIR="${CI_HOME}/ltmp" \
+        SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SCP="${_fake_scp}" \
+        SSHD_CLI_SSH_LOG="${_ssh_log}" SSHD_CLI_SCP_LOG="${_scp_log}" \
+        SSHD_CLI_REMOTE_HOME="${UP_REMOTE}" SSHD_CLI_FAKE_TMP="${UP_FAKE}" \
+        sh "${SCRIPT}" upplace "${H_UP}" "${CI_HOME}/box/app" '~/sites/app' 2>"${CI_HOME}/up.err")
+    _ec=$?
+    _log=$(cat "${_ssh_log}")
+    _slog=$(cat "${_scp_log}")
+    assert_eq "TP-UP-16 git bash zip exit 0" 0 "${_ec}"
+    assert_contains "TP-UP-16 ssh log has unzip" "${_log}" "unzip -q -o"
+    assert_not_contains "TP-UP-16 no stdin tar" "${_log}" "tar xzf -"
+    assert_contains "TP-UP-16 scp dest is /tmp" "${_slog}" ":/tmp/"
+    assert_contains "TP-UP-16 scp zip" "${_slog}" ".zip"
+    assert_file_exists "TP-UP-16 new file replaced" "${UP_REMOTE}/sites/app/new.txt"
+
+    # TP-UP-17 local /tmp refused: the zip is built under the cache folder
+    /bin/rm -rf "${UP_REMOTE}/sites/app" "${UP_REMOTE}/sites/app.${_day}.bak"
+    mkdir -p "${UP_REMOTE}/sites/app"
+    printf 'old\n' > "${UP_REMOTE}/sites/app/old.txt"
+    : > "${_ssh_log}"
+    : > "${_scp_log}"
+    _out=$(OS=Windows_NT SSHD_CLI_NO_TMP=1 HOME="${CI_HOME}" TMPDIR="${CI_HOME}/ltmp" \
+        SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SCP="${_fake_scp}" \
+        SSHD_CLI_SSH_LOG="${_ssh_log}" SSHD_CLI_SCP_LOG="${_scp_log}" \
+        SSHD_CLI_REMOTE_HOME="${UP_REMOTE}" SSHD_CLI_FAKE_TMP="${UP_FAKE}" \
+        sh "${SCRIPT}" upplace "${H_UP}" "${CI_HOME}/box/app" '~/sites/app' 2>"${CI_HOME}/up.err")
+    _ec=$?
+    _slog=$(cat "${_scp_log}")
+    assert_eq "TP-UP-17 cache zip exit 0" 0 "${_ec}"
+    assert_contains "TP-UP-17 scp source is cache" "${_slog}" "cache-${APP_NAME}"
+    assert_contains "TP-UP-17 scp zip" "${_slog}" ".zip"
+    assert_not_contains "TP-UP-17 scp is not tar.gz" "${_slog}" ".tar.gz"
+    assert_file_exists "TP-UP-17 new file replaced" "${UP_REMOTE}/sites/app/new.txt"
+    _left=$(find "${CI_HOME}/ltmp" -name '*.zip' -print 2>/dev/null | head -n 5)
+    assert_eq "TP-UP-17 zip not left in TMPDIR" "" "${_left}"
+
+    # TP-UP-18 remote /tmp refused: the zip lands in the remote cache folder
+    /bin/rm -rf "${UP_REMOTE}/sites/app" "${UP_REMOTE}/sites/app.${_day}.bak"
+    mkdir -p "${UP_REMOTE}/sites/app"
+    printf 'old\n' > "${UP_REMOTE}/sites/app/old.txt"
+    : > "${_ssh_log}"
+    : > "${_scp_log}"
+    _out=$(SSHD_CLI_FAKE_UNAME=Windows_NT SSHD_CLI_FAKE_NO_TMP=1 \
+        HOME="${CI_HOME}" TMPDIR="${CI_HOME}/ltmp" \
+        SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SCP="${_fake_scp}" \
+        SSHD_CLI_SSH_LOG="${_ssh_log}" SSHD_CLI_SCP_LOG="${_scp_log}" \
+        SSHD_CLI_REMOTE_HOME="${UP_REMOTE}" SSHD_CLI_FAKE_TMP="${UP_FAKE}" \
+        sh "${SCRIPT}" upplace "${H_UP}" "${CI_HOME}/box/app" '~/sites/app' 2>"${CI_HOME}/up.err")
+    _ec=$?
+    _log=$(cat "${_ssh_log}")
+    _slog=$(cat "${_scp_log}")
+    assert_eq "TP-UP-18 remote cache exit 0" 0 "${_ec}"
+    assert_contains "TP-UP-18 scp dest is cache" "${_slog}" ".cache/cache-"
+    assert_contains "TP-UP-18 scp zip" "${_slog}" ".zip"
+    assert_contains "TP-UP-18 ssh log has cp -rP" "${_log}" "cp -rP"
+    assert_file_exists "TP-UP-18 new file replaced" "${UP_REMOTE}/sites/app/new.txt"
+    _left=$(find "${UP_REMOTE}" -name '*.zip' -print 2>/dev/null | head -n 5)
+    assert_eq "TP-UP-18 remote zip gone" "" "${_left}"
+    _left=$(find "${UP_FAKE}" -mindepth 1 -print 2>/dev/null | head -n 5)
+    assert_eq "TP-UP-18 /tmp archive unused" "" "${_left}"
+
+    # TP-UP-19 missing zip dies before the rename
+    /bin/rm -rf "${UP_REMOTE}/sites/app" "${UP_REMOTE}/sites/app.${_day}.bak"
+    mkdir -p "${UP_REMOTE}/sites/app"
+    printf 'old\n' > "${UP_REMOTE}/sites/app/old.txt"
+    _noz=$(mktemp -d "${TMPDIR:-/tmp}/up-noz.XXXXXX")
+    for _d in /bin /usr/bin; do
+        for _p in "${_d}"/*; do
+            [ -e "${_p}" ] || continue
+            _c=$(basename "${_p}")
+            case "${_c}" in
+                zip|unzip) continue ;;
+            esac
+            if [ ! -e "${_noz}/${_c}" ]; then
+                ln -s "${_p}" "${_noz}/${_c}"
+            fi
+        done
+    done
+    : > "${_ssh_log}"
+    _err=$(OS=Windows_NT PATH="${_noz}" HOME="${CI_HOME}" \
+        SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SCP="${_fake_scp}" \
+        SSHD_CLI_SSH_LOG="${_ssh_log}" SSHD_CLI_SCP_LOG="${_scp_log}" \
+        SSHD_CLI_REMOTE_HOME="${UP_REMOTE}" SSHD_CLI_FAKE_TMP="${UP_FAKE}" \
+        sh "${SCRIPT}" upplace "${H_UP}" "${CI_HOME}/box/app" '~/sites/app' 2>&1 >/dev/null)
+    _ec=$?
+    assert_eq "TP-UP-19 zip missing exit 1" 1 "${_ec}"
+    assert_contains "TP-UP-19 names zip" "${_err}" "zip not found"
+    assert_file_exists "TP-UP-19 folder not renamed" "${UP_REMOTE}/sites/app/old.txt"
+    assert_file_missing "TP-UP-19 no bak" "${UP_REMOTE}/sites/app.${_day}.bak"
+    /bin/rm -rf "${_noz}"
 
     if [ -n "${UP_SAND:-}" ] && [ -d "${UP_SAND}" ]; then
         /bin/rm -rf "${UP_SAND}"

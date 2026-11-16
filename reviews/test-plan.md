@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.36.0  
+**Product VERSION:** 1.36.1  
 **Last plan update:** 2026-11-16  
-**Last suite run:** PASS=1224 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-11-16, product 1.36.0). **TP-UP-01** .. **TP-UP-14** passed. Prior run: PASS=1142 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-16, product 1.35.1). **TP-OS-GB-01** .. **TP-OS-GB-04** and **TP-OS-CMD-01** passed. Prior run: PASS=1107 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-14, product 1.35.0). **TP-SSHD-17** passed: a missing sshd names `dnf` on Fedora and RHEL and `apt` on Debian and Ubuntu, and says this program does not run that command. Git Bash, Windows cmd, and macOS each have their own next step. Prior run: PASS=1100 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-14, product 1.34.0). **TP-CLI-14**, **TP-CLI-21**, **TP-CLI-24**, **TP-SSHD-04**, and **TP-CFG-04** / **05** / **09** / **17** passed: front **5** sudoers (**51–55**), **6** self-management (TTY **62** runs about), **7** language block **70–89** (assigned **71–83**); front **8** warns; Termux / Git Bash / Windows cmd omit row **5**. Prior run: PASS=1099 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-10, product 1.33.0). **TP-SSHD-04**, **TP-CFG-04**, **TP-CFG-05**, and **TP-CFG-09** passed: Termux / Git Bash / Windows cmd print `sudoers not available for termux` / `gitbash` / `windows-cmd` before the front numbers and omit row **7**. Prior run: PASS=1091 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-02, product 1.32.0). **TP-CLI-14** and **TP-CLI-24** passed: front **5** language, block **50–69** (assigned **51–63**); **50**, **64**, and **69** do not write the file; front **6** warns and does not open the language board. Earlier: PASS=1065 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-02, product 1.31.0), assigned **51–58**. Earlier: PASS=844 FAIL=22 SKIP=0 (`./tests/run.sh`, 2026-09-28, product 1.28.0). Those 22 were TP-DL-* `tar xzf` cases. The 1.31.0 run’s TP-DL-* cases passed.
+**Last suite run:** PASS=1269 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-11-16, product 1.36.1). **TP-OS-GB-01** .. **TP-OS-GB-04**, **TP-OS-CMD-01**, **TP-OS-CMD-02**, and **TP-UP-01** .. **TP-UP-19** passed. Prior run: PASS=1224 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-11-16, product 1.36.0). **TP-UP-01** .. **TP-UP-14** passed. Prior run: PASS=1142 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-16, product 1.35.1). **TP-OS-GB-01** .. **TP-OS-GB-04** and **TP-OS-CMD-01** passed. Prior run: PASS=1107 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-14, product 1.35.0). **TP-SSHD-17** passed: a missing sshd names `dnf` on Fedora and RHEL and `apt` on Debian and Ubuntu, and says this program does not run that command. Git Bash, Windows cmd, and macOS each have their own next step. Prior run: PASS=1100 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-14, product 1.34.0). **TP-CLI-14**, **TP-CLI-21**, **TP-CLI-24**, **TP-SSHD-04**, and **TP-CFG-04** / **05** / **09** / **17** passed: front **5** sudoers (**51–55**), **6** self-management (TTY **62** runs about), **7** language block **70–89** (assigned **71–83**); front **8** warns; Termux / Git Bash / Windows cmd omit row **5**. Prior run: PASS=1099 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-10, product 1.33.0). **TP-SSHD-04**, **TP-CFG-04**, **TP-CFG-05**, and **TP-CFG-09** passed: Termux / Git Bash / Windows cmd print `sudoers not available for termux` / `gitbash` / `windows-cmd` before the front numbers and omit row **7**. Prior run: PASS=1091 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-02, product 1.32.0). **TP-CLI-14** and **TP-CLI-24** passed: front **5** language, block **50–69** (assigned **51–63**); **50**, **64**, and **69** do not write the file; front **6** warns and does not open the language board. Earlier: PASS=1065 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-02, product 1.31.0), assigned **51–58**. Earlier: PASS=844 FAIL=22 SKIP=0 (`./tests/run.sh`, 2026-09-28, product 1.28.0). Those 22 were TP-DL-* `tar xzf` cases. The 1.31.0 run’s TP-DL-* cases passed.
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -262,18 +262,24 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-UP-12 | JSON success is one object; JSON missing is `upplace_missing` | test_upplace | requirement-domain-upplace · requirement-shell-output-requirements | **have** |
 | TP-UP-13 | menu row 19 on a miss returns to the front board (process status 0) | test_upplace | requirement-domain-upplace · requirement-shell-cli-default-interaction | **have** |
 | TP-UP-14 | direct command without a target exits 1 | test_upplace | requirement-domain-upplace · requirement-shell-exit-condition | **have** |
+| TP-UP-15 | Windows cmd `upplace` uses a zip and `scp` to `/tmp`, then `unzip` and `cp -rP` | test_upplace | requirement-domain-upplace · requirement-shell-windows-cmd-cli-coding | **have** |
+| TP-UP-16 | Git Bash `upplace` uses a zip and `scp` to `/tmp` | test_upplace | requirement-domain-upplace · requirement-shell-windows-git-bash-cli-coding | **have** |
+| TP-UP-17 | when local `/tmp` is not usable the zip is built under the cache folder | test_upplace | requirement-domain-upplace · requirement-shell-cli-storage | **have** |
+| TP-UP-18 | when remote `/tmp` is not usable the zip lands in the remote cache folder | test_upplace | requirement-domain-upplace | **have** |
+| TP-UP-19 | a missing zip stops before the rename and names zip | test_upplace | requirement-domain-upplace · requirement-shell-exit-condition | **have** |
 
-### TP-OS (folder tar.gz by OS family)
+### TP-OS (folder transfer by OS family)
 
-**TP-UL-01** .. **TP-UL-18** stay the non-MSYS pipe. **TP-OS-GB-01** .. **TP-OS-GB-04** and **TP-OS-CMD-01** are in `tests/test_os_transfer.sh`. Alpine, BusyBox, and other Linux pipe rows stay todo.
+**TP-UL-01** .. **TP-UL-18** stay the non-Windows `upload` pipe. **TP-OS-GB-01** .. **TP-OS-GB-04**, **TP-OS-CMD-01**, and **TP-OS-CMD-02** are in `tests/test_os_transfer.sh`. Alpine, BusyBox, and other Linux pipe rows stay todo.
 
 | TP-ID | Intent | Suite | Primary requirement(s) | Status |
 |-------|--------|-------|------------------------|--------|
-| TP-OS-GB-01 | Upload to an MSYS reader uses a finished file, not `tar xzf -`. Local Git Bash uploading to a non-MSYS reader still pipes | test_os_transfer | requirement-shell-windows-git-bash-cli-coding | **have** |
-| TP-OS-GB-02 | Download when this login is Git Bash uses a finished file, `scp`, a file extract, then removes the archive | test_os_transfer | requirement-shell-windows-git-bash-cli-coding | **have** |
-| TP-OS-GB-03 | `gzip -t` rejection names gzip; a `tar` rejection names tar | test_os_transfer | requirement-shell-windows-git-bash-cli-coding | **have** |
-| TP-OS-GB-04 | The MSYS transfer does not use `sleep` or `cat >` as the repair | test_os_transfer | requirement-shell-windows-git-bash-cli-coding | **have** |
-| TP-OS-CMD-01 | `Windows_NT` keeps `tar xzf -` and does not call `scp` | test_os_transfer | requirement-shell-windows-cmd-cli-coding | **have** |
+| TP-OS-GB-01 | Upload to an MSYS reader uses a zip and `unzip`, not `tar xzf -` | test_os_transfer | requirement-shell-windows-git-bash-cli-coding | **have** |
+| TP-OS-GB-02 | Download when this login is Git Bash uses a finished tar.gz, `scp`, a file extract, then removes the archive | test_os_transfer | requirement-shell-windows-git-bash-cli-coding | **have** |
+| TP-OS-GB-03 | A missing zip names zip. A remote unzip failure names zip and does not say only that ssh failed | test_os_transfer | requirement-shell-windows-git-bash-cli-coding · requirement-shell-exit-condition | **have** |
+| TP-OS-GB-04 | Local Git Bash uploads a zip even when the remote reader is Linux | test_os_transfer | requirement-shell-windows-git-bash-cli-coding | **have** |
+| TP-OS-CMD-01 | Remote `Windows_NT` upload uses a zip, not `tar xzf -` | test_os_transfer | requirement-shell-windows-cmd-cli-coding | **have** |
+| TP-OS-CMD-02 | Local `OS=Windows_NT` uploads a zip even when the remote reader is Linux | test_os_transfer | requirement-shell-windows-cmd-cli-coding | **have** |
 | TP-OS-ALP-01 | Alpine keeps the streamed pipe | — | requirement-shell-alpine-cli-coding | **todo** |
 | TP-OS-BB-01 | BusyBox keeps the streamed pipe and does not rename applets | — | requirement-shell-busybox-cli-coding | **todo** |
 | TP-OS-OTH-01 | Other Linux keeps the streamed pipe | — | requirement-shell-other-linux-cli-coding | **todo** |

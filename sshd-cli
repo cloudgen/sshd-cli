@@ -58,7 +58,7 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config / sync-from-remote).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.36.0"
+VERSION="1.36.1"
 : "${VERSION:=1.29.0}"
 
 # Runtime flags (safe defaults)
@@ -7710,21 +7710,22 @@ sshd_gzip_text_is_msys() {
 }
 
 # =============================================================================
-# sshd_remote_reader_is_msys — ask the remote shell who reads gzip
+# sshd_xfer_remote_os_text — one BatchMode probe of uname and OSTYPE
 # =============================================================================
 #
 # GENERAL PURPOSE:
-# One BatchMode ssh prints uname -s and OSTYPE. Return 0 when that text is
-# an MSYS2 or Git Bash reader. A non-zero ssh, empty text, or Windows_NT
-# returns 1 so the caller keeps the streamed pipe.
+# Print the remote uname and OSTYPE marker lines. A failed ssh returns 1
+# and prints nothing. The caller decides Windows versus the streamed pipe.
+# A failed probe is not Windows.
 #
 # ALIGNMENT:
 # - requirement-shell-windows-git-bash-cli-coding.md
+# - requirement-shell-windows-cmd-cli-coding.md
 # - requirement-domain-sshd.md
 #
-# Last updated: 2026-10-16
+# Last updated: 2026-11-16
 # =============================================================================
-sshd_remote_reader_is_msys() {
+sshd_xfer_remote_os_text() {
     _pr_bin="${1-}"
     _pr_user="${2-}"
     _pr_dns="${3-}"
@@ -7740,12 +7741,251 @@ sshd_remote_reader_is_msys() {
         unset _pr_bin _pr_user _pr_dns _pr_cmd _pr_out _pr_rc
         return 1
     fi
-    if sshd_gzip_text_is_msys "${_pr_out}"; then
-        unset _pr_bin _pr_user _pr_dns _pr_cmd _pr_out _pr_rc
+    printf '%s\n' "${_pr_out}"
+    unset _pr_bin _pr_user _pr_dns _pr_cmd _pr_out _pr_rc
+    return 0
+}
+
+# =============================================================================
+# sshd_xfer_text_is_windows — probe text is MSYS, Git Bash, or Windows_NT
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Return 0 when the probe names an MSYS2 or Git Bash reader, or when uname
+# is Windows_NT. CYGWIN is not this case. Windows_NT alone is Windows for
+# the zip transfer. It is still not an MSYS gzip reader.
+#
+# ALIGNMENT:
+# - requirement-shell-windows-git-bash-cli-coding.md
+# - requirement-shell-windows-cmd-cli-coding.md
+#
+# Last updated: 2026-11-16
+# =============================================================================
+sshd_xfer_text_is_windows() {
+    _wt="${1-}"
+    if sshd_gzip_text_is_msys "${_wt}"; then
+        unset _wt
         return 0
     fi
-    unset _pr_bin _pr_user _pr_dns _pr_cmd _pr_out _pr_rc
+    case "${_wt}" in
+        *__SSHD_CLI_UNAME__Windows_NT*)
+            unset _wt
+            return 0
+            ;;
+    esac
+    unset _wt
     return 1
+}
+
+# This login is Git Bash or Windows cmd. CYGWIN is neither.
+sshd_xfer_this_login_is_windows() {
+    if sshd_is_git_bash; then
+        return 0
+    fi
+    if sshd_is_windows_cmd; then
+        return 0
+    fi
+    return 1
+}
+
+# /tmp is a usable directory. SSHD_CLI_NO_TMP=1 is a test-purpose hook.
+sshd_xfer_tmp_usable() {
+    if [ "${SSHD_CLI_NO_TMP:-}" = "1" ]; then
+        return 1
+    fi
+    if [ -d /tmp ] && [ -w /tmp ] && [ -x /tmp ]; then
+        return 0
+    fi
+    return 1
+}
+
+# =============================================================================
+# sshd_xfer_local_stage — mktemp directory under /tmp, else the cache folder
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# When /tmp is a directory this login can write and search, mint the stage
+# with mktemp -d -t. Otherwise mint it under util_resolve_storage. The
+# caller removes only that stage.
+#
+# ALIGNMENT:
+# - requirement-shell-cli-storage.md
+# - requirement-domain-upplace.md
+# - requirement-shell-windows-cmd-cli-coding.md
+#
+# Last updated: 2026-11-16
+# =============================================================================
+sshd_xfer_local_stage() {
+    _ls_leaf="${1-}"
+    _ls_dir=""
+    _ls_root=""
+    if [ -z "${_ls_leaf}" ]; then
+        unset _ls_leaf _ls_dir _ls_root
+        return 1
+    fi
+    if sshd_xfer_tmp_usable; then
+        _ls_dir=$(mktemp -d -t "${_ls_leaf}") || {
+            unset _ls_leaf _ls_dir _ls_root
+            return 1
+        }
+        printf '%s\n' "${_ls_dir}"
+        unset _ls_leaf _ls_dir _ls_root
+        return 0
+    fi
+    _ls_root=$(util_resolve_storage) || {
+        unset _ls_leaf _ls_dir _ls_root
+        return 1
+    }
+    _ls_dir=$(mktemp -d "${_ls_root}/${_ls_leaf}") || {
+        unset _ls_leaf _ls_dir _ls_root
+        return 1
+    }
+    printf '%s\n' "${_ls_dir}"
+    unset _ls_leaf _ls_dir _ls_root
+    return 0
+}
+
+# One empty file. Same /tmp rule as sshd_xfer_local_stage.
+sshd_xfer_mktemp_file() {
+    _mf_leaf="${1-}"
+    _mf_path=""
+    _mf_root=""
+    if [ -z "${_mf_leaf}" ]; then
+        unset _mf_leaf _mf_path _mf_root
+        return 1
+    fi
+    if sshd_xfer_tmp_usable; then
+        _mf_path=$(mktemp -t "${_mf_leaf}") || {
+            unset _mf_leaf _mf_path _mf_root
+            return 1
+        }
+        printf '%s\n' "${_mf_path}"
+        unset _mf_leaf _mf_path _mf_root
+        return 0
+    fi
+    _mf_root=$(util_resolve_storage) || {
+        unset _mf_leaf _mf_path _mf_root
+        return 1
+    }
+    _mf_path=$(mktemp "${_mf_root}/${_mf_leaf}") || {
+        unset _mf_leaf _mf_path _mf_root
+        return 1
+    }
+    printf '%s\n' "${_mf_path}"
+    unset _mf_leaf _mf_path _mf_root
+    return 0
+}
+
+# True when the path is a stage this run may delete. Never $HOME, /, ..,
+# /tmp itself, or the cache root.
+sshd_xfer_stage_allowed() {
+    : "${APP_NAME:=sshd-cli}"
+    _sa="${1-}"
+    case "${_sa}" in
+        ""|*".."*|/|/tmp|/var/tmp) return 1 ;;
+    esac
+    if [ -n "${HOME:-}" ] && [ "${_sa}" = "${HOME}" ]; then
+        return 1
+    fi
+    if [ -n "${TMPDIR:-}" ] && [ "${_sa}" = "${TMPDIR%/}" ]; then
+        return 1
+    fi
+    case "${_sa}" in
+        /tmp/*|/var/tmp/*) return 0 ;;
+    esac
+    if [ -n "${TMPDIR:-}" ]; then
+        case "${_sa}" in
+            "${TMPDIR%/}"/*) return 0 ;;
+        esac
+    fi
+    case "${_sa}" in
+        */cache-"${APP_NAME}"-*/"${APP_NAME}".xfer.*|*/cache-"${APP_NAME}"-*/"${APP_NAME}".upplace.*|*/cache-"${APP_NAME}"-*/"${APP_NAME}".upload.*)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+sshd_xfer_stage_rm() {
+    _sr="${1-}"
+    if sshd_xfer_stage_allowed "${_sr}"; then
+        rm -rf "${_sr}"
+    fi
+    unset _sr
+}
+
+# Zip leaf .${APP_NAME}.xfer.XXXXXX.zip inside a stage directory.
+sshd_xfer_new_zip_name() {
+    : "${APP_NAME:=sshd-cli}"
+    _zn_dir="${1-}"
+    _zn_tmp=$(mktemp "${_zn_dir}/${APP_NAME}.xfer.XXXXXX") || {
+        unset _zn_dir
+        return 1
+    }
+    _zn_leaf=$(basename "${_zn_tmp}")
+    rm -f "${_zn_tmp}"
+    printf '.%s.zip' "${_zn_leaf}"
+    unset _zn_dir _zn_tmp _zn_leaf
+}
+
+# Print zip or bsdtar. GNU tar is not a zip writer.
+sshd_xfer_zip_writer() {
+    _zw_ver=""
+    if command -v zip >/dev/null 2>&1; then
+        printf '%s\n' "zip"
+        unset _zw_ver
+        return 0
+    fi
+    if ! command -v tar >/dev/null 2>&1; then
+        unset _zw_ver
+        return 1
+    fi
+    _zw_ver=$(tar --version 2>/dev/null | head -n 1 || true)
+    case "${_zw_ver}" in
+        *bsdtar*|*libarchive*)
+            printf '%s\n' "bsdtar"
+            unset _zw_ver
+            return 0
+            ;;
+    esac
+    unset _zw_ver
+    return 1
+}
+
+sshd_xfer_zip_build() {
+    _zb_writer="${1-}"
+    _zb_path="${2-}"
+    _zb_dir="${3-}"
+    _zb_base="${4-}"
+    _zb_rc=1
+    if [ "${_zb_writer}" = "zip" ]; then
+        if ( cd "${_zb_dir}" && zip -r -q "${_zb_path}" "${_zb_base}" ); then
+            _zb_rc=0
+        fi
+    elif [ "${_zb_writer}" = "bsdtar" ]; then
+        if tar -a -cf "${_zb_path}" -C "${_zb_dir}" "${_zb_base}"; then
+            _zb_rc=0
+        fi
+    fi
+    unset _zb_writer _zb_path _zb_dir _zb_base
+    return ${_zb_rc}
+}
+
+sshd_xfer_zip_test() {
+    _zt_writer="${1-}"
+    _zt_path="${2-}"
+    _zt_rc=1
+    if [ "${_zt_writer}" = "zip" ]; then
+        if zip -T "${_zt_path}" >/dev/null 2>&1; then
+            _zt_rc=0
+        fi
+    elif [ "${_zt_writer}" = "bsdtar" ]; then
+        if tar -tf "${_zt_path}" >/dev/null 2>&1; then
+            _zt_rc=0
+        fi
+    fi
+    unset _zt_writer _zt_path
+    return ${_zt_rc}
 }
 
 # =============================================================================
@@ -7772,19 +8012,22 @@ sshd_xfer_new_name() {
 }
 
 # =============================================================================
-# sshd_xfer_show_err — replay captured remote text, then name gzip or tar
+# sshd_xfer_show_err — replay captured remote text, then name unzip, gzip, zip, or tar
 # =============================================================================
 #
 # GENERAL PURPOSE:
-# When gzip or tar has already rejected the archive, the operator line names
-# that program. A connection failure that did not say gzip or tar stays an
-# ssh failure. Remote text is shown again before the [ERROR] line.
+# When unzip, gzip, zip, or tar has already rejected the archive, the
+# operator line names that program. The gzip check is before the zip check
+# because the letters zip sit inside gzip. A connection failure that did
+# not name those programs stays an ssh failure. Remote text is shown again
+# before the [ERROR] line.
 #
 # ALIGNMENT:
 # - requirement-shell-windows-git-bash-cli-coding.md
+# - requirement-shell-windows-cmd-cli-coding.md
 # - requirement-shell-output-requirements.md
 #
-# Last updated: 2026-10-16
+# Last updated: 2026-11-16
 # =============================================================================
 sshd_xfer_show_err() {
     : "${APP_NAME:=sshd-cli}"
@@ -7797,8 +8040,14 @@ sshd_xfer_show_err() {
         printf '%s\n' "${_xe_err}" >&2
     fi
     case "${_xe_err}" in
+        *unzip*)
+            out_die "Cannot ${_xe_kind}: zip could not expand the archive for ${_xe_folder} on ${_xe_dns}. Next: ${_xe_next}, then ${APP_NAME} ${_xe_kind} ${_xe_dns} ${_xe_folder}"
+            ;;
         *gzip*)
             out_die "Cannot ${_xe_kind}: gzip rejected the archive for ${_xe_folder} on ${_xe_dns}. Next: ${_xe_next}, then ${APP_NAME} ${_xe_kind} ${_xe_dns} ${_xe_folder}"
+            ;;
+        *zip*)
+            out_die "Cannot ${_xe_kind}: zip could not expand the archive for ${_xe_folder} on ${_xe_dns}. Next: ${_xe_next}, then ${APP_NAME} ${_xe_kind} ${_xe_dns} ${_xe_folder}"
             ;;
         *tar:*)
             out_die "Cannot ${_xe_kind}: tar rejected the archive for ${_xe_folder} on ${_xe_dns}. Next: ${_xe_next}, then ${APP_NAME} ${_xe_kind} ${_xe_dns} ${_xe_folder}"
@@ -7862,81 +8111,128 @@ sshd_xfer_scp() {
 }
 
 # =============================================================================
-# sshd_upload_msys_file — finished archive, scp, file extract, remove
+# sshd_upload_zip_remote_cmd — POSIX extract of one zip under "$HOME"
 # =============================================================================
 #
 # GENERAL PURPOSE:
-# The remote reader is MSYS2 or Git Bash. Build tar.gz here, prove it with
-# gzip -t, copy the file with scp, extract that file under the remote
-# "$HOME", then remove the archive. Do not pipe gzip into that reader.
+# The remote shell is sh. unzip extracts the finished zip. bsdtar is the
+# fallback. A shell that is only cmd.exe is not driven.
 #
 # ALIGNMENT:
+# - requirement-shell-windows-cmd-cli-coding.md
 # - requirement-shell-windows-git-bash-cli-coding.md
 # - requirement-domain-sshd.md
 #
-# Last updated: 2026-10-16
+# Last updated: 2026-11-16
 # =============================================================================
-sshd_upload_msys_file() {
+sshd_upload_zip_remote_cmd() {
+    _ur_name="${1-}"
+    printf '%s\n' \
+        "_n=${_ur_name}" \
+        'if command -v unzip >/dev/null 2>&1; then' \
+        '    if ! unzip -q -o "$HOME"/"$_n" -d "$HOME"; then' \
+        '        exit 1' \
+        '    fi' \
+        'else' \
+        '    _tv=$(tar --version 2>/dev/null | head -n 1)' \
+        '    case "${_tv}" in' \
+        '        *bsdtar*|*libarchive*)' \
+        '            if ! tar -xf "$HOME"/"$_n" -C "$HOME"; then' \
+        '                exit 1' \
+        '            fi' \
+        '            ;;' \
+        '        *)' \
+        '            printf "%s\n" "unzip: not found" >&2' \
+        '            exit 1' \
+        '            ;;' \
+        '    esac' \
+        'fi' \
+        'rm -f "$HOME"/"$_n"' \
+        'exit 0'
+    unset _ur_name
+}
+
+# =============================================================================
+# sshd_upload_zip_file — finished zip, scp into the remote home, extract
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# This login is Windows, or the remote probe is Windows. Build a real zip
+# here, prove it, copy the file with scp into the remote "$HOME", extract
+# it there, and remove the archive. Do not pipe the archive. Do not use
+# tar.gz for this case. The local stage is /tmp when that directory is
+# usable, otherwise the cache folder from util_resolve_storage.
+#
+# ALIGNMENT:
+# - requirement-shell-windows-cmd-cli-coding.md
+# - requirement-shell-windows-git-bash-cli-coding.md
+# - requirement-domain-sshd.md
+# - requirement-shell-cli-storage.md
+#
+# Last updated: 2026-11-16
+# =============================================================================
+sshd_upload_zip_file() {
     : "${APP_NAME:=sshd-cli}"
-    _um_scp=$(sshd_scp_cmd)
-    if [ -z "${_um_scp}" ] || [ ! -x "${_um_scp}" ]; then
+    _uz_scp=$(sshd_scp_cmd)
+    if [ -z "${_uz_scp}" ] || [ ! -x "${_uz_scp}" ]; then
         out_die "Cannot upload: scp not found. Next: install openssh-client, then ${APP_NAME} upload ${_dns} ${_folder}"
     fi
-    if ! command -v gzip >/dev/null 2>&1; then
-        out_die "Cannot upload: gzip not found. Next: install gzip, then ${APP_NAME} upload ${_dns} ${_folder}"
+    _uz_writer=$(sshd_xfer_zip_writer) || _uz_writer=""
+    if [ -z "${_uz_writer}" ]; then
+        out_die "Cannot upload: zip not found. Next: install zip, then ${APP_NAME} upload ${_dns} ${_folder}"
     fi
-    _um_stage=$(mktemp -d -t "${APP_NAME}.upload.XXXXXX") || out_die "Cannot upload: could not create a temp folder for the archive. Next: ${APP_NAME} upload ${_dns} ${_folder}"
-    chmod 0700 "${_um_stage}" || true
-    if [ ! -d "${_um_stage}" ] || [ ! -w "${_um_stage}" ] || [ ! -x "${_um_stage}" ]; then
-        rm -rf "${_um_stage}"
+    _uz_stage=$(sshd_xfer_local_stage "${APP_NAME}.upload.XXXXXX") || out_die "Cannot upload: could not create a temp folder for the archive. Next: ${APP_NAME} upload ${_dns} ${_folder}"
+    chmod 0700 "${_uz_stage}" || true
+    if [ ! -d "${_uz_stage}" ] || [ ! -w "${_uz_stage}" ] || [ ! -x "${_uz_stage}" ]; then
+        sshd_xfer_stage_rm "${_uz_stage}"
         out_die "Cannot upload: the temp folder for the archive is not usable. Next: ${APP_NAME} upload ${_dns} ${_folder}"
     fi
-    _um_name=$(sshd_xfer_new_name) || true
-    if [ -z "${_um_name}" ]; then
-        rm -rf "${_um_stage}"
+    _uz_name=$(sshd_xfer_new_zip_name "${_uz_stage}") || _uz_name=""
+    if [ -z "${_uz_name}" ]; then
+        sshd_xfer_stage_rm "${_uz_stage}"
         out_die "Cannot upload: could not name the archive. Next: ${APP_NAME} upload ${_dns} ${_folder}"
     fi
-    _um_path="${_um_stage}/${_um_name}"
-    if ! tar czf "${_um_path}" -C "${_dir}" "${_base}"; then
-        rm -rf "${_um_stage}"
-        out_die "Cannot upload: tar could not build the archive for ${_folder}. Next: ${_next_ssh}, then ${APP_NAME} upload ${_dns} ${_folder}"
+    _uz_path="${_uz_stage}/${_uz_name}"
+    if ! sshd_xfer_zip_build "${_uz_writer}" "${_uz_path}" "${_dir}" "${_base}"; then
+        sshd_xfer_stage_rm "${_uz_stage}"
+        out_die "Cannot upload: zip could not build the archive for ${_folder}. Next: ${_next_ssh}, then ${APP_NAME} upload ${_dns} ${_folder}"
     fi
-    if ! gzip -t "${_um_path}"; then
-        rm -rf "${_um_stage}"
-        out_die "Cannot upload: gzip rejected the archive for ${_folder}. Next: ${_next_ssh}, then ${APP_NAME} upload ${_dns} ${_folder}"
+    if ! sshd_xfer_zip_test "${_uz_writer}" "${_uz_path}"; then
+        sshd_xfer_stage_rm "${_uz_stage}"
+        out_die "Cannot upload: zip rejected the archive for ${_folder}. Next: ${_next_ssh}, then ${APP_NAME} upload ${_dns} ${_folder}"
     fi
     if [ -n "${_user}" ]; then
-        _um_remote="${_user}@${_dns}:${_um_name}"
+        _uz_remote="${_user}@${_dns}:${_uz_name}"
     else
-        _um_remote="${_dns}:${_um_name}"
+        _uz_remote="${_dns}:${_uz_name}"
     fi
-    if ! sshd_xfer_scp "${_um_scp}" "${_um_path}" "${_um_remote}"; then
-        rm -rf "${_um_stage}"
+    if ! sshd_xfer_scp "${_uz_scp}" "${_uz_path}" "${_uz_remote}"; then
+        sshd_xfer_stage_rm "${_uz_stage}"
         out_die "Cannot upload: scp could not copy the archive to ${_dns}. Next: ${_next_ssh}, then ${APP_NAME} upload ${_dns} ${_folder}"
     fi
-    rm -rf "${_um_stage}"
-    _um_q=$(sshd_sh_quote "${_um_name}")
-    _um_cmd="tar xzf \"\$HOME\"/${_um_q} -C \"\$HOME\" && rm -f \"\$HOME\"/${_um_q}"
-    _um_errf=$(mktemp -t "${APP_NAME}.uploaderr.XXXXXX") || _um_errf=""
-    _um_rc=0
-    if [ -n "${_um_errf}" ]; then
-        if ! sshd_xfer_ssh "${_bin}" "${_user}" "${_dns}" "${_um_cmd}" 2>"${_um_errf}"; then
-            _um_rc=1
+    sshd_xfer_stage_rm "${_uz_stage}"
+    _uz_q=$(sshd_sh_quote "${_uz_name}")
+    _uz_cmd=$(sshd_upload_zip_remote_cmd "${_uz_q}")
+    _uz_errf=$(sshd_xfer_mktemp_file "${APP_NAME}.uploaderr.XXXXXX") || _uz_errf=""
+    _uz_rc=0
+    if [ -n "${_uz_errf}" ]; then
+        if ! sshd_xfer_ssh "${_bin}" "${_user}" "${_dns}" "${_uz_cmd}" 2>"${_uz_errf}"; then
+            _uz_rc=1
         fi
-        _um_err=$(cat "${_um_errf}" 2>/dev/null || true)
-        rm -f "${_um_errf}"
+        _uz_err=$(cat "${_uz_errf}" 2>/dev/null || true)
+        rm -f "${_uz_errf}"
     else
-        if ! sshd_xfer_ssh "${_bin}" "${_user}" "${_dns}" "${_um_cmd}"; then
-            _um_rc=1
+        if ! sshd_xfer_ssh "${_bin}" "${_user}" "${_dns}" "${_uz_cmd}"; then
+            _uz_rc=1
         fi
-        _um_err=""
+        _uz_err=""
     fi
-    if [ "${_um_rc}" -ne 0 ]; then
-        _um_rm="rm -f \"\$HOME\"/${_um_q}"
-        sshd_xfer_ssh "${_bin}" "${_user}" "${_dns}" "${_um_rm}" >/dev/null 2>&1 || true
-        sshd_xfer_show_err "upload" "${_um_err}" "${_dns}" "${_folder}" "${_next_ssh}"
+    if [ "${_uz_rc}" -ne 0 ]; then
+        _uz_rm="rm -f \"\$HOME\"/${_uz_q}"
+        sshd_xfer_ssh "${_bin}" "${_user}" "${_dns}" "${_uz_rm}" >/dev/null 2>&1 || true
+        sshd_xfer_show_err "upload" "${_uz_err}" "${_dns}" "${_folder}" "${_next_ssh}"
     fi
-    unset _um_scp _um_stage _um_name _um_path _um_remote _um_q _um_cmd _um_errf _um_rc _um_err _um_rm
+    unset _uz_scp _uz_writer _uz_stage _uz_name _uz_path _uz_remote _uz_q _uz_cmd _uz_errf _uz_rc _uz_err _uz_rm
     return 0
 }
 
@@ -8412,19 +8708,29 @@ sshd_cmd_upload() {
     if [ -z "${_bin}" ] || [ ! -x "${_bin}" ]; then
         out_die "Cannot upload: OpenSSH client not found. Next: install openssh-client, then ${APP_NAME} upload ${_dns} ${_folder}"
     fi
-    if ! command -v tar >/dev/null 2>&1; then
-        out_die "Cannot upload: tar not found. Next: install tar, then ${APP_NAME} upload ${_dns} ${_folder}"
-    fi
     _dest="\$HOME/${_base}"
     if [ -n "${_user}" ]; then
         _next_ssh="ssh -l ${_user} ${_dns}"
     else
         _next_ssh="ssh ${_dns}"
     fi
-    out_info "Uploading ${_folder} to ${_dns} as ${_user:-${DNS_R_USER:-this login}} (extract under that ssh user home as ${_base})"
-    if sshd_remote_reader_is_msys "${_bin}" "${_user}" "${_dns}"; then
-        sshd_upload_msys_file
+    _up_zip=0
+    if sshd_xfer_this_login_is_windows; then
+        _up_zip=1
     else
+        _os_txt=$(sshd_xfer_remote_os_text "${_bin}" "${_user}" "${_dns}") || _os_txt=""
+        if sshd_xfer_text_is_windows "${_os_txt}"; then
+            _up_zip=1
+        fi
+        unset _os_txt
+    fi
+    out_info "Uploading ${_folder} to ${_dns} as ${_user:-${DNS_R_USER:-this login}} (extract under that ssh user home as ${_base})"
+    if [ "${_up_zip}" -eq 1 ]; then
+        sshd_upload_zip_file
+    else
+        if ! command -v tar >/dev/null 2>&1; then
+            out_die "Cannot upload: tar not found. Next: install tar, then ${APP_NAME} upload ${_dns} ${_folder}"
+        fi
         _remote_cmd='tar xzf - -C "$HOME"'
         _up_errf=$(mktemp -t "${APP_NAME}.uploaderr.XXXXXX") || _up_errf=""
         _up_rc=0
@@ -8472,7 +8778,7 @@ sshd_cmd_upload() {
     else
         out_success "Uploaded ${_folder} to ${_dns} (extract under that ssh user home as ${_base})"
     fi
-    unset _sel _folder _row _dns _n _user _local _base _dir _bin _remote_cmd _dest _json_user _next_ssh _up_errf _up_rc _up_err
+    unset _sel _folder _row _dns _n _user _local _base _dir _bin _remote_cmd _dest _json_user _next_ssh _up_errf _up_rc _up_err _up_zip
     return 0
 }
 
@@ -8487,10 +8793,13 @@ sshd_cmd_upload() {
 # name and that it is not the remote home. On that miss, print an error and
 # return to the menu (direct use exits 1) with no rename and no upload.
 # On a hit, rename the remote folder to basename.YYYYMMDD.bak (this login's
-# date), tar.gz the local folder, scp the archive to /tmp, expand it there,
-# and cp -rP it onto the target parent. Remove the temp folder and the
-# archive on the remote host and on this login. Never rename or replace
-# the remote home. Never pipe gzip. Upload's pipe stays unchanged.
+# date). A non-Windows pair uses tar.gz and /tmp. This login on Windows, or
+# a remote Windows reader, uses a real zip. When /tmp is missing, the local
+# stage is the cache folder and the remote stage is AppData, TEMP, or
+# $HOME/.cache. Then cp -rP onto the target parent. Remove the temp folder
+# and the archive on the remote host and on this login. Never rename or
+# replace the remote home. Never pipe the archive. A non-Windows upload
+# still uses the streamed pipe. Download is unchanged.
 #
 # ALIGNMENT:
 # - requirement-domain-upplace.md
@@ -8508,7 +8817,8 @@ sshd_upplace_clear() {
     unset _sel _folder _target _row _dns _n _user _local _base _dir _bin _scp \
         _date _q_target _q_base _q_date _q_arch _q_stage _arch_name _stage_name \
         _arch_path _scp_to _cmd _next _json_user _up_renamed _up_local_stage \
-        _up_next _fr_msg _fr_clean _fr_rb SSHD_UP_OUT SSHD_UP_ERR SSHD_UP_RC \
+        _up_next _up_zip _scratch _zw _stage_leaf _os_txt \
+        _fr_msg _fr_clean _fr_rb SSHD_UP_OUT SSHD_UP_ERR SSHD_UP_RC \
         SSHD_UP_TOK SSHD_UP_TARGET SSHD_UL_FOLDER
 }
 
@@ -8516,26 +8826,9 @@ sshd_upplace_local_clean() {
     if [ -z "${_up_local_stage:-}" ]; then
         return 0
     fi
-    case "${_up_local_stage}" in
-        *".."*) return 0 ;;
-    esac
-    case "${_up_local_stage}" in
-        /|/tmp|/var/tmp|"${HOME:-}"|"${TMPDIR:-}") return 0 ;;
-    esac
-    case "${_up_local_stage}" in
-        /tmp/*|/var/tmp/*) ;;
-        *)
-            if [ -n "${TMPDIR:-}" ]; then
-                case "${_up_local_stage}" in
-                    "${TMPDIR%/}"/*) ;;
-                    *) return 0 ;;
-                esac
-            else
-                return 0
-            fi
-            ;;
-    esac
-    rm -rf "${_up_local_stage}"
+    if sshd_xfer_stage_allowed "${_up_local_stage}"; then
+        rm -rf "${_up_local_stage}"
+    fi
     _up_local_stage=""
 }
 
@@ -8550,11 +8843,11 @@ sshd_upplace_ssh() {
     SSHD_UP_ERR=""
     SSHD_UP_RC=0
     SSHD_UP_TOK=""
-    _us_outf=$(mktemp -t "${APP_NAME}.upout.XXXXXX") || {
+    _us_outf=$(sshd_xfer_mktemp_file "${APP_NAME}.upout.XXXXXX") || {
         unset _us_bin _us_user _us_dns _us_cmd
         return 1
     }
-    _us_errf=$(mktemp -t "${APP_NAME}.uperr.XXXXXX") || {
+    _us_errf=$(sshd_xfer_mktemp_file "${APP_NAME}.uperr.XXXXXX") || {
         rm -f "${_us_outf}"
         unset _us_bin _us_user _us_dns _us_cmd _us_outf
         return 1
@@ -8773,9 +9066,190 @@ sshd_upplace_remote_rollback() {
     unset _rb_t _rb_b _rb_d
 }
 
+# Remote scratch for the zip path. Prints __UPPLACE_SCRATCH__ plus /tmp or
+# a cache directory. The /tmp test string stays exact so a test can replace
+# only that test. A shell that is only cmd.exe is not driven.
+sshd_upplace_remote_scratch() {
+    _rs_app=$(sshd_sh_quote "${APP_NAME}")
+    printf '%s\n' \
+        "_app=${_rs_app}" \
+        'if [ -d /tmp ] && [ -w /tmp ] && [ -x /tmp ]; then' \
+        '    printf "%s\n" "__UPPLACE_SCRATCH__/tmp"' \
+        '    exit 0' \
+        'fi' \
+        'if [ -d "$HOME/AppData/Local/Temp" ]; then' \
+        '    _sc="$HOME/AppData/Local/Temp/cache-${_app}-$$"' \
+        'elif [ -n "${TEMP-}" ] && [ -d "$TEMP" ]; then' \
+        '    _sc="$TEMP/cache-${_app}-$$"' \
+        'else' \
+        '    _sc="$HOME/.cache/cache-${_app}-$$"' \
+        'fi' \
+        'case "${_sc}" in' \
+        '    ""|/) printf "%s\n" __UPPLACE_SCRATCH_FAIL__; exit 9 ;;' \
+        '    *..*) printf "%s\n" __UPPLACE_SCRATCH_FAIL__; exit 9 ;;' \
+        'esac' \
+        'if ! mkdir -m 0700 -p "$_sc"; then' \
+        '    printf "%s\n" __UPPLACE_SCRATCH_FAIL__' \
+        '    exit 9' \
+        'fi' \
+        'printf "%s%s\n" "__UPPLACE_SCRATCH__" "$_sc"' \
+        'exit 0'
+    unset _rs_app
+}
+
+sshd_upplace_scratch_ok() {
+    : "${APP_NAME:=sshd-cli}"
+    _so="${1-}"
+    case "${_so}" in
+        ""|/|*".."*) return 1 ;;
+    esac
+    if [ -n "${HOME:-}" ] && [ "${_so}" = "${HOME}" ]; then
+        return 1
+    fi
+    if [ "${_so}" = "/tmp" ]; then
+        return 0
+    fi
+    case "${_so}" in
+        */cache-"${APP_NAME}"-*) return 0 ;;
+    esac
+    return 1
+}
+
+sshd_upplace_remote_expand_zip() {
+    _re_t="${1-}"
+    _re_b="${2-}"
+    _re_a="${3-}"
+    _re_s="${4-}"
+    _re_pat="*/cache-${APP_NAME}-*/*"
+    printf '%s\n' \
+        "_t=${_re_t}" \
+        "_base=${_re_b}" \
+        "_arch=${_re_a}" \
+        "_stage=${_re_s}" \
+        'if [ "$_t" = "$HOME" ] || [ "$_t" = "${HOME%/}" ]; then' \
+        '    printf "%s\n" __UPPLACE_HOME__' \
+        '    exit 3' \
+        'fi' \
+        '_ok=0' \
+        'case "$_arch" in' \
+        '    /tmp/?*) _ok=1 ;;' \
+        "    ${_re_pat}) _ok=1 ;;" \
+        'esac' \
+        'if [ "${_ok}" -ne 1 ]; then' \
+        '    printf "%s\n" __UPPLACE_EXTRACT_FAIL__' \
+        '    exit 9' \
+        'fi' \
+        'case "$_arch" in' \
+        '    *..*) printf "%s\n" __UPPLACE_EXTRACT_FAIL__; exit 9 ;;' \
+        'esac' \
+        '_ok=0' \
+        'case "$_stage" in' \
+        '    /tmp/?*) _ok=1 ;;' \
+        "    ${_re_pat}) _ok=1 ;;" \
+        'esac' \
+        'if [ "${_ok}" -ne 1 ]; then' \
+        '    printf "%s\n" __UPPLACE_EXTRACT_FAIL__' \
+        '    exit 9' \
+        'fi' \
+        'case "$_stage" in' \
+        '    *..*|/tmp|/tmp/) printf "%s\n" __UPPLACE_EXTRACT_FAIL__; exit 9 ;;' \
+        'esac' \
+        'if ! mkdir -m 0700 "$_stage"; then' \
+        '    rm -f "$_arch"' \
+        '    printf "%s\n" __UPPLACE_EXTRACT_FAIL__' \
+        '    exit 9' \
+        'fi' \
+        '_xz=1' \
+        'if command -v unzip >/dev/null 2>&1; then' \
+        '    if unzip -q -o "$_arch" -d "$_stage"; then' \
+        '        _xz=0' \
+        '    fi' \
+        'else' \
+        '    _tv=$(tar --version 2>/dev/null | head -n 1)' \
+        '    case "${_tv}" in' \
+        '        *bsdtar*|*libarchive*)' \
+        '            if tar -xf "$_arch" -C "$_stage"; then' \
+        '                _xz=0' \
+        '            fi' \
+        '            ;;' \
+        '        *)' \
+        '            printf "%s\n" "unzip: not found" >&2' \
+        '            ;;' \
+        '    esac' \
+        'fi' \
+        'if [ "${_xz}" -ne 0 ]; then' \
+        '    rm -rf "$_stage"' \
+        '    rm -f "$_arch"' \
+        '    printf "%s\n" __UPPLACE_EXTRACT_FAIL__' \
+        '    exit 9' \
+        'fi' \
+        'if [ ! -d "$_stage/$_base" ]; then' \
+        '    rm -rf "$_stage"' \
+        '    rm -f "$_arch"' \
+        '    printf "%s\n" __UPPLACE_EXTRACT_FAIL__' \
+        '    exit 9' \
+        'fi' \
+        '_parent=$(dirname "$_t")' \
+        'if [ -z "$_parent" ] || [ "$_parent" = "." ]; then' \
+        '    rm -rf "$_stage"' \
+        '    rm -f "$_arch"' \
+        '    printf "%s\n" __UPPLACE_CP_FAIL__' \
+        '    exit 10' \
+        'fi' \
+        'if ! cp -rP "$_stage/$_base" "$_parent/"; then' \
+        '    rm -rf "$_stage"' \
+        '    rm -f "$_arch"' \
+        '    printf "%s\n" __UPPLACE_CP_FAIL__' \
+        '    exit 10' \
+        'fi' \
+        'rm -rf "$_stage"' \
+        'rm -f "$_arch"' \
+        'printf "%s\n" __UPPLACE_REPLACED__' \
+        'exit 0'
+    unset _re_t _re_b _re_a _re_s _re_pat
+}
+
+sshd_upplace_remote_cleanup_zip() {
+    _cu_a="${1-}"
+    _cu_s="${2-}"
+    _cu_pat="*/cache-${APP_NAME}-*/*"
+    printf '%s\n' \
+        "_a=${_cu_a}" \
+        "_s=${_cu_s}" \
+        '_ok=0' \
+        'case "$_a" in' \
+        '    /tmp/?*) _ok=1 ;;' \
+        "    ${_cu_pat}) _ok=1 ;;" \
+        'esac' \
+        'case "$_a" in' \
+        '    *..*) _ok=0 ;;' \
+        'esac' \
+        'if [ "${_ok}" -eq 1 ]; then' \
+        '    rm -f "$_a"' \
+        'fi' \
+        '_ok=0' \
+        'case "$_s" in' \
+        '    /tmp/?*) _ok=1 ;;' \
+        "    ${_cu_pat}) _ok=1 ;;" \
+        'esac' \
+        'case "$_s" in' \
+        '    *..*|/tmp|/tmp/) _ok=0 ;;' \
+        'esac' \
+        'if [ "${_ok}" -eq 1 ]; then' \
+        '    rm -rf "$_s"' \
+        'fi' \
+        'printf "%s\n" __UPPLACE_CLEANED__' \
+        'exit 0'
+    unset _cu_a _cu_s _cu_pat
+}
+
 sshd_upplace_fail_after_rename() {
     _fr_msg="${1-}"
-    _fr_clean=$(sshd_upplace_remote_cleanup "${_q_arch}" "${_q_stage}")
+    if [ "${_up_zip:-0}" -eq 1 ]; then
+        _fr_clean=$(sshd_upplace_remote_cleanup_zip "${_q_arch}" "${_q_stage}")
+    else
+        _fr_clean=$(sshd_upplace_remote_cleanup "${_q_arch}" "${_q_stage}")
+    fi
     sshd_upplace_ssh "${_bin}" "${_user}" "${_dns}" "${_fr_clean}" || true
     if [ "${_up_renamed}" -eq 1 ]; then
         _fr_rb=$(sshd_upplace_remote_rollback "${_q_target}" "${_q_base}" "${_q_date}")
@@ -8924,6 +9398,88 @@ EOF
     done
 }
 
+# Zip archive, remote cache or /tmp, unzip, then cp -rP. Caller already renamed.
+sshd_upplace_zip_transfer() {
+    : "${APP_NAME:=sshd-cli}"
+    _up_local_stage=$(sshd_xfer_local_stage "${APP_NAME}.upplace.XXXXXX") || sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    chmod 0700 "${_up_local_stage}" || true
+    if [ ! -d "${_up_local_stage}" ] || [ ! -w "${_up_local_stage}" ] || [ ! -x "${_up_local_stage}" ]; then
+        sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    _arch_name=$(sshd_xfer_new_zip_name "${_up_local_stage}") || _arch_name=""
+    if [ -z "${_arch_name}" ]; then
+        sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    _stage_leaf=$(mktemp "${_up_local_stage}/${APP_NAME}.upstage.XXXXXX") || _stage_leaf=""
+    if [ -z "${_stage_leaf}" ]; then
+        sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    _stage_name=$(basename "${_stage_leaf}")
+    rm -f "${_stage_leaf}"
+    _arch_path="${_up_local_stage}/${_arch_name}"
+    _zw=$(sshd_xfer_zip_writer) || _zw=""
+    if [ -z "${_zw}" ]; then
+        sshd_upplace_fail_after_rename "Cannot upplace: zip not found. Next: install zip, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    if ! sshd_xfer_zip_build "${_zw}" "${_arch_path}" "${_dir}" "${_base}"; then
+        sshd_upplace_fail_after_rename "Cannot upplace: zip could not build the archive for ${_folder}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    if ! sshd_xfer_zip_test "${_zw}" "${_arch_path}"; then
+        sshd_upplace_fail_after_rename "Cannot upplace: zip rejected the archive for ${_folder}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    _cmd=$(sshd_upplace_remote_scratch)
+    if ! sshd_upplace_ssh "${_bin}" "${_user}" "${_dns}" "${_cmd}"; then
+        sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    _scratch=""
+    case "${SSHD_UP_TOK}" in
+        __UPPLACE_SCRATCH_FAIL__*)
+            sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+            ;;
+        __UPPLACE_SCRATCH__/*)
+            _scratch="${SSHD_UP_TOK#__UPPLACE_SCRATCH__}"
+            ;;
+        *)
+            sshd_upplace_show_err
+            sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+            ;;
+    esac
+    if ! sshd_upplace_scratch_ok "${_scratch}"; then
+        sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    _q_arch=$(sshd_sh_quote "${_scratch}/${_arch_name}")
+    _q_stage=$(sshd_sh_quote "${_scratch}/${_stage_name}")
+    if [ -n "${_user}" ]; then
+        _scp_to="${_user}@${_dns}:${_scratch}/${_arch_name}"
+    else
+        _scp_to="${_dns}:${_scratch}/${_arch_name}"
+    fi
+    if ! sshd_xfer_scp "${_scp}" "${_arch_path}" "${_scp_to}"; then
+        sshd_upplace_fail_after_rename "Cannot upplace: scp to ${_dns} failed. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    _cmd=$(sshd_upplace_remote_expand_zip "${_q_target}" "${_q_base}" "${_q_arch}" "${_q_stage}")
+    if ! sshd_upplace_ssh "${_bin}" "${_user}" "${_dns}" "${_cmd}"; then
+        sshd_upplace_fail_after_rename "Cannot upplace: zip could not expand the archive on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    case "${SSHD_UP_TOK}" in
+        __UPPLACE_REPLACED__) ;;
+        __UPPLACE_CP_FAIL__)
+            sshd_upplace_show_err
+            sshd_upplace_fail_after_rename "Cannot upplace: cp could not replace ${_target} on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+            ;;
+        __UPPLACE_HOME__)
+            sshd_upplace_show_err
+            sshd_upplace_fail_after_rename "Cannot upplace: target ${_target} is the remote home. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+            ;;
+        *)
+            sshd_upplace_show_err
+            sshd_upplace_fail_after_rename "Cannot upplace: zip could not expand the archive on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+            ;;
+    esac
+    sshd_upplace_local_clean
+    unset _zw _scratch
+}
+
 # Sets SSHD_UP_TARGET. MUST run in the current shell (do not capture this read).
 sshd_upplace_walk_target() {
     _ut_dns="${1-}"
@@ -8951,6 +9507,7 @@ sshd_cmd_upplace() {
     _folder="${2-}"
     _target="${3-}"
     _up_renamed=0
+    _up_zip=0
     _up_local_stage=""
     _q_arch=$(sshd_sh_quote "")
     _q_stage=$(sshd_sh_quote "")
@@ -9019,12 +9576,6 @@ sshd_cmd_upplace() {
     if [ -z "${_scp}" ] || [ ! -x "${_scp}" ]; then
         out_die "Cannot upplace: scp not found. Next: install openssh-client, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
     fi
-    if ! command -v tar >/dev/null 2>&1; then
-        out_die "Cannot upplace: tar not found. Next: install tar, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
-    fi
-    if ! command -v gzip >/dev/null 2>&1; then
-        out_die "Cannot upplace: gzip not found. Next: install gzip, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
-    fi
     _date=$(date +%Y%m%d) || _date=""
     case "${_date}" in
         [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) ;;
@@ -9035,6 +9586,29 @@ sshd_cmd_upplace() {
     _q_target=$(sshd_download_remote_quote "${_target}")
     _q_base=$(sshd_sh_quote "${_base}")
     _q_date=$(sshd_sh_quote "${_date}")
+    if sshd_xfer_this_login_is_windows; then
+        _up_zip=1
+    else
+        _os_txt=$(sshd_xfer_remote_os_text "${_bin}" "${_user}" "${_dns}") || _os_txt=""
+        if sshd_xfer_text_is_windows "${_os_txt}"; then
+            _up_zip=1
+        fi
+        unset _os_txt
+    fi
+    if [ "${_up_zip}" -eq 1 ]; then
+        _zw=$(sshd_xfer_zip_writer) || _zw=""
+        if [ -z "${_zw}" ]; then
+            out_die "Cannot upplace: zip not found. Next: install zip, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+        fi
+        unset _zw
+    else
+        if ! command -v tar >/dev/null 2>&1; then
+            out_die "Cannot upplace: tar not found. Next: install tar, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+        fi
+        if ! command -v gzip >/dev/null 2>&1; then
+            out_die "Cannot upplace: gzip not found. Next: install gzip, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+        fi
+    fi
     if [ -n "${_user}" ]; then
         _next="ssh -l ${_user} ${_dns}"
     else
@@ -9100,58 +9674,62 @@ sshd_cmd_upplace() {
             sshd_upplace_fail_after_rename "Cannot upplace: could not rename ${_target} on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
             ;;
     esac
-    _up_local_stage=$(mktemp -d -t "${APP_NAME}.upplace.XXXXXX") || sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
-    chmod 0700 "${_up_local_stage}" || true
-    if [ ! -d "${_up_local_stage}" ] || [ ! -w "${_up_local_stage}" ] || [ ! -x "${_up_local_stage}" ]; then
-        sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
-    fi
-    _arch_name=$(sshd_xfer_new_name) || _arch_name=""
-    if [ -z "${_arch_name}" ]; then
-        sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
-    fi
-    _stage_leaf=$(mktemp -t "${APP_NAME}.upstage.XXXXXX") || _stage_leaf=""
-    if [ -z "${_stage_leaf}" ]; then
-        sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
-    fi
-    _stage_name=$(basename "${_stage_leaf}")
-    rm -f "${_stage_leaf}"
-    _arch_path="${_up_local_stage}/${_arch_name}"
-    _q_arch=$(sshd_sh_quote "/tmp/${_arch_name}")
-    _q_stage=$(sshd_sh_quote "/tmp/${_stage_name}")
-    if ! tar czf "${_arch_path}" -C "${_dir}" "${_base}"; then
-        sshd_upplace_fail_after_rename "Cannot upplace: tar could not build the archive for ${_folder}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
-    fi
-    if ! gzip -t "${_arch_path}"; then
-        sshd_upplace_fail_after_rename "Cannot upplace: gzip rejected the archive for ${_folder}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
-    fi
-    if [ -n "${_user}" ]; then
-        _scp_to="${_user}@${_dns}:/tmp/${_arch_name}"
+    if [ "${_up_zip}" -eq 1 ]; then
+        sshd_upplace_zip_transfer
     else
-        _scp_to="${_dns}:/tmp/${_arch_name}"
-    fi
-    if ! sshd_xfer_scp "${_scp}" "${_arch_path}" "${_scp_to}"; then
-        sshd_upplace_fail_after_rename "Cannot upplace: scp to ${_dns} failed. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
-    fi
-    _cmd=$(sshd_upplace_remote_expand "${_q_target}" "${_q_base}" "${_q_arch}" "${_q_stage}")
-    if ! sshd_upplace_ssh "${_bin}" "${_user}" "${_dns}" "${_cmd}"; then
-        sshd_upplace_fail_after_rename "Cannot upplace: tar could not expand the archive on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
-    fi
-    case "${SSHD_UP_TOK}" in
-        __UPPLACE_REPLACED__) ;;
-        __UPPLACE_CP_FAIL__)
-            sshd_upplace_show_err
-            sshd_upplace_fail_after_rename "Cannot upplace: cp could not replace ${_target} on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
-            ;;
-        __UPPLACE_HOME__)
-            sshd_upplace_show_err
-            sshd_upplace_fail_after_rename "Cannot upplace: target ${_target} is the remote home. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
-            ;;
-        *)
-            sshd_upplace_show_err
+        _up_local_stage=$(mktemp -d -t "${APP_NAME}.upplace.XXXXXX") || sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+        chmod 0700 "${_up_local_stage}" || true
+        if [ ! -d "${_up_local_stage}" ] || [ ! -w "${_up_local_stage}" ] || [ ! -x "${_up_local_stage}" ]; then
+            sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+        fi
+        _arch_name=$(sshd_xfer_new_name) || _arch_name=""
+        if [ -z "${_arch_name}" ]; then
+            sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+        fi
+        _stage_leaf=$(mktemp -t "${APP_NAME}.upstage.XXXXXX") || _stage_leaf=""
+        if [ -z "${_stage_leaf}" ]; then
+            sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+        fi
+        _stage_name=$(basename "${_stage_leaf}")
+        rm -f "${_stage_leaf}"
+        _arch_path="${_up_local_stage}/${_arch_name}"
+        _q_arch=$(sshd_sh_quote "/tmp/${_arch_name}")
+        _q_stage=$(sshd_sh_quote "/tmp/${_stage_name}")
+        if ! tar czf "${_arch_path}" -C "${_dir}" "${_base}"; then
+            sshd_upplace_fail_after_rename "Cannot upplace: tar could not build the archive for ${_folder}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+        fi
+        if ! gzip -t "${_arch_path}"; then
+            sshd_upplace_fail_after_rename "Cannot upplace: gzip rejected the archive for ${_folder}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+        fi
+        if [ -n "${_user}" ]; then
+            _scp_to="${_user}@${_dns}:/tmp/${_arch_name}"
+        else
+            _scp_to="${_dns}:/tmp/${_arch_name}"
+        fi
+        if ! sshd_xfer_scp "${_scp}" "${_arch_path}" "${_scp_to}"; then
+            sshd_upplace_fail_after_rename "Cannot upplace: scp to ${_dns} failed. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+        fi
+        _cmd=$(sshd_upplace_remote_expand "${_q_target}" "${_q_base}" "${_q_arch}" "${_q_stage}")
+        if ! sshd_upplace_ssh "${_bin}" "${_user}" "${_dns}" "${_cmd}"; then
             sshd_upplace_fail_after_rename "Cannot upplace: tar could not expand the archive on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
-            ;;
-    esac
-    sshd_upplace_local_clean
+        fi
+        case "${SSHD_UP_TOK}" in
+            __UPPLACE_REPLACED__) ;;
+            __UPPLACE_CP_FAIL__)
+                sshd_upplace_show_err
+                sshd_upplace_fail_after_rename "Cannot upplace: cp could not replace ${_target} on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+                ;;
+            __UPPLACE_HOME__)
+                sshd_upplace_show_err
+                sshd_upplace_fail_after_rename "Cannot upplace: target ${_target} is the remote home. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+                ;;
+            *)
+                sshd_upplace_show_err
+                sshd_upplace_fail_after_rename "Cannot upplace: tar could not expand the archive on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+                ;;
+        esac
+        sshd_upplace_local_clean
+    fi
     sshd_upload_folders_save "${_dns}" "${_folder}" || true
     if [ "${JSON}" -eq 1 ]; then
         _json_user="${_user}"
@@ -10621,7 +11199,7 @@ app_menu_text() {
                 ru) _mt_out="tar.gz локальной папки по ssh и распаковка в домашнем каталоге удалённого входа (TTY: выбор Host, затем пользователь по умолчанию, затем прежние локальные папки или ввод пути; ~/folder — этот вход)" ;;
                 nl) _mt_out="tar.gz van een lokale map via ssh en uitpakken in de home van de externe login (TTY: kies Host, dan gebruiker met standaard, dan genummerde eerdere lokale mappen of typ een pad; ~/folder is deze login)" ;;
                 el) _mt_out="tar.gz τοπικού φακέλου μέσω ssh και εξαγωγή στον αρχικό κατάλογο της απομακρυσμένης σύνδεσης (TTY: επιλογή Host, έπειτα χρήστης με προεπιλογή, έπειτα αριθμημένοι προηγούμενοι τοπικοί φάκελοι ή πληκτρολόγηση διαδρομής· το ~/folder είναι αυτή η σύνδεση)" ;;
-                *) _mt_out="tar.gz a local folder over ssh and extract it under the remote login home (TTY: pick Host, then user with default, then numbered previous local folders or type a path; ~/folder is this login)" ;;
+                *) _mt_out="tar.gz a local folder over ssh and extract it under the remote login home; on Windows, zip, and a cache folder when /tmp is missing (TTY: pick Host, then user with default, then numbered previous local folders or type a path; ~/folder is this login)" ;;
             esac
             ;;
         help_upplace)
@@ -10638,7 +11216,7 @@ app_menu_text() {
                 ru) _mt_out="tar.gz локальной папки, копия одноимённой удалённой папки и замена (TTY: Host, пользователь, локальная папка, затем цель ~/folder или абсолютный путь; не домашний каталог)" ;;
                 nl) _mt_out="tar.gz van een lokale map, back-up van de gelijknamige externe map en vervanging (TTY: Host, gebruiker, lokale map, daarna doel ~/folder of absoluut; nooit de externe home)" ;;
                 el) _mt_out="tar.gz τοπικού φακέλου, αντίγραφο του ομώνυμου απομακρυσμένου και αντικατάσταση (TTY: Host, χρήστης, τοπικός φάκελος, έπειτα στόχος ~/folder ή απόλυτος· ποτέ ο απομακρυσμένος αρχικός κατάλογος)" ;;
-                *) _mt_out="tar.gz a local folder, back up the same-named remote folder, and replace it (TTY: Host, user, local folder, then target ~/folder or absolute; never the remote home)" ;;
+                *) _mt_out="tar.gz a local folder, back up the same-named remote folder, and replace it; on Windows, zip, and a cache folder when /tmp is missing (TTY: Host, user, local folder, then target ~/folder or absolute; never the remote home)" ;;
             esac
             ;;
         help_backup)

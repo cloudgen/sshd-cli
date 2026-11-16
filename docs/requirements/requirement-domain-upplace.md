@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-upplace.md
-**Status**: Active (Version 1.0.0)
+**Status**: Active (Version 1.1.0)
 **Area**: domain
 **Key**: `requirement-domain-upplace`
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -70,8 +70,9 @@ The operator answers the same opening questions as **upload** (Host, then user, 
 | **Probe order** | String-equal home; if a directory, `pwd -P` (fallback `pwd`) compared to home; then basename versus the wanted name; then, if it is not a directory, missing | Rename or upload before this check returns success |
 | **Date** | `yyyyMMdd` from **this login’s** `date +%Y%m%d`, not the remote clock | Use the remote date; continue when `date` fails |
 | **Backup name** | `{{BASENAME}}.{{YYYYMMDD}}.bak` beside the target (same parent). If that name already exists, stop **before** `mv` | Clobber an existing `.bak` |
-| **Transfer** | After the rename: local `tar czf` of the basename from its parent, `gzip -t`, `scp` the archive to `user@host:/tmp/<name>` or `host:/tmp/<name>` (not the remote home), remote `mkdir` under `/tmp`, `tar xzf` into that stage, `cp -rP <stage>/<basename> <parent>/`, then remove the remote stage and the archive and the local temp directory | `rsync`; `cp -a`; `sudo`; pipe gzip the way `upload` does; copy the archive into the remote home; leave the temps |
-| **Tools** | Require `ssh`, `scp`, `tar`, `gzip`, and `date` **before** the probe, so a missing tool does not leave a backup | Probe first and then discover a missing tool |
+| **Transfer** | After the rename, when neither this login nor the remote probe is Windows: local `tar czf` of the basename from its parent, `gzip -t`, `scp` the archive to `user@host:/tmp/<name>` or `host:/tmp/<name>` (not the remote home), remote `mkdir` under `/tmp`, `tar xzf` into that stage, `cp -rP <stage>/<basename> <parent>/`, then remove the remote stage and the archive and the local temp directory | `rsync`; `cp -a`; `sudo`; pipe gzip the way non-Windows `upload` does; copy the archive into the remote home; leave the temps |
+| **Windows transfer** | When this login is Git Bash or Windows cmd, or the remote probe is MSYS, Git Bash, or `uname` `Windows_NT`: a real zip (`zip -r`, or bsdtar `tar -a` when `tar --version` names bsdtar or libarchive). GNU tar is not a zip writer. `zip -T` (or `tar -tf` for bsdtar) before `scp`. Extract with `unzip`, or with bsdtar `tar -xf`. Still `cp -rP`. The archive is not the remote home. Local stage is `/tmp` when that directory is usable, otherwise the cache folder from `util_resolve_storage`. Remote stage is `/tmp` when that directory is usable, otherwise `"$HOME/AppData/Local/Temp"`, else `$TEMP`, else `"$HOME/.cache"`, as `cache-${APP_NAME}-$$`. A remote shell that is only `cmd.exe` is not driven. The writer check is before the probe, so a missing zip does not leave a backup. Detail: `requirement-shell-windows-git-bash-cli-coding` | Treat GNU `tar -a` as a zip writer; pipe the zip; land the archive in the remote home; skip the backup |
+| **Tools** | Require `ssh`, `scp`, and `date` before the Windows decision. The Windows case then requires a zip writer. The other case requires `tar` and `gzip`. All of that is **before** the directory probe, so a missing tool does not leave a backup. A failed remote OS probe is not Windows; the later directory probe reports ssh failed | Probe first and then discover a missing tool; `out_die` on a failed OS probe by itself |
 | **Failure after rename** | Remove temps this run created, move the backup back onto the target, then `out_die`. If the move-back fails, append that the target could not be restored from the backup | Leave the live name absent; delete the backup on a failed copy |
 | **Menu** | Client row **19**, always, after **16** on POSIX and after **18** on Termux / Git Bash / Windows cmd. A pre-check stop returns to the front board. A direct command with that stop exits 1 | Print client **17**; `out_die` for a missing same-named folder |
 | **`--json`** | One object: `type` `upplace`, `message` `ok`, `n`, `dns`, `user`, `folder`, `target`, `backup`, `destination` (the typed target). `user` may be `""`. Still performs the transfer when the operands are complete | Prompt; two JSON objects |
@@ -93,7 +94,7 @@ A path whose basename differs is the **name** stop, even when that path is absen
 
 **Refuse locally:** target `~`, `~/`, `/`, `.`, `..`, a leading `-`, `~user`, a relative path that does not start with `/` or `~/`, and the shell characters `; | & $` `` ` `` `\ ( ) < > * ? ! # ~` after an allowed `~/` prefix. A target whose normalized form is `~` or `~/` is refused locally.
 
-**Remote cleanup** removes only the temp names this run created under `/tmp`. A path that is `/tmp`, `/tmp/`, or contains `..` is not removed. **Local cleanup** removes only this run’s stage under `/tmp`, `/var/tmp`, or `TMPDIR`, and never `{{HOME}}` or `/`.
+**Remote cleanup** removes only the temp names this run created under `/tmp`, or under the cache leaf this run created (`cache-${APP_NAME}-` plus a child name). A path that is `/tmp`, `/tmp/`, the cache root, the remote home, or contains `..` is not removed. **Local cleanup** removes only this run’s stage under `/tmp`, `/var/tmp`, `TMPDIR`, or `cache-${APP_NAME}-*/${APP_NAME}.upplace.*` (and the upload stage `*.upload.*`), and never `{{HOME}}`, `/`, or the cache root.
 
 **Filename grammar:**
 
@@ -118,7 +119,7 @@ Worked sample basename: `app.20261116.bak` (local folder `app`, this login’s d
 | Item | Value |
 |------|--------|
 | Product | `sshd-cli` |
-| Version | `1.36.0` (`VERSION="1.36.0"`) |
+| Version | `1.36.1` (`VERSION="1.36.1"`) |
 | Handler | `sshd_cmd_upplace` |
 | Menu | client **19**, short `upplace` |
 | Typed leaf | `upplace` runs the handler and returns 0 so the front board returns |
@@ -130,30 +131,30 @@ Worked sample basename: `app.20261116.bak` (local folder `app`, this login’s d
 | Remote quote | `sshd_download_remote_quote` |
 | Remote scripts | quoted `printf` lines only. No unquoted heredoc. `"$HOME"` stays for the remote shell |
 | ssh | `sshd_upplace_ssh`: BatchMode, ConnectTimeout 15, `-l` only when the TTY user is non-empty. Returns 0 when the client ran. The caller reads the first stdout token |
-| Archive name | `sshd_xfer_new_name` (`.sshd-cli.xfer.` plus six characters plus `.tar.gz`) under a local `mktemp` directory |
-| Remote stage | `/tmp/` plus a `mktemp` leaf named `sshd-cli.upstage.` |
+| Archive name | Non-Windows: `sshd_xfer_new_name` (`.tar.gz`) under a local `mktemp` directory. Windows: `sshd_xfer_new_zip_name` (`.zip`) under `/tmp` when usable, otherwise the cache folder |
+| Remote stage | Non-Windows: `/tmp/` plus `sshd-cli.upstage.`. Windows: `/tmp` when usable, otherwise the cache leaf `cache-${APP_NAME}-$$`, plus that stage leaf |
 | Copy | exactly `cp -rP` |
 | Parent after rename | remote `dirname` of the original target |
 | Date | this login `date +%Y%m%d` |
 | Memory | `{{HOME}}/.local/sshd-cli/upload-folders` mode 0600. No `upplace-targets` file |
 | English menu long | `upload a local folder and replace the same-named remote folder (backup, then tar.gz)` |
-| English help | `tar.gz a local folder, back up the same-named remote folder, and replace it (TTY: Host, user, local folder, then target ~/folder or absolute; never the remote home)` |
+| English help | `tar.gz a local folder, back up the same-named remote folder, and replace it; on Windows, zip, and a cache folder when /tmp is missing (TTY: Host, user, local folder, then target ~/folder or absolute; never the remote home)` |
 | Local prompt | `Local folder to upplace (absolute, relative, or ~/folder on this login):` |
 | Target prompt | `Target folder on that host (absolute, or ~/folder under that ssh user home):` |
-| Proof | **TP-UP-01** .. **TP-UP-14** in `tests/test_upplace.sh`. **TP-CLI-14** and **TP-SSHD-04** assert row **19** |
+| Proof | **TP-UP-01** .. **TP-UP-19** in `tests/test_upplace.sh`. **TP-CLI-14** and **TP-SSHD-04** assert row **19** |
 
 ### 2.3 Why this requirement exists
 
 - **CIAO Principle 1 – Caution** (https://github.com/cloudgen/ciao): the remote home is checked before any rename.
 - **CIAO Principle 2 – Intentional**: the target is a separate last question, not a reuse of the upload destination.
 - **CIAO Principle 3 – Anti-fragile**: a failed copy after the rename moves the backup back and removes temps.
-- **CIAO Principle 11 – Temporary files**: archives and stages live under `/tmp` and are removed on both hosts.
+- **CIAO Principle 11 – Temporary files**: archives and stages live under `/tmp` when that directory is usable, otherwise under the cache folder, and are removed on both hosts.
 - **CIAO Principle 12 – Risk-class backup**: the previous folder is `name.yyyyMMdd.bak` and an existing backup is not overwritten.
 - **CIAO Principle 16 – Interactive**: the TTY walk is one field at a time; JSON and a pipe do not prompt.
 
 ## Under command line for normal user only
 
-When the ship unit detects Termux, Git Bash, or Windows cmd, Type 1 and Type 2 stay unused. **This requirement:** `upplace` stays a normal-user verb. It does not wrap `sudo`, `apt`, `dnf`, or `pkg`. Git Bash and Windows cmd do not invoke Termux `pkg` for this verb. The finished-file transfer used by `upload` on an MSYS reader is not this verb’s path: `upplace` always builds the archive as a file, sends it to remote `/tmp`, and expands that file.
+When the ship unit detects Termux, Git Bash, or Windows cmd, Type 1 and Type 2 stay unused. **This requirement:** `upplace` stays a normal-user verb. It does not wrap `sudo`, `apt`, `dnf`, or `pkg`. Git Bash and Windows cmd do not invoke Termux `pkg` for this verb. On those logins, and when the remote probe is Windows, the archive is a zip and the stage is the cache folder when `/tmp` is missing. A non-Windows pair still builds `tar.gz`, sends it to remote `/tmp`, and expands that file. The archive is never the remote home.
 
 ## 3. Design Principles (CIAO / CIAO-Lite)
 
@@ -175,7 +176,7 @@ When the ship unit detects Termux, Git Bash, or Windows cmd, Type 1 and Type 2 s
 3. Continue after a missing same-named directory, a basename mismatch, or an existing `.bak`.
 4. Use `out_die` for those pre-check stops. They return 1 so the menu can show the front board again.
 5. Use `rsync`, `cp -a`, or `sudo` for this verb.
-6. Send the archive to the remote home. The destination is `/tmp`.
+6. Send the archive to the remote home. The destination is `/tmp` when that directory is usable, otherwise the cache folder named above.
 7. Leave the temp archive or the temp folder on either host after success or after a handled failure.
 8. Clobber `name.yyyyMMdd.bak` when it already exists.
 9. Expand a remote `~/` against this login’s home.
@@ -195,7 +196,7 @@ When the ship unit detects Termux, Git Bash, or Windows cmd, Type 1 and Type 2 s
 | `docs/requirements/requirement-shell-cli-language.md` | `client_19_long` and `help_upplace` |
 | `docs/requirements/requirement-shell-exit-condition.md` | `out_die` and pre-check status 1 rows |
 | `docs/requirements/requirement-shell-interactive-vs-noninteractive.md` | TTY walk versus operands |
-| `docs/requirements/requirement-shell-windows-git-bash-cli-coding.md` | MSYS reader rule for `download` / `upload` (this verb does not use that pipe) |
+| `docs/requirements/requirement-shell-windows-git-bash-cli-coding.md` | Windows zip for `upload` and `upplace`; `download` stays the finished tar.gz |
 | `./sshd-cli` | Implementation |
 
 ## Terminologies
@@ -222,8 +223,9 @@ Copied substance for the words this requirement uses. No harness paths.
 
 | Date | Status | Notes |
 |------|--------|-------|
+| 2026-11-16 | Active 1.1.0 | Windows `upload` and `upplace` use a zip. When `/tmp` is missing, the stage is the cache folder. A non-Windows pair stays `tar.gz` to `/tmp`. Product `1.36.1`. **TP-UP-15** .. **TP-UP-19** |
 | 2026-11-16 | Active 1.0.0 | `upplace` on client **19**. Product `1.36.0`. Pre-check stops return to the menu. Backup `name.yyyyMMdd.bak`, then `tar.gz` to `/tmp`, `cp -rP`, cleanup both sides. **TP-UP-01** .. **TP-UP-14** |
 
-**Last Updated**: 2026-11-16
+**Last Updated**: 2026-11-16 (1.1.0 Windows zip and cache folder when `/tmp` is missing. 1.0.0 client **19**)
 **Owner**: Cloudgen Wong
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - README pictures of the numbered boards, captured from the 1.35.1 ship unit on a terminal. Translated front boards keep **5** sudoers, **6** self-management, and **7** language.
 
+## [1.36.1] - 2026-11-16
+
+### Fixed
+
+- **Windows folder transfer.** When this login is Git Bash or Windows cmd, or the remote probe is Windows, `upload` and `upplace` build a real zip (`zip -r`, or bsdtar `tar -a` when `tar --version` names bsdtar or libarchive). GNU tar is not a zip writer. The local stage is `/tmp` when that directory is usable, otherwise the cache folder. `upplace` does not put the archive in the remote home: remote `/tmp` when usable, otherwise AppData Local Temp, `$TEMP`, or `$HOME/.cache`. `download` stays the finished tar.gz when this login is Git Bash, and the streamed pipe otherwise. A remote shell that is only `cmd.exe` is not driven. A missing zip is named before `upplace` renames the remote folder. Law: `requirement-shell-windows-git-bash-cli-coding` **1.3.0** · `requirement-shell-windows-cmd-cli-coding` **1.1.0** · `requirement-domain-upplace` **1.1.0** · `requirement-domain-sshd` **1.29.0** · `requirement-shell-cli-interface` **1.14.18** · `requirement-shell-cli-language` **1.7.4** · `requirement-shell-exit-condition` **1.0.3**. Tests **TP-OS-GB-01**, **TP-OS-GB-03**, **TP-OS-GB-04**, **TP-OS-CMD-01**, **TP-OS-CMD-02**, **TP-UP-15** .. **TP-UP-19**. **TP-OS-GB-02** stays the Git Bash download.
+
+### Changed
+
+- README boards recaptured from the 1.36.1 ship unit. The status line is **1.36.1**.
+
 ## [1.36.0] - 2026-11-16
 
 ### Added

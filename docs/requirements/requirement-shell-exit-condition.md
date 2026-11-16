@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-exit-condition.md  
-**Status**: Active (Version 1.0.2)  
+**Status**: Active (Version 1.0.3)  
 **Area**: shell  
 **Key**: `requirement-shell-exit-condition`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -287,7 +287,7 @@ The message is the human `[ERROR]` text. In JSON mode the same text is the `mess
 | EX-DIE-218 | `sshd_cmd_upplace` | `Cannot upplace: tar not found. Next: install tar, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
 | EX-DIE-219 | `sshd_cmd_upplace` | `Cannot upplace: gzip not found. Next: install gzip, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
 | EX-DIE-220 | `sshd_cmd_upplace` | `Cannot upplace: date failed. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
-| EX-DIE-221 | `sshd_upplace_ssh` miss and `sshd_cmd_upplace` (same text at the temp-folder sites) | `Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-221 | `sshd_upplace_ssh` miss, `sshd_cmd_upplace`, and `sshd_upplace_zip_transfer` (same text at the temp-folder sites) | `Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
 | EX-DIE-222 | `sshd_cmd_upplace` | `Cannot upplace: ssh ${_dns} failed. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
 | EX-DIE-223 | `sshd_cmd_upplace` | `Cannot upplace: could not rename ${_target} on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
 | EX-DIE-224 | `sshd_upplace_fail_after_rename` | `Cannot upplace: tar could not build the archive for ${_folder}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
@@ -296,8 +296,21 @@ The message is the human `[ERROR]` text. In JSON mode the same text is the `mess
 | EX-DIE-227 | `sshd_upplace_fail_after_rename` | `Cannot upplace: tar could not expand the archive on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
 | EX-DIE-228 | `sshd_upplace_fail_after_rename` | `Cannot upplace: cp could not replace ${_target} on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
 | EX-DIE-229 | `sshd_upplace_fail_after_rename` | `Cannot upplace: target ${_target} is the remote home. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-230 | `sshd_upload_zip_file` | `Cannot upload: scp not found. Next: install openssh-client, then ${APP_NAME} upload ${_dns} ${_folder}` |
+| EX-DIE-231 | `sshd_upload_zip_file` | `Cannot upload: zip not found. Next: install zip, then ${APP_NAME} upload ${_dns} ${_folder}` |
+| EX-DIE-232 | `sshd_upload_zip_file` | `Cannot upload: could not create a temp folder for the archive. Next: ${APP_NAME} upload ${_dns} ${_folder}` |
+| EX-DIE-233 | `sshd_upload_zip_file` | `Cannot upload: the temp folder for the archive is not usable. Next: ${APP_NAME} upload ${_dns} ${_folder}` |
+| EX-DIE-234 | `sshd_upload_zip_file` | `Cannot upload: could not name the archive. Next: ${APP_NAME} upload ${_dns} ${_folder}` |
+| EX-DIE-235 | `sshd_upload_zip_file` | `Cannot upload: zip could not build the archive for ${_folder}. Next: ${_next_ssh}, then ${APP_NAME} upload ${_dns} ${_folder}` |
+| EX-DIE-236 | `sshd_upload_zip_file` | `Cannot upload: zip rejected the archive for ${_folder}. Next: ${_next_ssh}, then ${APP_NAME} upload ${_dns} ${_folder}` |
+| EX-DIE-237 | `sshd_upload_zip_file` | `Cannot upload: scp could not copy the archive to ${_dns}. Next: ${_next_ssh}, then ${APP_NAME} upload ${_dns} ${_folder}` |
+| EX-DIE-238 | `sshd_xfer_show_err` when the captured text matches unzip or zip (gzip is checked first) | `Cannot ${_xe_kind}: zip could not expand the archive for ${_xe_folder} on ${_xe_dns}. Next: ${_xe_next}, then ${APP_NAME} ${_xe_kind} ${_xe_dns} ${_xe_folder}` |
+| EX-DIE-239 | `sshd_cmd_upplace` before the probe, and `sshd_upplace_zip_transfer` after the rename (same text) | `Cannot upplace: zip not found. Next: install zip, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-240 | `sshd_upplace_fail_after_rename` | `Cannot upplace: zip could not build the archive for ${_folder}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-241 | `sshd_upplace_fail_after_rename` | `Cannot upplace: zip rejected the archive for ${_folder}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-242 | `sshd_upplace_fail_after_rename` (same text at the zip expand sites) | `Cannot upplace: zip could not expand the archive on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
 
-A post-rename failure may append ` Could not restore ${_target} from the backup.` when the backup cannot be moved back. That sentence is part of the same `out_die`, not a separate row.
+A post-rename failure may append ` Could not restore ${_target} from the backup.` when the backup cannot be moved back. That sentence is part of the same `out_die`, not a separate row. Scratch failure on the zip path reuses EX-DIE-221. It is not a new id. EX-DIE-218 and EX-DIE-219 stay the non-Windows `tar` and `gzip` rows.
 
 #### Return status 1 (no `exit` call; the process still ends on a direct command)
 
@@ -633,8 +646,9 @@ When the ship unit detects Termux, Git Bash, Windows cmd, or the same class, adm
 |------|--------|-------|
 | 2026-10-10 | Active 1.0.0 | Exit catalog from `out_die` and the direct-command `return 1` messages in `src/sshd-cli`. Shape referenced from sibling tmpl-to-prj. Rows are this ship unit |
 | 2026-10-14 | Active 1.0.1 | EX-DIE-25 is the POSIX Linux missing-sshd hint. EX-DIE-197 Git Bash, EX-DIE-198 Windows cmd, EX-DIE-199 macOS. The program does not run `apt` or `dnf` |
+| 2026-11-16 | Active 1.0.3 | EX-DIE-230 through EX-DIE-242 are the Windows zip fatals for `upload` and `upplace`. EX-DIE-200 through EX-DIE-229 stay the earlier `upplace` rows |
 | 2026-11-16 | Active 1.0.2 | EX-DIE-200 through EX-DIE-229 are `upplace` fatals. EX-RET-18 through EX-RET-21 are the pre-check stops (home, name, missing, backup). EX-OK-01 includes `upplace` |
 
-**Last Updated**: 2026-11-16 (1.0.2 `upplace` fatals EX-DIE-200..229 and pre-check stops EX-RET-18..21. 1.0.1 missing-sshd next step by family. 2026-10-10)  
+**Last Updated**: 2026-11-16 (1.0.3 Windows zip fatals EX-DIE-230..242. 1.0.2 `upplace` fatals EX-DIE-200..229 and pre-check stops EX-RET-18..21. 1.0.1 missing-sshd next step by family. 2026-10-10)  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

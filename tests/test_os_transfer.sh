@@ -70,6 +70,14 @@ case "${cmd}" in
         ;;
 esac
 case "${cmd}" in
+    *unzip*)
+        if [ "${SSHD_CLI_FAKE_UNZIP_FAIL:-}" = "1" ]; then
+            printf '%s\n' "unzip: cannot find zipfile" >&2
+            exit 1
+        fi
+        ;;
+esac
+case "${cmd}" in
     *'tar xzf -'*)
         ;;
     *'tar xzf'*)
@@ -152,6 +160,8 @@ run_test_os_transfer() {
     require_cmd sh
     require_cmd tar
     require_cmd gzip
+    require_cmd zip
+    require_cmd unzip
     require_cmd find
 
     ci_isolated_env
@@ -168,19 +178,8 @@ run_test_os_transfer() {
     mkdir -p "${_local}/box" "${_tree}/app"
     printf 'up\n' > "${_local}/box/ok.txt"
     printf 'down\n' > "${_tree}/app/ok.txt"
-    _real_gzip=$(command -v gzip)
-    _gzip_dir=$(mktemp -d "${TMPDIR:-/tmp}/os-gzip.XXXXXX")
-    cat > "${_gzip_dir}/gzip" <<EOF
-#!/bin/sh
-if [ "\${1-}" = "-t" ]; then
-    printf '%s\n' "gzip: invalid compressed data--format violated" >&2
-    exit 1
-fi
-exec ${_real_gzip} "\$@"
-EOF
-    chmod 0755 "${_gzip_dir}/gzip"
 
-    # TP-OS-GB-01 upload to an MSYS reader uses a finished file
+    # TP-OS-GB-01 upload to an MSYS reader uses a finished zip
     _os_env_reset
     _out=$(HOME="${CI_HOME}" \
         SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SCP="${_fake_scp}" \
@@ -192,15 +191,18 @@ EOF
     _log=$(cat "${_ssh_log}")
     _slog=$(cat "${_scp_log}")
     assert_eq "TP-OS-GB-01 upload exit 0" 0 "${_ec}"
-    assert_contains "TP-OS-GB-01 remote tar file" "${_log}" 'tar xzf "$HOME"'
+    assert_contains "TP-OS-GB-01 remote unzip" "${_log}" "unzip -q -o"
+    assert_not_contains "TP-OS-GB-01 no tar xzf" "${_log}" "tar xzf"
     assert_not_contains "TP-OS-GB-01 no stdin tar" "${_log}" "tar xzf -"
     assert_not_contains "TP-OS-GB-01 no sleep" "${_log}" "sleep"
     assert_not_contains "TP-OS-GB-04 no sleep" "${_log}" "sleep"
     assert_not_contains "TP-OS-GB-01 no cat redirect" "${_log}" "cat >"
     assert_not_contains "TP-OS-GB-04 no cat redirect" "${_log}" "cat >"
     assert_contains "TP-OS-GB-01 scp used" "${_slog}" "${H_OS}:"
+    assert_contains "TP-OS-GB-01 scp zip" "${_slog}" ".zip"
     assert_file_exists "TP-OS-GB-01 extracted marker" "${_fake_home}/box/ok.txt"
     assert_eq "TP-OS-GB-01 archive removed" "0" "$(_os_tar_left "${_fake_home}")"
+    assert_eq "TP-OS-GB-01 zip removed" "0" "$(find "${_fake_home}" -name '*.zip' 2>/dev/null | wc -l | tr -d ' ')"
     _body=$(cat "${_fake_home}/box/ok.txt")
     assert_eq "TP-OS-GB-01 marker text" "up" "${_body}"
 
@@ -230,20 +232,27 @@ EOF
     _body=$(cat "${_wd}/app/ok.txt")
     assert_eq "TP-OS-GB-02 marker text" "down" "${_body}"
 
-    # TP-OS-GB-03 gzip -t rejection names gzip; tar rejection names tar
+    # TP-OS-GB-03 a failing zip names zip; a remote unzip failure names unzip
+    _zip_dir=$(mktemp -d "${TMPDIR:-/tmp}/os-zip.XXXXXX")
+    cat > "${_zip_dir}/zip" <<'EOF'
+#!/bin/sh
+printf '%s\n' "zip error: failed" >&2
+exit 1
+EOF
+    chmod 0755 "${_zip_dir}/zip"
     _os_env_reset
     rm -rf "${_fake_home}"
     mkdir -p "${_fake_home}"
-    _err=$(PATH="${_gzip_dir}:${PATH}" HOME="${CI_HOME}" \
+    _err=$(PATH="${_zip_dir}:${PATH}" HOME="${CI_HOME}" \
         SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SCP="${_fake_scp}" \
         SSHD_CLI_SSH_LOG="${_ssh_log}" SSHD_CLI_SCP_LOG="${_scp_log}" \
         SSHD_CLI_FAKE_HOME="${_fake_home}" \
         SSHD_CLI_FAKE_UNAME="MINGW64_NT-10.0" SSHD_CLI_FAKE_OSTYPE="msys" \
         sh "${SCRIPT}" upload "${H_OS}" "${_local}/box" 2>&1 >/dev/null)
     _ec=$?
-    assert_eq "TP-OS-GB-03 gzip exit 1" 1 "${_ec}"
-    assert_contains "TP-OS-GB-03 names gzip" "${_err}" "gzip"
-    assert_not_contains "TP-OS-GB-03 gzip is not only ssh" "${_err}" "ssh ${H_OS} failed"
+    assert_eq "TP-OS-GB-03 zip exit 1" 1 "${_ec}"
+    assert_contains "TP-OS-GB-03 names zip" "${_err}" "zip"
+    assert_not_contains "TP-OS-GB-03 zip is not only ssh" "${_err}" "ssh ${H_OS} failed"
 
     _os_env_reset
     rm -rf "${_fake_home}"
@@ -253,14 +262,16 @@ EOF
         SSHD_CLI_SSH_LOG="${_ssh_log}" SSHD_CLI_SCP_LOG="${_scp_log}" \
         SSHD_CLI_FAKE_HOME="${_fake_home}" \
         SSHD_CLI_FAKE_UNAME="MINGW64_NT-10.0" SSHD_CLI_FAKE_OSTYPE="msys" \
-        SSHD_CLI_FAKE_TAR_FAIL=1 \
+        SSHD_CLI_FAKE_UNZIP_FAIL=1 \
         sh "${SCRIPT}" upload "${H_OS}" "${_local}/box" 2>&1 >/dev/null)
     _ec=$?
-    assert_eq "TP-OS-GB-03 tar exit 1" 1 "${_ec}"
-    assert_contains "TP-OS-GB-03 names tar" "${_err}" "tar"
-    assert_not_contains "TP-OS-GB-03 tar is not only ssh" "${_err}" "ssh ${H_OS} failed"
+    unset SSHD_CLI_FAKE_UNZIP_FAIL
+    assert_eq "TP-OS-GB-03 unzip exit 1" 1 "${_ec}"
+    assert_contains "TP-OS-GB-03 names unzip" "${_err}" "unzip"
+    assert_contains "TP-OS-GB-03 names zip expand" "${_err}" "zip could not expand"
+    assert_not_contains "TP-OS-GB-03 unzip is not only ssh" "${_err}" "ssh ${H_OS} failed"
 
-    # TP-OS-GB-04 local Git Bash uploading to a non-MSYS reader still pipes
+    # TP-OS-GB-04 local Git Bash uploads a zip even when the reader is Linux
     _os_env_reset
     rm -rf "${_fake_home}"
     mkdir -p "${_fake_home}"
@@ -273,12 +284,13 @@ EOF
     _ec=$?
     _log=$(cat "${_ssh_log}")
     _slog=$(cat "${_scp_log}")
-    assert_eq "TP-OS-GB-04 pipe exit 0" 0 "${_ec}"
-    assert_contains "TP-OS-GB-04 keeps stdin tar" "${_log}" "tar xzf -"
-    assert_eq "TP-OS-GB-04 scp unused" "" "${_slog}"
-    assert_file_exists "TP-OS-GB-04 pipe extracted marker" "${_fake_home}/box/ok.txt"
+    assert_eq "TP-OS-GB-04 zip exit 0" 0 "${_ec}"
+    assert_contains "TP-OS-GB-04 remote unzip" "${_log}" "unzip -q -o"
+    assert_not_contains "TP-OS-GB-04 no stdin tar" "${_log}" "tar xzf -"
+    assert_contains "TP-OS-GB-04 scp used" "${_slog}" ".zip"
+    assert_file_exists "TP-OS-GB-04 zip extracted marker" "${_fake_home}/box/ok.txt"
 
-    # TP-OS-CMD-01 Windows_NT alone keeps the streamed pipe
+    # TP-OS-CMD-01 remote Windows_NT uses zip, not the streamed pipe
     _os_env_reset
     rm -rf "${_fake_home}"
     mkdir -p "${_fake_home}"
@@ -291,16 +303,37 @@ EOF
     _ec=$?
     _log=$(cat "${_ssh_log}")
     _slog=$(cat "${_scp_log}")
-    assert_eq "TP-OS-CMD-01 pipe exit 0" 0 "${_ec}"
-    assert_contains "TP-OS-CMD-01 keeps stdin tar" "${_log}" "tar xzf -"
-    assert_not_contains "TP-OS-CMD-01 no file extract" "${_log}" 'tar xzf "$HOME"'
-    assert_eq "TP-OS-CMD-01 scp unused" "" "${_slog}"
-    assert_file_exists "TP-OS-CMD-01 pipe extracted marker" "${_fake_home}/box/ok.txt"
+    assert_eq "TP-OS-CMD-01 zip exit 0" 0 "${_ec}"
+    assert_contains "TP-OS-CMD-01 remote unzip" "${_log}" "unzip -q -o"
+    assert_not_contains "TP-OS-CMD-01 no stdin tar" "${_log}" "tar xzf -"
+    assert_not_contains "TP-OS-CMD-01 no tar file extract" "${_log}" 'tar xzf "$HOME"'
+    assert_contains "TP-OS-CMD-01 scp zip" "${_slog}" ".zip"
+    assert_file_exists "TP-OS-CMD-01 zip extracted marker" "${_fake_home}/box/ok.txt"
+
+    # TP-OS-CMD-02 this login OS=Windows_NT uses zip even when the reader is Linux
+    _os_env_reset
+    rm -rf "${_fake_home}"
+    mkdir -p "${_fake_home}"
+    _out=$(OS=Windows_NT HOME="${CI_HOME}" \
+        SSHD_CLI_SSH="${_fake_ssh}" SSHD_CLI_SCP="${_fake_scp}" \
+        SSHD_CLI_SSH_LOG="${_ssh_log}" SSHD_CLI_SCP_LOG="${_scp_log}" \
+        SSHD_CLI_FAKE_HOME="${_fake_home}" \
+        SSHD_CLI_FAKE_UNAME="Linux" SSHD_CLI_FAKE_OSTYPE="linux-gnu" \
+        sh "${SCRIPT}" upload "${H_OS}" "${_local}/box" 2>&1)
+    _ec=$?
+    _log=$(cat "${_ssh_log}")
+    _slog=$(cat "${_scp_log}")
+    assert_eq "TP-OS-CMD-02 zip exit 0" 0 "${_ec}"
+    assert_contains "TP-OS-CMD-02 remote unzip" "${_log}" "unzip -q -o"
+    assert_not_contains "TP-OS-CMD-02 no stdin tar" "${_log}" "tar xzf -"
+    assert_contains "TP-OS-CMD-02 scp zip" "${_slog}" ".zip"
+    assert_file_exists "TP-OS-CMD-02 zip extracted marker" "${_fake_home}/box/ok.txt"
+    rm -rf "${_zip_dir}"
 
     if [ -n "${T_REAL_HOME:-}" ]; then
         HOME="${T_REAL_HOME}"
         export HOME
     fi
-    rm -rf "${_fake_home}" "${_local}" "${_tree}" "${_wd}" "${_gzip_dir}"
+    rm -rf "${_fake_home}" "${_local}" "${_tree}" "${_wd}" "${_zip_dir:-}"
     ci_cleanup_env
 }
