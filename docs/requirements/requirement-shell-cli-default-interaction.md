@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-default-interaction.md
-**Status**: Active (Version 1.18.0)
+**Status**: Active (Version 1.19.0)
 **Area**: shell
 **Key**: `requirement-shell-cli-default-interaction`
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -153,6 +153,7 @@ Every command row **MUST** print **number**, **bold** short description, *italic
 | **15** backup-config | | POSIX Linux only |
 | **16** sync-config | | POSIX Linux only |
 | **18** sync-from-remote | | Termux / Git Bash / Windows cmd numbered; POSIX Linux typed |
+| **19** upplace | upload and replace | Always, after **16** or **18** |
 | **0** Back | | Always |
 
 **Menu-hidden message** for this cause (§2.2.3), before the numbered items: `backup-config and sync-config not available for termux` / `gitbash` / `windows-cmd`. One cause covers **15** and **16**.
@@ -349,6 +350,7 @@ app_cmd_menu_client() {
         else
             out_menu_choice "18" "sync-from-remote" "$(app_menu_text client_18_long)"
         fi
+        out_menu_choice "19" "upplace" "$(app_menu_text client_19_long)"
         out_plain "$(app_menu_text line_back)"
         out_msg_n "$(app_menu_text line_prompt)"
         _choice=""
@@ -374,6 +376,11 @@ app_cmd_menu_client() {
                 ;;
             14|upload)
                 sshd_cmd_upload
+                unset _choice _show_cfg
+                return 0
+                ;;
+            19|upplace)
+                sshd_cmd_upplace || true
                 unset _choice _show_cfg
                 return 0
                 ;;
@@ -724,6 +731,7 @@ This requirement is satisfied when all of the following hold:
 | **TP-DNS-13** · **TP-DNS-20** · **TP-DNS-21** · **TP-DNS-47** dns board | `tests/test_dns.sh` | have |
 | **TP-CFG-17** sudoers **51–55** | `tests/test_config_backup.sh` | have |
 | **TP-UL-18** upload row on the client board | `tests/test_ssh_download.sh` | have |
+| **TP-UP-01** .. **TP-UP-14** upplace row **19**, pre-check stop, backup, `/tmp`, `cp -rP` | `tests/test_upplace.sh` · `tests/test_cli.sh` | have |
 
 **Map:** `reviews/test-plan.md`
 
@@ -798,6 +806,6 @@ Words this requirement uses. Each row is the term and the definition this file m
 | **Type O empty argv** | The non-interactive zero-cli-verb path: no command token means place/ensure this CLI. Switches with no command are still that path when the run is non-interactive (`--quiet`, `--json`, or no terminal). The letter **O** is this path. The digit **0** is privilege Type 0. An interactive zero-cli-verb is the main menu, not this path. |
 | **Operator-readable error** | A line a person at the prompt can act on: what happened, in plain words, and what to do next. The invalid-choice warn is this kind of line. It names the token and tells the operator to choose a listed number or command name. |
 
-**Last Updated**: 2026-10-14 (1.18.0 front **5** sudoers **51–55**, front **6** self-management **61–67**, front **7** language block **70–89** assigned **71–83**. Front **8** is not a row. 1.17.0 front **7** prints `sudoers not available for termux` / `gitbash` / `windows-cmd`. 1.16.0 language rows **51–63**, **50** and **64–69** unprinted. 1.15.0 front **5** language reserves **50–69** for at most 20 languages, assigned **51–58**. 1.14.0 samples and translation tables live on the language requirement. 1.13.0 language **67** / **68**)  
+**Last Updated**: 2026-11-16 (1.19.0 client **19** upplace, always, after **16** or **18**. 1.18.0 front **5** sudoers **51–55**, front **6** self-management **61–67**, front **7** language block **70–89** assigned **71–83**. Front **8** is not a row. 1.17.0 front **7** prints `sudoers not available for termux` / `gitbash` / `windows-cmd`. 1.16.0 language rows **51–63**, **50** and **64–69** unprinted. 1.15.0 front **5** language reserves **50–69** for at most 20 languages, assigned **51–58**. 1.14.0 samples and translation tables live on the language requirement. 1.13.0 language **67** / **68**)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

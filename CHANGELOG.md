@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - README pictures of the numbered boards, captured from the 1.35.1 ship unit on a terminal. Translated front boards keep **5** sudoers, **6** self-management, and **7** language.
 
+## [1.36.0] - 2026-11-16
+
+### Added
+
+- **upplace** (client **19**). Same Host, user, and local-folder questions as `upload`, then the remote target folder (absolute, or `~/folder` under that ssh user). The target must already be a directory with the same name and must not be the remote home. If it is missing, the name differs, the path is the remote home, or `name.yyyyMMdd.bak` already exists, the task stops, prints the error, and the menu returns to the front board. Otherwise the old folder is renamed `name.yyyyMMdd.bak` (this login’s date), a tar.gz is copied to remote `/tmp`, expanded there, and `cp -rP` replaces the target. Temp files are removed on both hosts. A failed copy after the rename moves the backup back. Law: `requirement-domain-upplace` **1.0.0** · `requirement-domain-sshd` **1.28.0** · `requirement-shell-cli-interface` **1.14.17** · `requirement-shell-cli-default-interaction` **1.19.0** · `requirement-shell-cli-language` **1.7.3** · `requirement-shell-exit-condition` **1.0.2** · `requirement-shell-interactive-vs-noninteractive` **1.2.7**. Tests **TP-UP-01** .. **TP-UP-14**.
+
+### Changed
+
+- README boards recaptured from the 1.36.0 ship unit. The client board shows **19** upplace. The status line is **1.36.0**.
+
 ## [1.35.1] - 2026-10-16
 
 ### Fixed

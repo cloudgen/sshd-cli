@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-interactive-vs-noninteractive.md  
-**Status**: Active (Version 1.2.6)  
+**Status**: Active (Version 1.2.7)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -165,6 +165,7 @@ interactive   non-interactive
 | `ssh` | Numbered Host pick if no operand; unknown Host **MUST** warn and redisplay. Then **user [default]** (Host User, else this login); then OpenSSH client (`exec` on TTY unless `SSHD_CLI_SSH` is set). `read` in-shell. | Needs `<n\|name>`; no prompt; JSON: one object, **no** session |
 | `download` | Host pick if no first operand; then **user [default]** (same as `ssh`); then numbered previous folders for that Host, or type a path (`~/folder` allowed). Out-of-range folder number **MUST** warn and redisplay. Empty folder still fail-closed. | Needs Host **and** folder; no prompt; JSON: one object after the transfer. `~/folder` allowed |
 | `upload` | Host pick if no first operand; then **user [default]** (same as `ssh` / `download`); then numbered previous **local** folders for that Host, or type a local path (`~/folder` is this login). Out-of-range folder number **MUST** warn and redisplay. Empty folder still fail-closed. | Needs Host **and** local folder; no prompt; JSON: one object after the transfer. Local `~/folder` allowed; folder **MUST** exist as a directory |
+| `upplace` | Host, then **user [default]**, then the local folder (same memory as `upload`), then the target last (absolute or `~/folder` under that ssh user). No target history. Empty target fail-closed. A pre-check miss returns 1 and the menu shows the front board. | Needs Host, local folder, **and** target; no prompt; JSON: one `upplace` object after the transfer, or `out_json_error` on a pre-check miss |
 | `menu` / sudoers submenu | Numbered list. Unknown / hidden-row number **MUST** warn and redisplay **that** list. Exit / empty still leave. A valid leaf then redisplays the **front board** (not the submenu). | **MUST NOT** hang. Non-TTY `menu` fails closed with a named-command hint |
 
 #### `prompt_yes_no` contract (this project)
@@ -341,7 +342,7 @@ Helpers (this product): `sshd_is_termux`, `sshd_is_git_bash`, `sshd_is_windows_c
 10. Let `inst_maybe_install` return success under `--quiet` / `--json` without calling `inst_perform_install` when the program is not installed.  
 11. Re-test `[ -t 0 ]` / `[ -t 1 ]` inside helpers as the sole interactive gate; helpers **MUST** consume process `TTY`.  
 12. Strip the **Under command line for normal user only** section, or recommend `sudo curl | sh` / Type 1 sudo on that class.  
-13. Hang `dns` / `dns edit` / `dns delete` / `dns unset` / `ssh` / `download` / `upload` in non-interactive mode, or `$()` the dns field / user / folder `read` (**do-not-capture-read**). Non-interactive `dns` with no subcommand **MUST** list and return. Non-interactive `dns delete N` and `dns unset N field` **MUST NOT** prompt. Non-interactive `ssh` / `download` / `upload` without required operands **MUST** fail closed.  
+13. Hang `dns` / `dns edit` / `dns delete` / `dns unset` / `ssh` / `download` / `upload` / `upplace` in non-interactive mode, or `$()` the dns field / user / folder / target `read` (**do-not-capture-read**). Non-interactive `dns` with no subcommand **MUST** list and return. Non-interactive `dns delete N` and `dns unset N field` **MUST NOT** prompt. Non-interactive `ssh` / `download` / `upload` / `upplace` without required operands **MUST** fail closed.  
 14. `out_die` (or exit non-zero) solely because a TTY numbered menu received an unknown or out-of-range choice. **MUST** warn and display **that same list** again (main, sudoers, dns action, Host pick, unset picker, download/upload folder pick).
 
 **Supporting non-interactive environments cleanly is mandatory for CIAO compliance.**
@@ -386,9 +387,10 @@ Mode-related work for sshd-cli is **not done** if any of the following fail:
 | **TP-SSHD-05**, **TP-SSHD-16** | `tests/test_cli.sh` | have |
 | **TP-CFG-17** | `tests/test_config_backup.sh` | have |
 | **TP-UL-01** .. **TP-UL-18** | `tests/test_ssh_download.sh` | **have** |
+| **TP-UP-13** menu return after a missing target | `tests/test_upplace.sh` | **have** |
 
 **Map:** `reviews/test-plan.md`
 
-**Last Updated**: 2026-09-28 (1.2.6 zero-arg menu handler is `app_cmd_menu`. 1.2.5 `prompt_yes_no` and `prompt_ask` samples are the `./sshd-cli` functions. 2026-09-16 finished TTY leaf redisplays the front board; **TP-CLI-22**. TTY unknown menu choice redisplays that layer; DTV **TP-SSHD-16** · **TP-DNS-47..49** · **TP-CFG-17** · **TP-DL-17**)  
+**Last Updated**: 2026-11-16 (1.2.7 `upplace` TTY walk ends with the target folder. 1.2.6 zero-arg menu handler is `app_cmd_menu`. 1.2.5 `prompt_yes_no` and `prompt_ask` samples are the `./sshd-cli` functions. 2026-09-16 finished TTY leaf redisplays the front board; **TP-CLI-22**. TTY unknown menu choice redisplays that layer; DTV **TP-SSHD-16** · **TP-DNS-47..49** · **TP-CFG-17** · **TP-DL-17**)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-exit-condition.md  
-**Status**: Active (Version 1.0.1)  
+**Status**: Active (Version 1.0.2)  
 **Area**: shell  
 **Key**: `requirement-shell-exit-condition`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -266,6 +266,38 @@ The message is the human `[ERROR]` text. In JSON mode the same text is the `mess
 | EX-DIE-197 | `sshd_need_bin` via `sshd_openssh_server_hint` | `OpenSSH sshd is not installed. Next: Git Bash does not provide sshd. Install OpenSSH for Windows, then retry ${APP_NAME} start.` |
 | EX-DIE-198 | `sshd_need_bin` via `sshd_openssh_server_hint` | `OpenSSH sshd is not installed. Next: Windows cmd does not provide sshd. Install OpenSSH for Windows, then retry ${APP_NAME} start.` |
 | EX-DIE-199 | `sshd_need_bin` via `sshd_openssh_server_hint` | `OpenSSH sshd is not installed. Next: install the OpenSSH server on this Mac, then retry ${APP_NAME} start.` |
+| EX-DIE-200 | `sshd_upplace_validate_local` | `upplace needs a local folder. Next: ${APP_NAME} ${_vf_next}` |
+| EX-DIE-201 | `sshd_upplace_validate_local` (same text at 2 call sites) | `Local folder '${_vf}' is not allowed. Use an absolute or relative path, or ~/folder (not ., .., /, or ~ alone). Next: ${APP_NAME} ${_vf_next}` |
+| EX-DIE-202 | `sshd_upplace_validate_local` | `Local folder '${_vf}' is not allowed. Use ~/folder for this login home (not ~ alone). Next: ${APP_NAME} ${_vf_next}` |
+| EX-DIE-203 | `sshd_upplace_validate_local` | `Local folder '${_vf}' is not allowed. Use ~/folder for this login home (not ~ alone or ~user). Next: ${APP_NAME} ${_vf_next}` |
+| EX-DIE-204 | `sshd_upplace_validate_local` | `Local folder '${_vf}' has a character that is not allowed. Next: ${APP_NAME} ${_vf_next}` |
+| EX-DIE-205 | `sshd_upplace_validate_target` | `upplace needs a target folder. Next: ${APP_NAME} ${_vt_next}` |
+| EX-DIE-206 | `sshd_upplace_validate_target` (same text at the refuse sites) | `Target folder '${_vt}' is not allowed. Use an absolute path or ~/folder under that ssh user home (not /, ~, ~/, a relative path, or ~user). Next: ${APP_NAME} ${_vt_next}` |
+| EX-DIE-207 | `sshd_upplace_validate_target` | `Target folder '${_vt}' has a character that is not allowed. Next: ${APP_NAME} ${_vt_next}` |
+| EX-DIE-208 | `sshd_upplace_walk_folder` | `upplace needs a local folder. Next: ${APP_NAME} upplace ${_uw_name} ./folder ~/folder` |
+| EX-DIE-209 | `sshd_upplace_walk_target` | `upplace needs a target folder. Next: ${APP_NAME} upplace ${_ut_dns} ${_ut_folder} ~/folder` |
+| EX-DIE-210 | `sshd_cmd_upplace` | `upplace needs a number or Host name, a local folder, and a target folder. Next: ${APP_NAME} dns list, then ${APP_NAME} upplace <n\|name> ./folder ~/folder` |
+| EX-DIE-211 | `sshd_cmd_upplace` | `No Host entry '${_sel}' in $(sshd_dns_config_path). Next: ${APP_NAME} dns list` |
+| EX-DIE-212 | `sshd_cmd_upplace` | `upplace needs a local folder. Next: ${APP_NAME} ${_up_next}` |
+| EX-DIE-213 | `sshd_cmd_upplace` | `Local folder '${_folder}' is not a directory. Next: ${APP_NAME} upplace ${_dns} ${_folder} ~/folder` |
+| EX-DIE-214 | `sshd_cmd_upplace` | `Local folder '${_folder}' is not allowed. Next: ${APP_NAME} upplace ${_dns} ${_folder} ~/folder` |
+| EX-DIE-215 | `sshd_cmd_upplace` | `upplace needs a target folder. Next: ${APP_NAME} upplace ${_dns} ${_folder} ~/folder` |
+| EX-DIE-216 | `sshd_cmd_upplace` | `Cannot upplace: OpenSSH client not found. Next: install openssh-client, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-217 | `sshd_cmd_upplace` | `Cannot upplace: scp not found. Next: install openssh-client, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-218 | `sshd_cmd_upplace` | `Cannot upplace: tar not found. Next: install tar, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-219 | `sshd_cmd_upplace` | `Cannot upplace: gzip not found. Next: install gzip, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-220 | `sshd_cmd_upplace` | `Cannot upplace: date failed. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-221 | `sshd_upplace_ssh` miss and `sshd_cmd_upplace` (same text at the temp-folder sites) | `Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-222 | `sshd_cmd_upplace` | `Cannot upplace: ssh ${_dns} failed. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-223 | `sshd_cmd_upplace` | `Cannot upplace: could not rename ${_target} on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-224 | `sshd_upplace_fail_after_rename` | `Cannot upplace: tar could not build the archive for ${_folder}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-225 | `sshd_upplace_fail_after_rename` | `Cannot upplace: gzip rejected the archive for ${_folder}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-226 | `sshd_upplace_fail_after_rename` | `Cannot upplace: scp to ${_dns} failed. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-227 | `sshd_upplace_fail_after_rename` | `Cannot upplace: tar could not expand the archive on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-228 | `sshd_upplace_fail_after_rename` | `Cannot upplace: cp could not replace ${_target} on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+| EX-DIE-229 | `sshd_upplace_fail_after_rename` | `Cannot upplace: target ${_target} is the remote home. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}` |
+
+A post-rename failure may append ` Could not restore ${_target} from the backup.` when the backup cannot be moved back. That sentence is part of the same `out_die`, not a separate row.
 
 #### Return status 1 (no `exit` call; the process still ends on a direct command)
 
@@ -290,12 +322,16 @@ Human mode uses `out_error` (`[ERROR]` on stderr). JSON mode uses `out_json_erro
 | EX-RET-15 | `self-uninstall` without `--force` when JSON, quiet, or not a TTY | `inst_self_uninstall_confirm_and_remove` | `confirm_required` | `Uninstall requires --force in non-interactive mode (refusing to remove <path>).` |
 | EX-RET-16 | TTY `self-uninstall` confirm answered no | `inst_self_uninstall_confirm_and_remove` | (human only) | `Uninstall cancelled by user.` (plain text, then status 1) |
 | EX-RET-17 | `rm` of the install path failed | `inst_self_uninstall_confirm_and_remove` | `permission_denied` | `Failed to remove <path> (permission denied?)` |
+| EX-RET-18 | `upplace` target is the remote home, before any rename | `sshd_upplace_stop` | `upplace_home` | `Cannot upplace: target <target> is the remote home.` |
+| EX-RET-19 | `upplace` target basename is not the local folder name | `sshd_upplace_stop` | `upplace_name` | `Cannot upplace: target <target> is not named <basename>.` |
+| EX-RET-20 | `upplace` same-named directory is absent | `sshd_upplace_stop` | `upplace_missing` | `Cannot upplace: <host> has no folder named <basename> at <target>.` |
+| EX-RET-21 | `upplace` backup name already exists | `sshd_upplace_stop` | `upplace_bak` | `Cannot upplace: backup <basename>.<yyyyMMdd>.bak already exists beside <target> on <host>.` |
 
 #### Status 0 (the process ends without an error line)
 
 | ID | Condition | Status |
 |----|-----------|--------|
-| EX-OK-01 | `version`, `about`, `help`, or a finished routed verb (`status`, `start`, `stop`, `restart`, `port`, `config`, `host-keys`, `auth-keys`, `dns`, `fix-config`, `ssh`, `download`, `upload`, `wake-lock`, `wake-unlock`, `backup-config`, `sync-config`, `sync-from-remote`, `print-sudoers`, `print-sudoers-install-script`, `generate-sudoer-request`, `submit-sudoer-request`, `remove-project-sudoers`, `rc-test`) | 0 |
+| EX-OK-01 | `version`, `about`, `help`, or a finished routed verb (`status`, `start`, `stop`, `restart`, `port`, `config`, `host-keys`, `auth-keys`, `dns`, `fix-config`, `ssh`, `download`, `upload`, `upplace`, `wake-lock`, `wake-unlock`, `backup-config`, `sync-config`, `sync-from-remote`, `print-sudoers`, `print-sudoers-install-script`, `generate-sudoer-request`, `submit-sudoer-request`, `remove-project-sudoers`, `rc-test`) | 0 |
 | EX-OK-02 | `install` or `self-install` placed the file, or it was already installed and `--force` was off | 0 |
 | EX-OK-03 | `version-check` fetched a remote version (newer, same, or local newer). A missing remote version is EX-RET-01 | 0 |
 | EX-OK-04 | `self-update` is already current, or the replace finished | 0 |
@@ -597,7 +633,8 @@ When the ship unit detects Termux, Git Bash, Windows cmd, or the same class, adm
 |------|--------|-------|
 | 2026-10-10 | Active 1.0.0 | Exit catalog from `out_die` and the direct-command `return 1` messages in `src/sshd-cli`. Shape referenced from sibling tmpl-to-prj. Rows are this ship unit |
 | 2026-10-14 | Active 1.0.1 | EX-DIE-25 is the POSIX Linux missing-sshd hint. EX-DIE-197 Git Bash, EX-DIE-198 Windows cmd, EX-DIE-199 macOS. The program does not run `apt` or `dnf` |
+| 2026-11-16 | Active 1.0.2 | EX-DIE-200 through EX-DIE-229 are `upplace` fatals. EX-RET-18 through EX-RET-21 are the pre-check stops (home, name, missing, backup). EX-OK-01 includes `upplace` |
 
-**Last Updated**: 2026-10-14 (1.0.1 missing-sshd next step by family. 2026-10-10)  
+**Last Updated**: 2026-11-16 (1.0.2 `upplace` fatals EX-DIE-200..229 and pre-check stops EX-RET-18..21. 1.0.1 missing-sshd next step by family. 2026-10-10)  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

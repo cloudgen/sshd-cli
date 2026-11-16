@@ -22,6 +22,7 @@ Exit **0** when all assertions pass; **1** on failure; **2** if ship unit missin
 | `test_fix_config.sh` | `fix-config` flags, OS comment table, automatic pass on `version` | **TP-FIX-01..14** |
 | `test_ssh_download.sh` | OpenSSH client Host pick (`ssh`) + user default + commented `HostKeyAlgorithms` `-o` + remote folder tar.gz (`download`) + local folder tar.gz (`upload`) with TTY user default and `~/folder`; fake `SSHD_CLI_SSH`. Those rows are not an MSYS reader | **TP-SSH-01..10** · **TP-DL-01..17** · **TP-UL-01..18** |
 | `test_os_transfer.sh` | MSYS2 / Git Bash finished-file transfer and the Windows_NT pipe; fake `ssh` and `scp` | **TP-OS-GB-01..04** · **TP-OS-CMD-01** |
+| `test_upplace.sh` | `upplace`: same-named remote folder, backup `name.yyyyMMdd.bak`, tar.gz to `/tmp`, `cp -rP`, home and name stops, menu return; fake `ssh` and `scp` under `/tmp` | **TP-UP-01..14** |
 | `test_config_backup.sh` | `backup-config` / `sync-config` / `sync-from-remote` / sudoers grant; Termux Git Bash Windows cmd hide; TTY sudoers unknown retry | **TP-CFG-01..17** |
 
 ## Isolation

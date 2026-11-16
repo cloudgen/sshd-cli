@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/sshd-cli`  
-**Product VERSION:** 1.35.1  
-**Last plan update:** 2026-10-16  
-**Last suite run:** PASS=1142 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-16, product 1.35.1). **TP-OS-GB-01** .. **TP-OS-GB-04** and **TP-OS-CMD-01** passed. Prior run: PASS=1107 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-14, product 1.35.0). **TP-SSHD-17** passed: a missing sshd names `dnf` on Fedora and RHEL and `apt` on Debian and Ubuntu, and says this program does not run that command. Git Bash, Windows cmd, and macOS each have their own next step. Prior run: PASS=1100 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-14, product 1.34.0). **TP-CLI-14**, **TP-CLI-21**, **TP-CLI-24**, **TP-SSHD-04**, and **TP-CFG-04** / **05** / **09** / **17** passed: front **5** sudoers (**51–55**), **6** self-management (TTY **62** runs about), **7** language block **70–89** (assigned **71–83**); front **8** warns; Termux / Git Bash / Windows cmd omit row **5**. Prior run: PASS=1099 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-10, product 1.33.0). **TP-SSHD-04**, **TP-CFG-04**, **TP-CFG-05**, and **TP-CFG-09** passed: Termux / Git Bash / Windows cmd print `sudoers not available for termux` / `gitbash` / `windows-cmd` before the front numbers and omit row **7**. Prior run: PASS=1091 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-02, product 1.32.0). **TP-CLI-14** and **TP-CLI-24** passed: front **5** language, block **50–69** (assigned **51–63**); **50**, **64**, and **69** do not write the file; front **6** warns and does not open the language board. Earlier: PASS=1065 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-02, product 1.31.0), assigned **51–58**. Earlier: PASS=844 FAIL=22 SKIP=0 (`./tests/run.sh`, 2026-09-28, product 1.28.0). Those 22 were TP-DL-* `tar xzf` cases. The 1.31.0 run’s TP-DL-* cases passed.
+**Product VERSION:** 1.36.0  
+**Last plan update:** 2026-11-16  
+**Last suite run:** PASS=1224 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-11-16, product 1.36.0). **TP-UP-01** .. **TP-UP-14** passed. Prior run: PASS=1142 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-16, product 1.35.1). **TP-OS-GB-01** .. **TP-OS-GB-04** and **TP-OS-CMD-01** passed. Prior run: PASS=1107 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-14, product 1.35.0). **TP-SSHD-17** passed: a missing sshd names `dnf` on Fedora and RHEL and `apt` on Debian and Ubuntu, and says this program does not run that command. Git Bash, Windows cmd, and macOS each have their own next step. Prior run: PASS=1100 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-14, product 1.34.0). **TP-CLI-14**, **TP-CLI-21**, **TP-CLI-24**, **TP-SSHD-04**, and **TP-CFG-04** / **05** / **09** / **17** passed: front **5** sudoers (**51–55**), **6** self-management (TTY **62** runs about), **7** language block **70–89** (assigned **71–83**); front **8** warns; Termux / Git Bash / Windows cmd omit row **5**. Prior run: PASS=1099 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-10, product 1.33.0). **TP-SSHD-04**, **TP-CFG-04**, **TP-CFG-05**, and **TP-CFG-09** passed: Termux / Git Bash / Windows cmd print `sudoers not available for termux` / `gitbash` / `windows-cmd` before the front numbers and omit row **7**. Prior run: PASS=1091 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-02, product 1.32.0). **TP-CLI-14** and **TP-CLI-24** passed: front **5** language, block **50–69** (assigned **51–63**); **50**, **64**, and **69** do not write the file; front **6** warns and does not open the language board. Earlier: PASS=1065 FAIL=0 SKIP=0 (`./tests/run.sh`, 2026-10-02, product 1.31.0), assigned **51–58**. Earlier: PASS=844 FAIL=22 SKIP=0 (`./tests/run.sh`, 2026-09-28, product 1.28.0). Those 22 were TP-DL-* `tar xzf` cases. The 1.31.0 run’s TP-DL-* cases passed.
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -31,6 +31,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | OpenSSH client `ssh` Host pick | have | TP-SSH-01..09 |
 | remote folder `download` tar.gz into cwd | have | TP-DL-01..17 |
 | local folder `upload` tar.gz onto a Host | have | TP-UL-01..18 |
+| `upplace` same-named remote folder, backup, `/tmp`, `cp -rP` | have | TP-UP-01..14 |
 | Automatic companion link on install (file://) | have | TP-CSUM-01 |
 | Backup / restore / sudoers emit | n/a | Absent by design (not a backup product) |
 | Online curl against public GitHub | n/a | Core suite stays offline; channel is `file://` in CI |
@@ -84,7 +85,7 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-CFG-16 | `--json` type/host fields | test_config_backup | requirement-shell-config-backup | **have** |
 | TP-CFG-17 | TTY front **5** sudoers submenu unknown choice warns and redisplays; verbs **51–55** | test_config_backup | requirement-domain-sshd · requirement-shell-interactive-vs-noninteractive | **have** |
 | TP-CLI-13 | backup/restore/sudoers verbs unknown | test_cli | requirement-shell-cli-interface | **have** |
-| TP-CLI-14 | empty argv interactive → front 1/2/5/6/7/9 (sudoers **5**, self-management **6**, language **7**; no install); client 11 dns / 12 ssh / 13 download / 14 upload; no client **17** | test_cli | requirement-shell-cli-default-interaction · requirement-shell-cli-zero-arguments · requirement-domain-sshd | **have** |
+| TP-CLI-14 | empty argv interactive → front 1/2/5/6/7/9 (sudoers **5**, self-management **6**, language **7**; no install); client 11 dns / 12 ssh / 13 download / 14 upload / 19 upplace; no client **17** | test_cli | requirement-shell-cli-default-interaction · requirement-shell-cli-zero-arguments · requirement-domain-sshd · requirement-domain-upplace | **have** |
 | TP-CLI-23 | switch-only: TTY `--debug` / `--force` menu and no install; `--quiet` / `--json` / non-TTY `--debug` self-install; TTY `--json` places the CLI; `--debug status` stays status | test_cli | requirement-shell-cli-zero-arguments · requirement-shell-cli-default-interaction · requirement-shell-cli-self-install | **have** |
 | TP-CLI-24 | Menu **7** language, block **70–89** (at most 20; **70** and **84–89** unprinted): **71** English, **72** Simplified Chinese, **73** Traditional Chinese, **74** Spanish, **75** Arabic, **76** French, **77** Portuguese, **78** Russian, **79** German, **80** Japanese, **81** Korean, **82** Dutch, **83** Greek, file `language` mode 600, unrecognized line stays English, `SSHD_CLI_LANG` overrides the file, Japanese and Korean `help` and `about` | test_cli | requirement-shell-cli-language · requirement-shell-cli-default-interaction · requirement-shell-cli-storage | **have** |
 | TP-CLI-21 | TTY **62** / typed `version` run about; argv `version` stays thin JSON type | test_cli | requirement-shell-cli-default-interaction · requirement-shell-cli-interface · **INC-20260914-001** | **have** |
@@ -242,6 +243,25 @@ This product **is** online-installable (`SCRIPT_URL`, `self-update`, `version-ch
 | TP-UL-16 | `~user/path` fail-closed | test_ssh_download | requirement-domain-sshd | **have** |
 | TP-UL-17 | missing local directory fail-closed | test_ssh_download | requirement-domain-sshd | **have** |
 | TP-UL-18 | TTY client menu numbers upload **14** | test_ssh_download | requirement-domain-sshd · requirement-shell-cli-default-interaction | **have** |
+
+### TP-UP (upload and replace)
+
+| TP-ID | Intent | Suite | Primary requirement(s) | Status |
+|-------|--------|-------|------------------------|--------|
+| TP-UP-01 | help lists `upplace` and the client tree names it | test_upplace | requirement-domain-upplace · requirement-shell-cli-language | **have** |
+| TP-UP-02 | non-interactive replace: backup `name.yyyyMMdd.bak`, tar.gz to `/tmp`, `cp -rP`, temps gone | test_upplace | requirement-domain-upplace | **have** |
+| TP-UP-03 | local `~/folder` expands on this login | test_upplace | requirement-domain-upplace | **have** |
+| TP-UP-04 | missing same-named directory stops; no rename, no scp | test_upplace | requirement-domain-upplace · requirement-shell-exit-condition | **have** |
+| TP-UP-05 | different basename stops | test_upplace | requirement-domain-upplace | **have** |
+| TP-UP-06 | target equal to the remote home stops | test_upplace | requirement-domain-upplace | **have** |
+| TP-UP-07 | `~`, `~/`, relative, `~user`, metacharacters, and `/` are refused locally | test_upplace | requirement-domain-upplace | **have** |
+| TP-UP-08 | `Host *` is not an upplace row | test_upplace | requirement-domain-upplace | **have** |
+| TP-UP-09 | TTY user `ada` passes `-l` and scp goes to `/tmp` | test_upplace | requirement-domain-upplace · requirement-shell-interactive-vs-noninteractive | **have** |
+| TP-UP-10 | existing `.bak` stops before `mv` | test_upplace | requirement-domain-upplace | **have** |
+| TP-UP-11 | scp failure rolls the backup back and removes temps | test_upplace | requirement-domain-upplace | **have** |
+| TP-UP-12 | JSON success is one object; JSON missing is `upplace_missing` | test_upplace | requirement-domain-upplace · requirement-shell-output-requirements | **have** |
+| TP-UP-13 | menu row 19 on a miss returns to the front board (process status 0) | test_upplace | requirement-domain-upplace · requirement-shell-cli-default-interaction | **have** |
+| TP-UP-14 | direct command without a target exits 1 | test_upplace | requirement-domain-upplace · requirement-shell-exit-condition | **have** |
 
 ### TP-OS (folder tar.gz by OS family)
 

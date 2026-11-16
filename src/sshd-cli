@@ -58,7 +58,7 @@ APP_NAME="sshd-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: simplify Termux to install and run OpenSSH sshd (status/start/stop/port/keys/dns) plus self-install; Linux host deposit of ~/.ssh/config (backup-config / sync-config / sync-from-remote).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.35.1"
+VERSION="1.36.0"
 : "${VERSION:=1.29.0}"
 
 # Runtime flags (safe defaults)
@@ -8476,6 +8476,698 @@ sshd_cmd_upload() {
     return 0
 }
 
+# =============================================================================
+# sshd_cmd_upplace — back up a same-named remote folder, then replace it
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Ask the same Host, user, and local folder questions as upload, then ask the
+# remote target last (absolute, or ~/folder under that ssh user). SSH checks
+# that the target is an existing directory whose basename is the local folder
+# name and that it is not the remote home. On that miss, print an error and
+# return to the menu (direct use exits 1) with no rename and no upload.
+# On a hit, rename the remote folder to basename.YYYYMMDD.bak (this login's
+# date), tar.gz the local folder, scp the archive to /tmp, expand it there,
+# and cp -rP it onto the target parent. Remove the temp folder and the
+# archive on the remote host and on this login. Never rename or replace
+# the remote home. Never pipe gzip. Upload's pipe stays unchanged.
+#
+# ALIGNMENT:
+# - requirement-domain-upplace.md
+#
+# Last updated: 2026-11-16
+# =============================================================================
+
+sshd_upplace_stop() {
+    out_json_error "$1" "${2:-upplace_stopped}"
+    out_error "$1"
+    return 1
+}
+
+sshd_upplace_clear() {
+    unset _sel _folder _target _row _dns _n _user _local _base _dir _bin _scp \
+        _date _q_target _q_base _q_date _q_arch _q_stage _arch_name _stage_name \
+        _arch_path _scp_to _cmd _next _json_user _up_renamed _up_local_stage \
+        _up_next _fr_msg _fr_clean _fr_rb SSHD_UP_OUT SSHD_UP_ERR SSHD_UP_RC \
+        SSHD_UP_TOK SSHD_UP_TARGET SSHD_UL_FOLDER
+}
+
+sshd_upplace_local_clean() {
+    if [ -z "${_up_local_stage:-}" ]; then
+        return 0
+    fi
+    case "${_up_local_stage}" in
+        *".."*) return 0 ;;
+    esac
+    case "${_up_local_stage}" in
+        /|/tmp|/var/tmp|"${HOME:-}"|"${TMPDIR:-}") return 0 ;;
+    esac
+    case "${_up_local_stage}" in
+        /tmp/*|/var/tmp/*) ;;
+        *)
+            if [ -n "${TMPDIR:-}" ]; then
+                case "${_up_local_stage}" in
+                    "${TMPDIR%/}"/*) ;;
+                    *) return 0 ;;
+                esac
+            else
+                return 0
+            fi
+            ;;
+    esac
+    rm -rf "${_up_local_stage}"
+    _up_local_stage=""
+}
+
+# One BatchMode ssh. Sets SSHD_UP_TOK to the first stdout line.
+# Returns 0 when the client ran (remote status is SSHD_UP_RC).
+sshd_upplace_ssh() {
+    _us_bin="${1-}"
+    _us_user="${2-}"
+    _us_dns="${3-}"
+    _us_cmd="${4-}"
+    SSHD_UP_OUT=""
+    SSHD_UP_ERR=""
+    SSHD_UP_RC=0
+    SSHD_UP_TOK=""
+    _us_outf=$(mktemp -t "${APP_NAME}.upout.XXXXXX") || {
+        unset _us_bin _us_user _us_dns _us_cmd
+        return 1
+    }
+    _us_errf=$(mktemp -t "${APP_NAME}.uperr.XXXXXX") || {
+        rm -f "${_us_outf}"
+        unset _us_bin _us_user _us_dns _us_cmd _us_outf
+        return 1
+    }
+    if [ -n "${_us_user}" ]; then
+        "${_us_bin}" -o BatchMode=yes -o ConnectTimeout=15 -l "${_us_user}" "${_us_dns}" "${_us_cmd}" </dev/null >"${_us_outf}" 2>"${_us_errf}"
+        SSHD_UP_RC=$?
+    else
+        "${_us_bin}" -o BatchMode=yes -o ConnectTimeout=15 "${_us_dns}" "${_us_cmd}" </dev/null >"${_us_outf}" 2>"${_us_errf}"
+        SSHD_UP_RC=$?
+    fi
+    SSHD_UP_TOK=$(awk 'NR==1{sub(/\r$/,""); print; exit}' "${_us_outf}" 2>/dev/null || true)
+    SSHD_UP_OUT="${SSHD_UP_TOK}"
+    SSHD_UP_ERR=$(cat "${_us_errf}" 2>/dev/null || true)
+    rm -f "${_us_outf}" "${_us_errf}"
+    unset _us_bin _us_user _us_dns _us_cmd _us_outf _us_errf
+    return 0
+}
+
+sshd_upplace_show_err() {
+    if [ -n "${SSHD_UP_ERR:-}" ]; then
+        printf '%s\n' "${SSHD_UP_ERR}" >&2
+    fi
+}
+
+# Remote probe. Quoted target keeps "$HOME" for the remote shell.
+sshd_upplace_remote_probe() {
+    _rp_t="${1-}"
+    _rp_b="${2-}"
+    printf '%s\n' \
+        "_t=${_rp_t}" \
+        "_want=${_rp_b}" \
+        'if [ "$_t" = "$HOME" ] || [ "$_t" = "${HOME%/}" ]; then' \
+        '    printf "%s\n" __UPPLACE_HOME__' \
+        '    exit 3' \
+        'fi' \
+        'if [ -d "$_t" ]; then' \
+        '    _rp=$(cd "$_t" && { pwd -P 2>/dev/null || pwd; })' \
+        '    _hp=$(cd "$HOME" && { pwd -P 2>/dev/null || pwd; })' \
+        '    if [ "$_rp" = "$_hp" ]; then' \
+        '        printf "%s\n" __UPPLACE_HOME__' \
+        '        exit 3' \
+        '    fi' \
+        'fi' \
+        '_bn=$(basename "$_t")' \
+        'if [ "$_bn" != "$_want" ]; then' \
+        '    printf "%s\n" __UPPLACE_NAME__' \
+        '    exit 4' \
+        'fi' \
+        'if [ ! -d "$_t" ]; then' \
+        '    printf "%s\n" __UPPLACE_MISSING__' \
+        '    exit 5' \
+        'fi' \
+        'printf "%s\n" __UPPLACE_OK__' \
+        'exit 0'
+    unset _rp_t _rp_b
+}
+
+sshd_upplace_remote_rename() {
+    _rr_t="${1-}"
+    _rr_b="${2-}"
+    _rr_d="${3-}"
+    printf '%s\n' \
+        "_t=${_rr_t}" \
+        "_want=${_rr_b}" \
+        "_date=${_rr_d}" \
+        'if [ "$_t" = "$HOME" ] || [ "$_t" = "${HOME%/}" ]; then' \
+        '    printf "%s\n" __UPPLACE_HOME__' \
+        '    exit 3' \
+        'fi' \
+        '_bn=$(basename "$_t")' \
+        'if [ "$_bn" != "$_want" ]; then' \
+        '    printf "%s\n" __UPPLACE_NAME__' \
+        '    exit 4' \
+        'fi' \
+        'if [ ! -d "$_t" ]; then' \
+        '    printf "%s\n" __UPPLACE_MISSING__' \
+        '    exit 5' \
+        'fi' \
+        '_parent=$(dirname "$_t")' \
+        'if [ "$_parent" = "/" ]; then' \
+        '    _bak="/${_bn}.${_date}.bak"' \
+        'else' \
+        '    _bak="${_parent}/${_bn}.${_date}.bak"' \
+        'fi' \
+        'if [ -e "$_bak" ]; then' \
+        '    printf "%s\n" __UPPLACE_BAK__' \
+        '    exit 6' \
+        'fi' \
+        'if ! mv "$_t" "$_bak"; then' \
+        '    printf "%s\n" __UPPLACE_RENAME_FAIL__' \
+        '    exit 7' \
+        'fi' \
+        'printf "%s\n" __UPPLACE_RENAMED__' \
+        'exit 0'
+    unset _rr_t _rr_b _rr_d
+}
+
+sshd_upplace_remote_expand() {
+    _re_t="${1-}"
+    _re_b="${2-}"
+    _re_a="${3-}"
+    _re_s="${4-}"
+    printf '%s\n' \
+        "_t=${_re_t}" \
+        "_base=${_re_b}" \
+        "_arch=${_re_a}" \
+        "_stage=${_re_s}" \
+        'if [ "$_t" = "$HOME" ] || [ "$_t" = "${HOME%/}" ]; then' \
+        '    printf "%s\n" __UPPLACE_HOME__' \
+        '    exit 3' \
+        'fi' \
+        'case "$_arch" in' \
+        '    /tmp/?*) ;;' \
+        '    *) printf "%s\n" __UPPLACE_EXTRACT_FAIL__; exit 9 ;;' \
+        'esac' \
+        'case "$_arch" in' \
+        '    *..*) printf "%s\n" __UPPLACE_EXTRACT_FAIL__; exit 9 ;;' \
+        'esac' \
+        'case "$_stage" in' \
+        '    /tmp/?*) ;;' \
+        '    *) printf "%s\n" __UPPLACE_EXTRACT_FAIL__; exit 9 ;;' \
+        'esac' \
+        'case "$_stage" in' \
+        '    *..*|/tmp|/tmp/) printf "%s\n" __UPPLACE_EXTRACT_FAIL__; exit 9 ;;' \
+        'esac' \
+        'if ! mkdir -m 0700 "$_stage"; then' \
+        '    rm -f "$_arch"' \
+        '    printf "%s\n" __UPPLACE_EXTRACT_FAIL__' \
+        '    exit 9' \
+        'fi' \
+        'if ! tar xzf "$_arch" -C "$_stage"; then' \
+        '    rm -rf "$_stage"' \
+        '    rm -f "$_arch"' \
+        '    printf "%s\n" __UPPLACE_EXTRACT_FAIL__' \
+        '    exit 9' \
+        'fi' \
+        'if [ ! -d "$_stage/$_base" ]; then' \
+        '    rm -rf "$_stage"' \
+        '    rm -f "$_arch"' \
+        '    printf "%s\n" __UPPLACE_EXTRACT_FAIL__' \
+        '    exit 9' \
+        'fi' \
+        '_parent=$(dirname "$_t")' \
+        'if [ -z "$_parent" ] || [ "$_parent" = "." ]; then' \
+        '    rm -rf "$_stage"' \
+        '    rm -f "$_arch"' \
+        '    printf "%s\n" __UPPLACE_CP_FAIL__' \
+        '    exit 10' \
+        'fi' \
+        'if ! cp -rP "$_stage/$_base" "$_parent/"; then' \
+        '    rm -rf "$_stage"' \
+        '    rm -f "$_arch"' \
+        '    printf "%s\n" __UPPLACE_CP_FAIL__' \
+        '    exit 10' \
+        'fi' \
+        'rm -rf "$_stage"' \
+        'rm -f "$_arch"' \
+        'printf "%s\n" __UPPLACE_REPLACED__' \
+        'exit 0'
+    unset _re_t _re_b _re_a _re_s
+}
+
+sshd_upplace_remote_cleanup() {
+    _cu_a="${1-}"
+    _cu_s="${2-}"
+    printf '%s\n' \
+        "_a=${_cu_a}" \
+        "_s=${_cu_s}" \
+        'case "$_a" in' \
+        '    /tmp/?*)' \
+        '        case "$_a" in' \
+        '            *..*) ;;' \
+        '            *) rm -f "$_a" ;;' \
+        '        esac' \
+        '        ;;' \
+        'esac' \
+        'case "$_s" in' \
+        '    /tmp/?*)' \
+        '        case "$_s" in' \
+        '            *..*|/tmp|/tmp/) ;;' \
+        '            *) rm -rf "$_s" ;;' \
+        '        esac' \
+        '        ;;' \
+        'esac' \
+        'printf "%s\n" __UPPLACE_CLEANED__' \
+        'exit 0'
+    unset _cu_a _cu_s
+}
+
+sshd_upplace_remote_rollback() {
+    _rb_t="${1-}"
+    _rb_b="${2-}"
+    _rb_d="${3-}"
+    printf '%s\n' \
+        "_t=${_rb_t}" \
+        "_want=${_rb_b}" \
+        "_date=${_rb_d}" \
+        '_bn=$(basename "$_t")' \
+        '_parent=$(dirname "$_t")' \
+        'if [ "$_parent" = "/" ]; then' \
+        '    _bak="/${_bn}.${_date}.bak"' \
+        'else' \
+        '    _bak="${_parent}/${_bn}.${_date}.bak"' \
+        'fi' \
+        'if [ -d "$_bak" ] && [ ! -e "$_t" ]; then' \
+        '    if mv "$_bak" "$_t"; then' \
+        '        printf "%s\n" __UPPLACE_ROLLED__' \
+        '        exit 0' \
+        '    fi' \
+        '    printf "%s\n" __UPPLACE_ROLLBACK_FAIL__' \
+        '    exit 12' \
+        'fi' \
+        'printf "%s\n" __UPPLACE_ROLLED__' \
+        'exit 0'
+    unset _rb_t _rb_b _rb_d
+}
+
+sshd_upplace_fail_after_rename() {
+    _fr_msg="${1-}"
+    _fr_clean=$(sshd_upplace_remote_cleanup "${_q_arch}" "${_q_stage}")
+    sshd_upplace_ssh "${_bin}" "${_user}" "${_dns}" "${_fr_clean}" || true
+    if [ "${_up_renamed}" -eq 1 ]; then
+        _fr_rb=$(sshd_upplace_remote_rollback "${_q_target}" "${_q_base}" "${_q_date}")
+        if sshd_upplace_ssh "${_bin}" "${_user}" "${_dns}" "${_fr_rb}"; then
+            case "${SSHD_UP_TOK}" in
+                __UPPLACE_ROLLED__) ;;
+                *) _fr_msg="${_fr_msg} Could not restore ${_target} from the backup." ;;
+            esac
+        else
+            _fr_msg="${_fr_msg} Could not restore ${_target} from the backup."
+        fi
+    fi
+    sshd_upplace_local_clean
+    out_die "${_fr_msg}"
+}
+
+sshd_upplace_validate_local() {
+    _vf="${1-}"
+    _vf_next="${2-}"
+    if [ -z "${_vf}" ]; then
+        out_die "upplace needs a local folder. Next: ${APP_NAME} ${_vf_next}"
+    fi
+    case "${_vf}" in
+        -*)
+            out_die "Local folder '${_vf}' is not allowed. Use an absolute or relative path, or ~/folder (not ., .., /, or ~ alone). Next: ${APP_NAME} ${_vf_next}"
+            ;;
+    esac
+    _vf_body="${_vf}"
+    _vf_rest="${_vf#\~}"
+    if [ "${_vf}" != "${_vf_rest}" ]; then
+        case "${_vf_rest}" in
+            /*)
+                _vf_body="${_vf_rest#/}"
+                if [ -z "${_vf_body}" ]; then
+                    out_die "Local folder '${_vf}' is not allowed. Use ~/folder for this login home (not ~ alone). Next: ${APP_NAME} ${_vf_next}"
+                fi
+                ;;
+            *)
+                out_die "Local folder '${_vf}' is not allowed. Use ~/folder for this login home (not ~ alone or ~user). Next: ${APP_NAME} ${_vf_next}"
+                ;;
+        esac
+    fi
+    if [ "${_vf}" = "." ] || [ "${_vf}" = ".." ] || [ "${_vf}" = "/" ]; then
+        out_die "Local folder '${_vf}' is not allowed. Use an absolute or relative path, or ~/folder (not ., .., /, or ~ alone). Next: ${APP_NAME} ${_vf_next}"
+    fi
+    case "${_vf_body}" in
+        *';'*|*'|'*|*'&'*|'$'*|'`'*|*"\\"*|*'('*|*')'*|*'<'*|*'>'*|'*'*|'?'*|*'!'*|*'~'*|*'#'*)
+            out_die "Local folder '${_vf}' has a character that is not allowed. Next: ${APP_NAME} ${_vf_next}"
+            ;;
+    esac
+    unset _vf _vf_body _vf_rest _vf_next
+}
+
+sshd_upplace_validate_target() {
+    _vt="${1-}"
+    _vt_next="${2-}"
+    if [ -z "${_vt}" ]; then
+        out_die "upplace needs a target folder. Next: ${APP_NAME} ${_vt_next}"
+    fi
+    case "${_vt}" in
+        -*)
+            out_die "Target folder '${_vt}' is not allowed. Use an absolute path or ~/folder under that ssh user home (not /, ~, ~/, a relative path, or ~user). Next: ${APP_NAME} ${_vt_next}"
+            ;;
+    esac
+    _vt_ok=0
+    case "${_vt}" in
+        /*) _vt_ok=1 ;;
+        \~/*) _vt_ok=1 ;;
+    esac
+    if [ "${_vt_ok}" -eq 0 ]; then
+        out_die "Target folder '${_vt}' is not allowed. Use an absolute path or ~/folder under that ssh user home (not /, ~, ~/, a relative path, or ~user). Next: ${APP_NAME} ${_vt_next}"
+    fi
+    if [ "${_vt}" = "/" ] || [ "${_vt}" = "~" ] || [ "${_vt}" = "~/" ]; then
+        out_die "Target folder '${_vt}' is not allowed. Use an absolute path or ~/folder under that ssh user home (not /, ~, ~/, a relative path, or ~user). Next: ${APP_NAME} ${_vt_next}"
+    fi
+    _vt_body="${_vt}"
+    case "${_vt}" in
+        \~/*) _vt_body="${_vt#\~/}" ;;
+        /*) _vt_body="${_vt#/}" ;;
+    esac
+    if [ -z "${_vt_body}" ]; then
+        out_die "Target folder '${_vt}' is not allowed. Use an absolute path or ~/folder under that ssh user home (not /, ~, ~/, a relative path, or ~user). Next: ${APP_NAME} ${_vt_next}"
+    fi
+    _vt_bn=$(basename "${_vt}")
+    if [ "${_vt_bn}" = "." ] || [ "${_vt_bn}" = ".." ] || [ -z "${_vt_bn}" ]; then
+        out_die "Target folder '${_vt}' is not allowed. Use an absolute path or ~/folder under that ssh user home (not /, ~, ~/, a relative path, or ~user). Next: ${APP_NAME} ${_vt_next}"
+    fi
+    case "${_vt_body}" in
+        *';'*|*'|'*|*'&'*|'$'*|'`'*|*"\\"*|*'('*|*')'*|*'<'*|*'>'*|'*'*|'?'*|*'!'*|*'~'*|*'#'*)
+            out_die "Target folder '${_vt}' has a character that is not allowed. Next: ${APP_NAME} ${_vt_next}"
+            ;;
+    esac
+    unset _vt _vt_next _vt_ok _vt_body _vt_bn
+}
+
+# Sets SSHD_UL_FOLDER. MUST run in the current shell (do not capture this read).
+sshd_upplace_walk_folder() {
+    _uw_dns="$1"
+    SSHD_UL_FOLDER=""
+    while true; do
+        _uw_i=0
+        _uw_keys=""
+        while IFS= read -r _uw_p || [ -n "${_uw_p}" ]; do
+            [ -n "${_uw_p}" ] || continue
+            _uw_i=$((_uw_i + 1))
+            if [ -z "${_uw_keys}" ]; then
+                _uw_keys="${_uw_p}"
+            else
+                _uw_keys="${_uw_keys}
+${_uw_p}"
+            fi
+            out_plain "${_uw_i}. ${_uw_p}"
+        done <<EOF
+$(sshd_upload_folders_list "${_uw_dns}")
+EOF
+        if [ "${_uw_i}" -eq 0 ]; then
+            out_msg_n "Local folder to upplace (absolute, relative, or ~/folder on this login): "
+        else
+            out_info "Previous local folders for ${_uw_dns}. Choose a number, or type a folder path."
+            out_msg_n "Folder: "
+        fi
+        _uw_pick=""
+        read -r _uw_pick || true
+        if [ -z "${_uw_pick}" ]; then
+            _uw_name="${_uw_dns}"
+            unset _uw_dns _uw_i _uw_keys _uw_p _uw_pick
+            out_die "upplace needs a local folder. Next: ${APP_NAME} upplace ${_uw_name} ./folder ~/folder"
+        fi
+        _uw_is_num=0
+        case "${_uw_pick}" in
+            *[!0-9]*) _uw_is_num=0 ;;
+            *) _uw_is_num=1 ;;
+        esac
+        if [ "${_uw_is_num}" -eq 1 ] && [ "${_uw_i}" -gt 0 ]; then
+            if [ "${_uw_pick}" -ge 1 ] && [ "${_uw_pick}" -le "${_uw_i}" ]; then
+                SSHD_UL_FOLDER=$(printf '%s\n' "${_uw_keys}" | awk -v n="${_uw_pick}" 'NR==n {print; exit}')
+                unset _uw_dns _uw_i _uw_keys _uw_p _uw_pick _uw_is_num
+                return 0
+            fi
+            out_warn "Unknown folder choice '${_uw_pick}'. Choose a number from the list, or type a folder path."
+            continue
+        fi
+        SSHD_UL_FOLDER="${_uw_pick}"
+        unset _uw_dns _uw_i _uw_keys _uw_p _uw_pick _uw_is_num
+        return 0
+    done
+}
+
+# Sets SSHD_UP_TARGET. MUST run in the current shell (do not capture this read).
+sshd_upplace_walk_target() {
+    _ut_dns="${1-}"
+    _ut_folder="${2-}"
+    SSHD_UP_TARGET=""
+    out_msg_n "Target folder on that host (absolute, or ~/folder under that ssh user home): "
+    _ut_pick=""
+    read -r _ut_pick || true
+    if [ -z "${_ut_pick}" ]; then
+        unset _ut_pick
+        out_die "upplace needs a target folder. Next: ${APP_NAME} upplace ${_ut_dns} ${_ut_folder} ~/folder"
+    fi
+    SSHD_UP_TARGET=$(sshd_upload_norm_folder "${_ut_pick}")
+    unset _ut_dns _ut_folder _ut_pick
+}
+
+sshd_cmd_upplace() {
+    : "${JSON:=0}"
+    : "${TTY:=0}"
+    : "${QUIET:=0}"
+    : "${SSHD_CLI_SSH:=}"
+    : "${APP_NAME:=sshd-cli}"
+    : "${HOME:=/tmp}"
+    _sel="${1-}"
+    _folder="${2-}"
+    _target="${3-}"
+    _up_renamed=0
+    _up_local_stage=""
+    _q_arch=$(sshd_sh_quote "")
+    _q_stage=$(sshd_sh_quote "")
+    _user=""
+    _date=""
+    _base=""
+    _dns=""
+    _bin=""
+    _scp=""
+    if [ -z "${_sel}" ]; then
+        if sshd_dns_can_prompt; then
+            if sshd_dns_pick_host "upplace"; then
+                _sel="${DNS_PICK_SEL}"
+            else
+                sshd_upplace_clear
+                return 0
+            fi
+        else
+            out_die "upplace needs a number or Host name, a local folder, and a target folder. Next: ${APP_NAME} dns list, then ${APP_NAME} upplace <n|name> ./folder ~/folder"
+        fi
+    fi
+    _row=$(sshd_dns_lookup "${_sel}") || out_die "No Host entry '${_sel}' in $(sshd_dns_config_path). Next: ${APP_NAME} dns list"
+    sshd_dns_load_row "${_row}"
+    _dns="${DNS_R_DNS}"
+    _n="${DNS_R_N}"
+    _up_next="upplace ${_dns} ./folder ~/folder"
+    if sshd_dns_can_prompt; then
+        sshd_ssh_walk_user "${DNS_R_USER}"
+        _user="${SSHD_SSH_USER}"
+        sshd_ssh_validate_user "${_user}" "upplace <n|name> ./folder ~/folder"
+    fi
+    if [ -z "${_folder}" ]; then
+        if sshd_dns_can_prompt; then
+            sshd_upplace_walk_folder "${_dns}"
+            _folder="${SSHD_UL_FOLDER}"
+        else
+            out_die "upplace needs a local folder. Next: ${APP_NAME} ${_up_next}"
+        fi
+    fi
+    _folder=$(sshd_upload_norm_folder "${_folder}")
+    sshd_upplace_validate_local "${_folder}" "${_up_next}"
+    _local=$(sshd_upload_local_path "${_folder}")
+    if [ ! -d "${_local}" ]; then
+        out_die "Local folder '${_folder}' is not a directory. Next: ${APP_NAME} upplace ${_dns} ${_folder} ~/folder"
+    fi
+    _base=$(basename "${_local}")
+    _dir=$(dirname "${_local}")
+    if [ -z "${_base}" ] || [ "${_base}" = "/" ] || [ "${_base}" = "." ] || [ "${_base}" = ".." ]; then
+        out_die "Local folder '${_folder}' is not allowed. Next: ${APP_NAME} upplace ${_dns} ${_folder} ~/folder"
+    fi
+    if [ -z "${_target}" ]; then
+        if sshd_dns_can_prompt; then
+            sshd_upplace_walk_target "${_dns}" "${_folder}"
+            _target="${SSHD_UP_TARGET}"
+        else
+            out_die "upplace needs a target folder. Next: ${APP_NAME} upplace ${_dns} ${_folder} ~/folder"
+        fi
+    fi
+    _target=$(sshd_upload_norm_folder "${_target}")
+    sshd_upplace_validate_target "${_target}" "upplace ${_dns} ${_folder} ~/folder"
+    _bin=$(sshd_ssh_cmd)
+    if [ -z "${_bin}" ] || [ ! -x "${_bin}" ]; then
+        out_die "Cannot upplace: OpenSSH client not found. Next: install openssh-client, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    _scp=$(sshd_scp_cmd)
+    if [ -z "${_scp}" ] || [ ! -x "${_scp}" ]; then
+        out_die "Cannot upplace: scp not found. Next: install openssh-client, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    if ! command -v tar >/dev/null 2>&1; then
+        out_die "Cannot upplace: tar not found. Next: install tar, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    if ! command -v gzip >/dev/null 2>&1; then
+        out_die "Cannot upplace: gzip not found. Next: install gzip, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    _date=$(date +%Y%m%d) || _date=""
+    case "${_date}" in
+        [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) ;;
+        *)
+            out_die "Cannot upplace: date failed. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+            ;;
+    esac
+    _q_target=$(sshd_download_remote_quote "${_target}")
+    _q_base=$(sshd_sh_quote "${_base}")
+    _q_date=$(sshd_sh_quote "${_date}")
+    if [ -n "${_user}" ]; then
+        _next="ssh -l ${_user} ${_dns}"
+    else
+        _next="ssh ${_dns}"
+    fi
+    out_info "Replacing ${_folder} onto ${_target} on ${_dns} as ${_user:-${DNS_R_USER:-this login}} (backup ${_base}.${_date}.bak)"
+    _cmd=$(sshd_upplace_remote_probe "${_q_target}" "${_q_base}")
+    if ! sshd_upplace_ssh "${_bin}" "${_user}" "${_dns}" "${_cmd}"; then
+        out_die "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    case "${SSHD_UP_TOK}" in
+        __UPPLACE_OK__) ;;
+        __UPPLACE_HOME__)
+            if ! sshd_upplace_stop "Cannot upplace: target ${_target} is the remote home." "upplace_home"; then
+                sshd_upplace_clear
+                return 1
+            fi
+            ;;
+        __UPPLACE_NAME__)
+            if ! sshd_upplace_stop "Cannot upplace: target ${_target} is not named ${_base}." "upplace_name"; then
+                sshd_upplace_clear
+                return 1
+            fi
+            ;;
+        __UPPLACE_MISSING__)
+            if ! sshd_upplace_stop "Cannot upplace: ${_dns} has no folder named ${_base} at ${_target}." "upplace_missing"; then
+                sshd_upplace_clear
+                return 1
+            fi
+            ;;
+        *)
+            sshd_upplace_show_err
+            out_die "Cannot upplace: ssh ${_dns} failed. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+            ;;
+    esac
+    _cmd=$(sshd_upplace_remote_rename "${_q_target}" "${_q_base}" "${_q_date}")
+    if ! sshd_upplace_ssh "${_bin}" "${_user}" "${_dns}" "${_cmd}"; then
+        out_die "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    case "${SSHD_UP_TOK}" in
+        __UPPLACE_RENAMED__)
+            _up_renamed=1
+            ;;
+        __UPPLACE_BAK__)
+            if ! sshd_upplace_stop "Cannot upplace: backup ${_base}.${_date}.bak already exists beside ${_target} on ${_dns}." "upplace_bak"; then
+                sshd_upplace_clear
+                return 1
+            fi
+            ;;
+        __UPPLACE_HOME__)
+            if ! sshd_upplace_stop "Cannot upplace: target ${_target} is the remote home." "upplace_home"; then
+                sshd_upplace_clear
+                return 1
+            fi
+            ;;
+        __UPPLACE_RENAME_FAIL__)
+            sshd_upplace_show_err
+            out_die "Cannot upplace: could not rename ${_target} on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+            ;;
+        *)
+            _up_renamed=1
+            sshd_upplace_show_err
+            sshd_upplace_fail_after_rename "Cannot upplace: could not rename ${_target} on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+            ;;
+    esac
+    _up_local_stage=$(mktemp -d -t "${APP_NAME}.upplace.XXXXXX") || sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    chmod 0700 "${_up_local_stage}" || true
+    if [ ! -d "${_up_local_stage}" ] || [ ! -w "${_up_local_stage}" ] || [ ! -x "${_up_local_stage}" ]; then
+        sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    _arch_name=$(sshd_xfer_new_name) || _arch_name=""
+    if [ -z "${_arch_name}" ]; then
+        sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    _stage_leaf=$(mktemp -t "${APP_NAME}.upstage.XXXXXX") || _stage_leaf=""
+    if [ -z "${_stage_leaf}" ]; then
+        sshd_upplace_fail_after_rename "Cannot upplace: could not create a temp folder for the archive. Next: ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    _stage_name=$(basename "${_stage_leaf}")
+    rm -f "${_stage_leaf}"
+    _arch_path="${_up_local_stage}/${_arch_name}"
+    _q_arch=$(sshd_sh_quote "/tmp/${_arch_name}")
+    _q_stage=$(sshd_sh_quote "/tmp/${_stage_name}")
+    if ! tar czf "${_arch_path}" -C "${_dir}" "${_base}"; then
+        sshd_upplace_fail_after_rename "Cannot upplace: tar could not build the archive for ${_folder}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    if ! gzip -t "${_arch_path}"; then
+        sshd_upplace_fail_after_rename "Cannot upplace: gzip rejected the archive for ${_folder}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    if [ -n "${_user}" ]; then
+        _scp_to="${_user}@${_dns}:/tmp/${_arch_name}"
+    else
+        _scp_to="${_dns}:/tmp/${_arch_name}"
+    fi
+    if ! sshd_xfer_scp "${_scp}" "${_arch_path}" "${_scp_to}"; then
+        sshd_upplace_fail_after_rename "Cannot upplace: scp to ${_dns} failed. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    _cmd=$(sshd_upplace_remote_expand "${_q_target}" "${_q_base}" "${_q_arch}" "${_q_stage}")
+    if ! sshd_upplace_ssh "${_bin}" "${_user}" "${_dns}" "${_cmd}"; then
+        sshd_upplace_fail_after_rename "Cannot upplace: tar could not expand the archive on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+    fi
+    case "${SSHD_UP_TOK}" in
+        __UPPLACE_REPLACED__) ;;
+        __UPPLACE_CP_FAIL__)
+            sshd_upplace_show_err
+            sshd_upplace_fail_after_rename "Cannot upplace: cp could not replace ${_target} on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+            ;;
+        __UPPLACE_HOME__)
+            sshd_upplace_show_err
+            sshd_upplace_fail_after_rename "Cannot upplace: target ${_target} is the remote home. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+            ;;
+        *)
+            sshd_upplace_show_err
+            sshd_upplace_fail_after_rename "Cannot upplace: tar could not expand the archive on ${_dns}. Next: ${_next}, then ${APP_NAME} upplace ${_dns} ${_folder} ${_target}"
+            ;;
+    esac
+    sshd_upplace_local_clean
+    sshd_upload_folders_save "${_dns}" "${_folder}" || true
+    if [ "${JSON}" -eq 1 ]; then
+        _json_user="${_user}"
+        if [ -z "${_json_user}" ]; then
+            _json_user="${DNS_R_USER}"
+        fi
+        out_json "upplace" "ok" "n" "${_n}" "dns" "${_dns}" "user" "${_json_user}" "folder" "${_folder}" "target" "${_target}" "backup" "${_base}.${_date}.bak" "destination" "${_target}"
+    else
+        out_success "Replaced ${_target} on ${_dns} (previous folder saved as ${_base}.${_date}.bak)."
+    fi
+    sshd_upplace_clear
+    return 0
+}
+
+# Last updated: 2026-09-16
+
 # Last updated: 2026-09-16
 # ALIGNMENT: requirement-shell-cli-default-interaction
 # Return 0 if ${_choice} was a typed leaf. Submenu callers then return to the
@@ -8491,6 +9183,7 @@ sshd_menu_typed_leaf() {
         ssh) sshd_cmd_ssh; return 0 ;;
         download) sshd_cmd_download; return 0 ;;
         upload) sshd_cmd_upload; return 0 ;;
+        upplace) sshd_cmd_upplace; return 0 ;;
         backup-config) sshd_cmd_backup_config; return 0 ;;
         sync-config) sshd_cmd_sync_config; return 0 ;;
         sudoers) sshd_cmd_sudoers_menu; return 0 ;;
@@ -8807,6 +9500,23 @@ app_menu_text() {
                 nl) _mt_out="een lokale map als tar.gz naar een Host (uitpakken in de home van die ssh-gebruiker)" ;;
                 el) _mt_out="πακετάρισμα τοπικού φακέλου σε tar.gz προς Host (εξαγωγή στον αρχικό κατάλογο αυτού του χρήστη ssh)" ;;
                 *) _mt_out="tar.gz a local folder onto a Host (extract under that ssh user home)" ;;
+            esac
+            ;;
+        client_19_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="上傳本機資料夾並取代同名遠端資料夾（先備份，再 tar.gz）" ;;
+                es) _mt_out="subir una carpeta local y reemplazar la carpeta remota del mismo nombre (copia, luego tar.gz)" ;;
+                fr) _mt_out="envoyer un dossier local et remplacer le dossier distant du même nom (sauvegarde, puis tar.gz)" ;;
+                de) _mt_out="einen lokalen Ordner hochladen und den gleichnamigen fernen Ordner ersetzen (Sicherung, dann tar.gz)" ;;
+                zh-Hans) _mt_out="上传本机文件夹并替换同名远程文件夹（先备份，再 tar.gz）" ;;
+                ja) _mt_out="ローカルフォルダを送り、同名の遠隔フォルダを置き換える（バックアップのあと tar.gz）" ;;
+                ko) _mt_out="로컬 폴더를 올려 같은 이름의 원격 폴더를 바꾸기(백업 후 tar.gz)" ;;
+                ar) _mt_out="رفع مجلد محلي واستبدال المجلد البعيد بنفس الاسم (نسخة ثم tar.gz)" ;;
+                pt) _mt_out="enviar uma pasta local e substituir a pasta remota de mesmo nome (cópia, depois tar.gz)" ;;
+                ru) _mt_out="отправить локальную папку и заменить одноимённую удалённую (копия, затем tar.gz)" ;;
+                nl) _mt_out="een lokale map uploaden en de gelijknamige externe map vervangen (back-up, dan tar.gz)" ;;
+                el) _mt_out="αποστολή τοπικού φακέλου και αντικατάσταση του ομώνυμου απομακρυσμένου (αντίγραφο, έπειτα tar.gz)" ;;
+                *) _mt_out="upload a local folder and replace the same-named remote folder (backup, then tar.gz)" ;;
             esac
             ;;
         client_15_long)
@@ -9914,6 +10624,23 @@ app_menu_text() {
                 *) _mt_out="tar.gz a local folder over ssh and extract it under the remote login home (TTY: pick Host, then user with default, then numbered previous local folders or type a path; ~/folder is this login)" ;;
             esac
             ;;
+        help_upplace)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="把本機資料夾打成 tar.gz，先把同名遠端資料夾改名備份，再取代它（TTY：Host、使用者、本機資料夾，最後才是目標 ~/folder 或絕對路徑；不可是遠端家目錄）" ;;
+                es) _mt_out="tar.gz de una carpeta local, copia de seguridad de la carpeta remota del mismo nombre y sustitución (TTY: Host, usuario, carpeta local y al final el destino ~/folder o absoluto; nunca el home remoto)" ;;
+                fr) _mt_out="tar.gz d'un dossier local, sauvegarde du dossier distant du même nom, puis remplacement (TTY : Host, utilisateur, dossier local, puis la cible ~/folder ou absolue ; jamais le home distant)" ;;
+                de) _mt_out="lokalen Ordner als tar.gz sichern, den gleichnamigen fernen Ordner umbenennen und ersetzen (TTY: Host, Benutzer, lokaler Ordner, zuletzt Ziel ~/folder oder absolut; nie das ferne Home)" ;;
+                zh-Hans) _mt_out="把本机文件夹打成 tar.gz，先把同名远程文件夹改名备份，再替换它（TTY：Host、用户、本机文件夹，最后才是目标 ~/folder 或绝对路径；不可是远程主目录）" ;;
+                ja) _mt_out="ローカルフォルダを tar.gz にし、同名の遠隔フォルダを退避してから置き換える（TTY：Host、ユーザー、ローカルフォルダ、最後に対象 ~/folder か絶対パス。遠隔ホームは不可）" ;;
+                ko) _mt_out="로컬 폴더를 tar.gz로 만들고, 같은 이름 원격 폴더를 백업한 뒤 바꾸기(TTY: Host, 사용자, 로컬 폴더, 마지막에 대상 ~/folder 또는 절대 경로. 원격 홈은 불가)" ;;
+                ar) _mt_out="حزم مجلدا محليا كـ tar.gz، وانسخ المجلد البعيد بنفس الاسم ثم استبدله (TTY: Host ثم المستخدم ثم المجلد المحلي ثم الهدف ~/folder أو المطلق؛ ليس منزل الدخول البعيد)" ;;
+                pt) _mt_out="tar.gz de uma pasta local, cópia da pasta remota de mesmo nome e substituição (TTY: Host, usuário, pasta local e por fim o alvo ~/folder ou absoluto; nunca o home remoto)" ;;
+                ru) _mt_out="tar.gz локальной папки, копия одноимённой удалённой папки и замена (TTY: Host, пользователь, локальная папка, затем цель ~/folder или абсолютный путь; не домашний каталог)" ;;
+                nl) _mt_out="tar.gz van een lokale map, back-up van de gelijknamige externe map en vervanging (TTY: Host, gebruiker, lokale map, daarna doel ~/folder of absoluut; nooit de externe home)" ;;
+                el) _mt_out="tar.gz τοπικού φακέλου, αντίγραφο του ομώνυμου απομακρυσμένου και αντικατάσταση (TTY: Host, χρήστης, τοπικός φάκελος, έπειτα στόχος ~/folder ή απόλυτος· ποτέ ο απομακρυσμένος αρχικός κατάλογος)" ;;
+                *) _mt_out="tar.gz a local folder, back up the same-named remote folder, and replace it (TTY: Host, user, local folder, then target ~/folder or absolute; never the remote home)" ;;
+            esac
+            ;;
         help_backup)
             case "${_mt_lang}" in
                 zh-Hant) _mt_out="把這個登入的 ~/.ssh/config 複製到 /var/sshd-cli（sudoer-adm 之後可免密碼 sudo sshd-cli backup-config）" ;;
@@ -10392,19 +11119,19 @@ app_menu_text() {
             ;;
         help_menu)
             case "${_mt_lang}" in
-                zh-Hant) _mt_out="編號樹：1 用戶端、2 伺服器端、5 sudoers、6 自我管理、7 語言、9 離開。語言 71 English、72 简体中文、73 繁體中文、74 Español、75 العربية、76 Français、77 Português、78 Русский、79 Deutsch、80 日本語、81 한국어、82 Nederlands、83 Ελληνικά。用戶端 11… dns/ssh/download/upload。伺服器 21… status/start/stop/restart。自我管理 61… install/version/about、67 self-install。子選單 0 返回。別名：main" ;;
-                es) _mt_out="Árbol numerado: 1 cliente, 2 servidor, 5 sudoers, 6 autogestión, 7 idioma, 9 Salir. Idiomas 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Cliente 11… dns/ssh/download/upload. Servidor 21… status/start/stop/restart. Autogestión 61… install/version/about, 67 self-install. Submenús 0 Atrás. Alias: main" ;;
-                fr) _mt_out="Arbre numéroté : 1 client, 2 serveur, 5 sudoers, 6 autogestion, 7 langue, 9 Quitter. Langues 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Client 11… dns/ssh/download/upload. Serveur 21… status/start/stop/restart. Autogestion 61… install/version/about, 67 self-install. Sous-menus 0 Retour. Alias : main" ;;
-                de) _mt_out="Nummerierter Baum: 1 Client, 2 Server, 5 sudoers, 6 Selbstverwaltung, 7 Sprache, 9 Beenden. Sprachen 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Client 11… dns/ssh/download/upload. Server 21… status/start/stop/restart. Selbstverwaltung 61… install/version/about, 67 self-install. Untermenüs 0 Zurück. Alias: main" ;;
-                zh-Hans) _mt_out="编号树：1 客户端、2 服务器端、5 sudoers、6 自我管理、7 语言、9 离开。语言 71 English、72 简体中文、73 繁體中文、74 Español、75 العربية、76 Français、77 Português、78 Русский、79 Deutsch、80 日本語、81 한국어、82 Nederlands、83 Ελληνικά。客户端 11… dns/ssh/download/upload。服务器 21… status/start/stop/restart。自我管理 61… install/version/about、67 self-install。子菜单 0 返回。别名：main" ;;
-                ja) _mt_out="番号の木: 1 クライアント、2 サーバー、5 sudoers、6 自己管理、7 言語、9 終了。言語 71 English、72 简体中文、73 繁體中文、74 Español、75 العربية、76 Français、77 Português、78 Русский、79 Deutsch、80 日本語、81 한국어、82 Nederlands、83 Ελληνικά。クライアント 11… dns/ssh/download/upload。サーバー 21… status/start/stop/restart。自己管理 61… install/version/about、67 self-install。サブメニュー 0 戻る。別名: main" ;;
-                ko) _mt_out="번호 나무: 1 클라이언트, 2 서버, 5 sudoers, 6 자기관리, 7 언어, 9 종료. 언어 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. 클라이언트 11… dns/ssh/download/upload. 서버 21… status/start/stop/restart. 자기관리 61… install/version/about, 67 self-install. 하위 메뉴 0 뒤로. 별칭: main" ;;
-                ar) _mt_out="شجرة مرقمة: 1 عميل، 2 خادم، 5 sudoers، 6 إدارة-ذاتية، 7 لغة، 9 خروج. اللغات 71 English، 72 简体中文، 73 繁體中文، 74 Español، 75 العربية، 76 Français، 77 Português، 78 Русский، 79 Deutsch، 80 日本語، 81 한국어، 82 Nederlands، 83 Ελληνικά. العميل 11… dns/ssh/download/upload. الخادم 21… status/start/stop/restart. الإدارة 61… install/version/about، 67 self-install. القوائم الفرعية 0 رجوع. الاسم البديل: main" ;;
-                pt) _mt_out="Árvore numerada: 1 cliente, 2 servidor, 5 sudoers, 6 autogestão, 7 idioma, 9 Sair. Idiomas 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Cliente 11… dns/ssh/download/upload. Servidor 21… status/start/stop/restart. Autogestão 61… install/version/about, 67 self-install. Submenus 0 Voltar. Apelido: main" ;;
-                ru) _mt_out="Нумерованное дерево: 1 клиент, 2 сервер, 5 sudoers, 6 самоуправление, 7 язык, 9 Выход. Языки 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Клиент 11… dns/ssh/download/upload. Сервер 21… status/start/stop/restart. Самоуправление 61… install/version/about, 67 self-install. Подменю 0 Назад. Псевдоним: main" ;;
-                nl) _mt_out="Genummerde boom: 1 client, 2 server, 5 sudoers, 6 zelfbeheer, 7 taal, 9 Afsluiten. Talen 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Client 11… dns/ssh/download/upload. Server 21… status/start/stop/restart. Zelfbeheer 61… install/version/about, 67 self-install. Submenu's 0 Terug. Alias: main" ;;
-                el) _mt_out="Αριθμημένο δέντρο: 1 πελάτης, 2 διακομιστής, 5 sudoers, 6 αυτοδιαχείριση, 7 γλώσσα, 9 Έξοδος. Γλώσσες 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Πελάτης 11… dns/ssh/download/upload. Διακομιστής 21… status/start/stop/restart. Αυτοδιαχείριση 61… install/version/about, 67 self-install. Υπομενού 0 Πίσω. Ψευδώνυμο: main" ;;
-                *) _mt_out="Numbered tree: 1 client-side, 2 server-side, 5 sudoers, 6 self-management, 7 language, 9 Exit. Language 71 English, 72 Simplified Chinese, 73 Traditional Chinese, 74 Spanish, 75 Arabic, 76 French, 77 Portuguese, 78 Russian, 79 German, 80 Japanese, 81 Korean, 82 Dutch, 83 Greek. Client 11… dns/ssh/download/upload; server 21… status/start/stop/restart; self-management 61… install/version/about, 67 self-install. Submenus 0 Back. Alias: main" ;;
+                zh-Hant) _mt_out="編號樹：1 用戶端、2 伺服器端、5 sudoers、6 自我管理、7 語言、9 離開。語言 71 English、72 简体中文、73 繁體中文、74 Español、75 العربية、76 Français、77 Português、78 Русский、79 Deutsch、80 日本語、81 한국어、82 Nederlands、83 Ελληνικά。用戶端 11… dns/ssh/download/upload/upplace。伺服器 21… status/start/stop/restart。自我管理 61… install/version/about、67 self-install。子選單 0 返回。別名：main" ;;
+                es) _mt_out="Árbol numerado: 1 cliente, 2 servidor, 5 sudoers, 6 autogestión, 7 idioma, 9 Salir. Idiomas 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Cliente 11… dns/ssh/download/upload/upplace. Servidor 21… status/start/stop/restart. Autogestión 61… install/version/about, 67 self-install. Submenús 0 Atrás. Alias: main" ;;
+                fr) _mt_out="Arbre numéroté : 1 client, 2 serveur, 5 sudoers, 6 autogestion, 7 langue, 9 Quitter. Langues 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Client 11… dns/ssh/download/upload/upplace. Serveur 21… status/start/stop/restart. Autogestion 61… install/version/about, 67 self-install. Sous-menus 0 Retour. Alias : main" ;;
+                de) _mt_out="Nummerierter Baum: 1 Client, 2 Server, 5 sudoers, 6 Selbstverwaltung, 7 Sprache, 9 Beenden. Sprachen 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Client 11… dns/ssh/download/upload/upplace. Server 21… status/start/stop/restart. Selbstverwaltung 61… install/version/about, 67 self-install. Untermenüs 0 Zurück. Alias: main" ;;
+                zh-Hans) _mt_out="编号树：1 客户端、2 服务器端、5 sudoers、6 自我管理、7 语言、9 离开。语言 71 English、72 简体中文、73 繁體中文、74 Español、75 العربية、76 Français、77 Português、78 Русский、79 Deutsch、80 日本語、81 한국어、82 Nederlands、83 Ελληνικά。客户端 11… dns/ssh/download/upload/upplace。服务器 21… status/start/stop/restart。自我管理 61… install/version/about、67 self-install。子菜单 0 返回。别名：main" ;;
+                ja) _mt_out="番号の木: 1 クライアント、2 サーバー、5 sudoers、6 自己管理、7 言語、9 終了。言語 71 English、72 简体中文、73 繁體中文、74 Español、75 العربية、76 Français、77 Português、78 Русский、79 Deutsch、80 日本語、81 한국어、82 Nederlands、83 Ελληνικά。クライアント 11… dns/ssh/download/upload/upplace。サーバー 21… status/start/stop/restart。自己管理 61… install/version/about、67 self-install。サブメニュー 0 戻る。別名: main" ;;
+                ko) _mt_out="번호 나무: 1 클라이언트, 2 서버, 5 sudoers, 6 자기관리, 7 언어, 9 종료. 언어 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. 클라이언트 11… dns/ssh/download/upload/upplace. 서버 21… status/start/stop/restart. 자기관리 61… install/version/about, 67 self-install. 하위 메뉴 0 뒤로. 별칭: main" ;;
+                ar) _mt_out="شجرة مرقمة: 1 عميل، 2 خادم، 5 sudoers، 6 إدارة-ذاتية، 7 لغة، 9 خروج. اللغات 71 English، 72 简体中文، 73 繁體中文، 74 Español، 75 العربية، 76 Français، 77 Português، 78 Русский، 79 Deutsch، 80 日本語، 81 한국어، 82 Nederlands، 83 Ελληνικά. العميل 11… dns/ssh/download/upload/upplace. الخادم 21… status/start/stop/restart. الإدارة 61… install/version/about، 67 self-install. القوائم الفرعية 0 رجوع. الاسم البديل: main" ;;
+                pt) _mt_out="Árvore numerada: 1 cliente, 2 servidor, 5 sudoers, 6 autogestão, 7 idioma, 9 Sair. Idiomas 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Cliente 11… dns/ssh/download/upload/upplace. Servidor 21… status/start/stop/restart. Autogestão 61… install/version/about, 67 self-install. Submenus 0 Voltar. Apelido: main" ;;
+                ru) _mt_out="Нумерованное дерево: 1 клиент, 2 сервер, 5 sudoers, 6 самоуправление, 7 язык, 9 Выход. Языки 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Клиент 11… dns/ssh/download/upload/upplace. Сервер 21… status/start/stop/restart. Самоуправление 61… install/version/about, 67 self-install. Подменю 0 Назад. Псевдоним: main" ;;
+                nl) _mt_out="Genummerde boom: 1 client, 2 server, 5 sudoers, 6 zelfbeheer, 7 taal, 9 Afsluiten. Talen 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Client 11… dns/ssh/download/upload/upplace. Server 21… status/start/stop/restart. Zelfbeheer 61… install/version/about, 67 self-install. Submenu's 0 Terug. Alias: main" ;;
+                el) _mt_out="Αριθμημένο δέντρο: 1 πελάτης, 2 διακομιστής, 5 sudoers, 6 αυτοδιαχείριση, 7 γλώσσα, 9 Έξοδος. Γλώσσες 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Πελάτης 11… dns/ssh/download/upload/upplace. Διακομιστής 21… status/start/stop/restart. Αυτοδιαχείριση 61… install/version/about, 67 self-install. Υπομενού 0 Πίσω. Ψευδώνυμο: main" ;;
+                *) _mt_out="Numbered tree: 1 client-side, 2 server-side, 5 sudoers, 6 self-management, 7 language, 9 Exit. Language 71 English, 72 Simplified Chinese, 73 Traditional Chinese, 74 Spanish, 75 Arabic, 76 French, 77 Portuguese, 78 Russian, 79 German, 80 Japanese, 81 Korean, 82 Dutch, 83 Greek. Client 11… dns/ssh/download/upload/upplace; server 21… status/start/stop/restart; self-management 61… install/version/about, 67 self-install. Submenus 0 Back. Alias: main" ;;
             esac
             ;;
         about_title)
@@ -11229,6 +11956,7 @@ app_cmd_menu_client() {
         else
             out_menu_choice "18" "sync-from-remote" "$(app_menu_text client_18_long)"
         fi
+        out_menu_choice "19" "upplace" "$(app_menu_text client_19_long)"
         out_plain "$(app_menu_text line_back)"
         out_msg_n "$(app_menu_text line_prompt)"
         _choice=""
@@ -11254,6 +11982,11 @@ app_cmd_menu_client() {
                 ;;
             14|upload)
                 sshd_cmd_upload
+                unset _choice _show_cfg
+                return 0
+                ;;
+            19|upplace)
+                sshd_cmd_upplace || true
                 unset _choice _show_cfg
                 return 0
                 ;;
@@ -11819,6 +12552,7 @@ app_help() {
     out_plain "  ssh [N|name]         $(app_menu_text help_ssh)"
     out_plain "  download [N|name] [folder]  $(app_menu_text help_download)"
     out_plain "  upload [N|name] [folder]  $(app_menu_text help_upload)"
+    out_plain "  upplace [N|name] [folder] [target]  $(app_menu_text help_upplace)"
     out_plain "  backup-config        $(app_menu_text help_backup)"
     out_plain "  sync-config          $(app_menu_text help_sync)"
     out_plain "  sync-from-remote [SPEC]  $(app_menu_text help_sync_remote)"
@@ -12039,9 +12773,9 @@ app_main() {
                 COMMAND="$1"
                 ;;
             # --- DOMAIN_DISPATCH_COMMANDS (specializee injection) ---
-            status|start|stop|restart|port|config|host-keys|auth-keys|dns|fix-config|ssh|download|upload|menu|main|wake-lock|wake-unlock|backup-config|sync-config|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
+            status|start|stop|restart|port|config|host-keys|auth-keys|dns|fix-config|ssh|download|upload|upplace|menu|main|wake-lock|wake-unlock|backup-config|sync-config|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
                 case "${COMMAND}" in
-                    port|host-keys|auth-keys|dns|fix-config|ssh|download|upload|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
+                    port|host-keys|auth-keys|dns|fix-config|ssh|download|upload|upplace|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
                         if [ "${COMMAND}" = "dns" ] && [ -z "$1" ]; then
                             _op='""'
                         else
@@ -12069,7 +12803,7 @@ app_main() {
                             RC_TEST_OPERANDS="$1"
                         fi
                         ;;
-                    port|host-keys|auth-keys|dns|fix-config|ssh|download|upload|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
+                    port|host-keys|auth-keys|dns|fix-config|ssh|download|upload|upplace|sync-from-remote|print-sudoers|print-sudoers-install-script|generate-sudoer-request|submit-sudoer-request|remove-project-sudoers)
                         if [ "${COMMAND}" = "dns" ] && [ -z "$1" ]; then
                             _op='""'
                         else
@@ -12172,6 +12906,10 @@ app_main() {
         upload)
             set -- ${DOMAIN_OPERANDS}
             sshd_cmd_upload "$@"
+            ;;
+        upplace)
+            set -- ${DOMAIN_OPERANDS}
+            sshd_cmd_upplace "$@"
             ;;
         menu|main) app_cmd_menu ;;
         wake-lock) sshd_cmd_wake_lock ;;

@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-language.md
-**Status**: Active (Version 1.7.2)
+**Status**: Active (Version 1.7.3)
 **Area**: shell
 **Key**: `requirement-shell-cli-language`
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -159,12 +159,12 @@ Back and Exit on these boards:
 
 ### 2.4.1 Worked samples
 
-These fences are a live run with the terminal ink written as markdown: **bold** short, *italic* long. The version token is the live `VERSION`. These fences show `1.35.1`. The language rows in the samples are **71** through **83**. The reserved numbers **70** and **84** through **89** are not printed. The choose-prompt in the source ends with one space. These fences omit that space. **MUST** print the front board, and the opening of human `help` and human `about`, for each code as these samples say. **MUST NOT** invent a line the ship unit does not print. Deeper boards keep the English verb as the leaf short (§2.4). The language-board longs in a language other than English are §2.4.2. The §2.6 fences stay the full functions.
+These fences are a live run with the terminal ink written as markdown: **bold** short, *italic* long. The version token is the live `VERSION`. These fences show `1.36.0`. The language rows in the samples are **71** through **83**. The reserved numbers **70** and **84** through **89** are not printed. The choose-prompt in the source ends with one space. These fences omit that space. **MUST** print the front board, and the opening of human `help` and human `about`, for each code as these samples say. **MUST NOT** invent a line the ship unit does not print. Deeper boards keep the English verb as the leaf short (§2.4). The language-board longs in a language other than English are §2.4.2. The §2.6 fences stay the full functions.
 
 English (`en`), front board, then the language board, then the opening of `help` and `about`:
 
 ```text
-[INFO] **sshd-cli**(*1.35.1*)
+[INFO] **sshd-cli**(*1.36.0*)
 1. **client-side**: *this login OpenSSH client (~/.ssh/config, ssh, folders)*
 2. **server-side**: *this host OpenSSH sshd (listen, keys, port)*
 5. **sudoers**: *grant and drafts for passwordless sudo*
@@ -175,7 +175,7 @@ Choose a number, or type the command name:
 ```
 
 ```text
-[INFO] **sshd-cli**(*1.35.1*) — language
+[INFO] **sshd-cli**(*1.36.0*) — language
 71. **English**: *use English for this menu*
 72. **简体中文**: *use Simplified Chinese for this menu*
 73. **繁體中文**: *use Traditional Chinese for this menu*
@@ -197,14 +197,14 @@ Choose a number, or type the command name:
 [INFO] sshd-cli — Simplify Termux to install sshd
 [INFO] Usage:
   sshd-cli [command] [options]
-[INFO] === sshd-cli 1.35.1 - About / Diagnostics ===
+[INFO] === sshd-cli 1.36.0 - About / Diagnostics ===
 [OK] sshd-cli is properly installed.
 ```
 
 Simplified Chinese (`zh-Hans`), after **72**:
 
 ```text
-[INFO] **sshd-cli**(*1.35.1*)
+[INFO] **sshd-cli**(*1.36.0*)
 1. **客户端**: *这个登录的 OpenSSH 客户端（~/.ssh/config、ssh、文件夹）*
 2. **服务器端**: *这台主机的 OpenSSH sshd（监听、密钥、端口）*
 5. **语言**: *这个菜单的显示语言*
@@ -218,14 +218,14 @@ Simplified Chinese (`zh-Hans`), after **72**:
 [INFO] sshd-cli — 简化 Termux 安装 sshd
 [INFO] 用法：
   sshd-cli [命令] [选项]
-[INFO] === sshd-cli 1.35.1 - 关于 / 诊断 ===
+[INFO] === sshd-cli 1.36.0 - 关于 / 诊断 ===
 [OK] sshd-cli 已正确安装。
 ```
 
 Traditional Chinese (`zh-Hant`), after **73**:
 
 ```text
-[INFO] **sshd-cli**(*1.35.1*)
+[INFO] **sshd-cli**(*1.36.0*)
 1. **用戶端**: *這個登入的 OpenSSH 用戶端（~/.ssh/config、ssh、資料夾）*
 2. **伺服器端**: *這台主機的 OpenSSH sshd（接聽、金鑰、連接埠）*
 5. **語言**: *這個選單的顯示語言*
@@ -239,14 +239,14 @@ Traditional Chinese (`zh-Hant`), after **73**:
 [INFO] sshd-cli — 簡化 Termux 安裝 sshd
 [INFO] 用法：
   sshd-cli [命令] [選項]
-[INFO] === sshd-cli 1.35.1 - 關於 / 診斷 ===
+[INFO] === sshd-cli 1.36.0 - 關於 / 診斷 ===
 [OK] sshd-cli 已正確安裝。
 ```
 
 Spanish (`es`), after **74**:
 
 ```text
-[INFO] **sshd-cli**(*1.35.1*)
+[INFO] **sshd-cli**(*1.36.0*)
 1. **cliente**: *cliente OpenSSH de este inicio (~/.ssh/config, ssh, carpetas)*
 2. **servidor**: *sshd OpenSSH de este equipo (escucha, claves, puerto)*
 5. **idioma**: *idioma de este menú*
@@ -260,14 +260,14 @@ Elija un número, o escriba el nombre del comando:
 [INFO] sshd-cli — simplificar la instalación de sshd en Termux
 [INFO] Uso:
   sshd-cli [comando] [opciones]
-[INFO] === sshd-cli 1.35.1 - Acerca de / diagnóstico ===
+[INFO] === sshd-cli 1.36.0 - Acerca de / diagnóstico ===
 [OK] sshd-cli está instalado correctamente.
 ```
 
 Arabic (`ar`), after **75**:
 
 ```text
-[INFO] **sshd-cli**(*1.35.1*)
+[INFO] **sshd-cli**(*1.36.0*)
 1. **عميل**: *عميل OpenSSH لهذا الدخول (~/.ssh/config وssh والمجلدات)*
 2. **خادم**: *sshd الخاص بـ OpenSSH على هذا الجهاز (الاستماع والمفاتيح والمنفذ)*
 5. **لغة**: *لغة العرض لهذه القائمة*
@@ -281,14 +281,14 @@ Arabic (`ar`), after **75**:
 [INFO] sshd-cli — تبسيط تثبيت sshd على Termux
 [INFO] الاستخدام:
   sshd-cli [أمر] [خيارات]
-[INFO] === sshd-cli 1.35.1 - حول / تشخيص ===
+[INFO] === sshd-cli 1.36.0 - حول / تشخيص ===
 [OK] sshd-cli مثبت بشكل صحيح.
 ```
 
 French (`fr`), after **76**:
 
 ```text
-[INFO] **sshd-cli**(*1.35.1*)
+[INFO] **sshd-cli**(*1.36.0*)
 1. **client**: *client OpenSSH de cette session (~/.ssh/config, ssh, dossiers)*
 2. **serveur**: *sshd OpenSSH de cet hôte (écoute, clés, port)*
 5. **langue**: *langue d'affichage de ce menu*
@@ -302,14 +302,14 @@ Choisissez un numéro, ou saisissez le nom de la commande :
 [INFO] sshd-cli — simplifier l'installation de sshd sur Termux
 [INFO] Utilisation :
   sshd-cli [commande] [options]
-[INFO] === sshd-cli 1.35.1 - À propos / diagnostic ===
+[INFO] === sshd-cli 1.36.0 - À propos / diagnostic ===
 [OK] sshd-cli est correctement installé.
 ```
 
 Portuguese (`pt`), after **77**:
 
 ```text
-[INFO] **sshd-cli**(*1.35.1*)
+[INFO] **sshd-cli**(*1.36.0*)
 1. **cliente**: *cliente OpenSSH deste login (~/.ssh/config, ssh, pastas)*
 2. **servidor**: *sshd OpenSSH deste equipamento (escuta, chaves, porta)*
 5. **idioma**: *idioma de exibição deste menu*
@@ -323,14 +323,14 @@ Escolha um número, ou escreva o nome do comando:
 [INFO] sshd-cli — simplificar a instalação de sshd no Termux
 [INFO] Uso:
   sshd-cli [comando] [opções]
-[INFO] === sshd-cli 1.35.1 - Acerca de / diagnóstico ===
+[INFO] === sshd-cli 1.36.0 - Acerca de / diagnóstico ===
 [OK] sshd-cli está instalado corretamente.
 ```
 
 Russian (`ru`), after **78**:
 
 ```text
-[INFO] **sshd-cli**(*1.35.1*)
+[INFO] **sshd-cli**(*1.36.0*)
 1. **клиент**: *клиент OpenSSH этого входа (~/.ssh/config, ssh, папки)*
 2. **сервер**: *sshd OpenSSH этого узла (прослушивание, ключи, порт)*
 5. **язык**: *язык отображения этого меню*
@@ -344,14 +344,14 @@ Russian (`ru`), after **78**:
 [INFO] sshd-cli — упростить установку sshd в Termux
 [INFO] Использование:
   sshd-cli [команда] [параметры]
-[INFO] === sshd-cli 1.35.1 - О программе / диагностика ===
+[INFO] === sshd-cli 1.36.0 - О программе / диагностика ===
 [OK] sshd-cli установлен правильно.
 ```
 
 German (`de`), after **79**:
 
 ```text
-[INFO] **sshd-cli**(*1.35.1*)
+[INFO] **sshd-cli**(*1.36.0*)
 1. **Client**: *OpenSSH-Client dieser Anmeldung (~/.ssh/config, ssh, Ordner)*
 2. **Server**: *OpenSSH-sshd dieses Rechners (wartet, Schlüssel, Port)*
 5. **Sprache**: *Anzeigesprache dieses Menüs*
@@ -365,14 +365,14 @@ Wählen Sie eine Nummer, oder geben Sie den Befehlsnamen ein:
 [INFO] sshd-cli — sshd auf Termux einfach installieren
 [INFO] Verwendung:
   sshd-cli [Befehl] [Optionen]
-[INFO] === sshd-cli 1.35.1 - Über / Diagnose ===
+[INFO] === sshd-cli 1.36.0 - Über / Diagnose ===
 [OK] sshd-cli ist ordnungsgemäß installiert.
 ```
 
 Japanese (`ja`), after **80**:
 
 ```text
-[INFO] **sshd-cli**(*1.35.1*)
+[INFO] **sshd-cli**(*1.36.0*)
 1. **クライアント**: *このログインの OpenSSH クライアント（~/.ssh/config、ssh、フォルダ）*
 2. **サーバー**: *このホストの OpenSSH sshd（待ち受け、鍵、ポート）*
 5. **言語**: *このメニューの表示言語*
@@ -386,14 +386,14 @@ Japanese (`ja`), after **80**:
 [INFO] sshd-cli — Termux で sshd を簡単に導入する
 [INFO] 使い方:
   sshd-cli [コマンド] [オプション]
-[INFO] === sshd-cli 1.35.1 - 概要 / 診断 ===
+[INFO] === sshd-cli 1.36.0 - 概要 / 診断 ===
 [OK] sshd-cli は正しく配置されています。
 ```
 
 Korean (`ko`), after **81**:
 
 ```text
-[INFO] **sshd-cli**(*1.35.1*)
+[INFO] **sshd-cli**(*1.36.0*)
 1. **클라이언트**: *이 로그인의 OpenSSH 클라이언트(~/.ssh/config, ssh, 폴더)*
 2. **서버**: *이 호스트의 OpenSSH sshd(대기, 키, 포트)*
 5. **언어**: *이 메뉴의 표시 언어*
@@ -407,14 +407,14 @@ Korean (`ko`), after **81**:
 [INFO] sshd-cli — Termux에서 sshd 설치를 단순하게
 [INFO] 사용법:
   sshd-cli [명령] [옵션]
-[INFO] === sshd-cli 1.35.1 - 개요 / 진단 ===
+[INFO] === sshd-cli 1.36.0 - 개요 / 진단 ===
 [OK] sshd-cli가 올바르게 설치되어 있습니다.
 ```
 
 Dutch (`nl`), after **82**:
 
 ```text
-[INFO] **sshd-cli**(*1.35.1*)
+[INFO] **sshd-cli**(*1.36.0*)
 1. **client**: *OpenSSH-client van deze login (~/.ssh/config, ssh, mappen)*
 2. **server**: *OpenSSH sshd van deze host (luisteren, sleutels, poort)*
 5. **taal**: *weergavetaal van dit menu*
@@ -428,14 +428,14 @@ Kies een nummer, of typ de opdrachtnaam:
 [INFO] sshd-cli — sshd installeren op Termux vereenvoudigen
 [INFO] Gebruik:
   sshd-cli [opdracht] [opties]
-[INFO] === sshd-cli 1.35.1 - Over / diagnose ===
+[INFO] === sshd-cli 1.36.0 - Over / diagnose ===
 [OK] sshd-cli is correct geïnstalleerd.
 ```
 
 Greek (`el`), after **83**:
 
 ```text
-[INFO] **sshd-cli**(*1.35.1*)
+[INFO] **sshd-cli**(*1.36.0*)
 1. **πελάτης**: *πελάτης OpenSSH αυτής της σύνδεσης (~/.ssh/config, ssh, φάκελοι)*
 2. **διακομιστής**: *sshd OpenSSH αυτού του υπολογιστή (ακρόαση, κλειδιά, θύρα)*
 5. **γλώσσα**: *γλώσσα εμφάνισης αυτού του μενού*
@@ -449,7 +449,7 @@ Greek (`el`), after **83**:
 [INFO] sshd-cli — απλοποίηση εγκατάστασης sshd στο Termux
 [INFO] Χρήση:
   sshd-cli [εντολή] [επιλογές]
-[INFO] === sshd-cli 1.35.1 - Σχετικά / διάγνωση ===
+[INFO] === sshd-cli 1.36.0 - Σχετικά / διάγνωση ===
 [OK] Το sshd-cli είναι σωστά εγκατεστημένο.
 ```
 
@@ -1050,6 +1050,23 @@ app_menu_text() {
                 nl) _mt_out="een lokale map als tar.gz naar een Host (uitpakken in de home van die ssh-gebruiker)" ;;
                 el) _mt_out="πακετάρισμα τοπικού φακέλου σε tar.gz προς Host (εξαγωγή στον αρχικό κατάλογο αυτού του χρήστη ssh)" ;;
                 *) _mt_out="tar.gz a local folder onto a Host (extract under that ssh user home)" ;;
+            esac
+            ;;
+        client_19_long)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="上傳本機資料夾並取代同名遠端資料夾（先備份，再 tar.gz）" ;;
+                es) _mt_out="subir una carpeta local y reemplazar la carpeta remota del mismo nombre (copia, luego tar.gz)" ;;
+                fr) _mt_out="envoyer un dossier local et remplacer le dossier distant du même nom (sauvegarde, puis tar.gz)" ;;
+                de) _mt_out="einen lokalen Ordner hochladen und den gleichnamigen fernen Ordner ersetzen (Sicherung, dann tar.gz)" ;;
+                zh-Hans) _mt_out="上传本机文件夹并替换同名远程文件夹（先备份，再 tar.gz）" ;;
+                ja) _mt_out="ローカルフォルダを送り、同名の遠隔フォルダを置き換える（バックアップのあと tar.gz）" ;;
+                ko) _mt_out="로컬 폴더를 올려 같은 이름의 원격 폴더를 바꾸기(백업 후 tar.gz)" ;;
+                ar) _mt_out="رفع مجلد محلي واستبدال المجلد البعيد بنفس الاسم (نسخة ثم tar.gz)" ;;
+                pt) _mt_out="enviar uma pasta local e substituir a pasta remota de mesmo nome (cópia, depois tar.gz)" ;;
+                ru) _mt_out="отправить локальную папку и заменить одноимённую удалённую (копия, затем tar.gz)" ;;
+                nl) _mt_out="een lokale map uploaden en de gelijknamige externe map vervangen (back-up, dan tar.gz)" ;;
+                el) _mt_out="αποστολή τοπικού φακέλου και αντικατάσταση του ομώνυμου απομακρυσμένου (αντίγραφο, έπειτα tar.gz)" ;;
+                *) _mt_out="upload a local folder and replace the same-named remote folder (backup, then tar.gz)" ;;
             esac
             ;;
         client_15_long)
@@ -2157,6 +2174,23 @@ app_menu_text() {
                 *) _mt_out="tar.gz a local folder over ssh and extract it under the remote login home (TTY: pick Host, then user with default, then numbered previous local folders or type a path; ~/folder is this login)" ;;
             esac
             ;;
+        help_upplace)
+            case "${_mt_lang}" in
+                zh-Hant) _mt_out="把本機資料夾打成 tar.gz，先把同名遠端資料夾改名備份，再取代它（TTY：Host、使用者、本機資料夾，最後才是目標 ~/folder 或絕對路徑；不可是遠端家目錄）" ;;
+                es) _mt_out="tar.gz de una carpeta local, copia de seguridad de la carpeta remota del mismo nombre y sustitución (TTY: Host, usuario, carpeta local y al final el destino ~/folder o absoluto; nunca el home remoto)" ;;
+                fr) _mt_out="tar.gz d'un dossier local, sauvegarde du dossier distant du même nom, puis remplacement (TTY : Host, utilisateur, dossier local, puis la cible ~/folder ou absolue ; jamais le home distant)" ;;
+                de) _mt_out="lokalen Ordner als tar.gz sichern, den gleichnamigen fernen Ordner umbenennen und ersetzen (TTY: Host, Benutzer, lokaler Ordner, zuletzt Ziel ~/folder oder absolut; nie das ferne Home)" ;;
+                zh-Hans) _mt_out="把本机文件夹打成 tar.gz，先把同名远程文件夹改名备份，再替换它（TTY：Host、用户、本机文件夹，最后才是目标 ~/folder 或绝对路径；不可是远程主目录）" ;;
+                ja) _mt_out="ローカルフォルダを tar.gz にし、同名の遠隔フォルダを退避してから置き換える（TTY：Host、ユーザー、ローカルフォルダ、最後に対象 ~/folder か絶対パス。遠隔ホームは不可）" ;;
+                ko) _mt_out="로컬 폴더를 tar.gz로 만들고, 같은 이름 원격 폴더를 백업한 뒤 바꾸기(TTY: Host, 사용자, 로컬 폴더, 마지막에 대상 ~/folder 또는 절대 경로. 원격 홈은 불가)" ;;
+                ar) _mt_out="حزم مجلدا محليا كـ tar.gz، وانسخ المجلد البعيد بنفس الاسم ثم استبدله (TTY: Host ثم المستخدم ثم المجلد المحلي ثم الهدف ~/folder أو المطلق؛ ليس منزل الدخول البعيد)" ;;
+                pt) _mt_out="tar.gz de uma pasta local, cópia da pasta remota de mesmo nome e substituição (TTY: Host, usuário, pasta local e por fim o alvo ~/folder ou absoluto; nunca o home remoto)" ;;
+                ru) _mt_out="tar.gz локальной папки, копия одноимённой удалённой папки и замена (TTY: Host, пользователь, локальная папка, затем цель ~/folder или абсолютный путь; не домашний каталог)" ;;
+                nl) _mt_out="tar.gz van een lokale map, back-up van de gelijknamige externe map en vervanging (TTY: Host, gebruiker, lokale map, daarna doel ~/folder of absoluut; nooit de externe home)" ;;
+                el) _mt_out="tar.gz τοπικού φακέλου, αντίγραφο του ομώνυμου απομακρυσμένου και αντικατάσταση (TTY: Host, χρήστης, τοπικός φάκελος, έπειτα στόχος ~/folder ή απόλυτος· ποτέ ο απομακρυσμένος αρχικός κατάλογος)" ;;
+                *) _mt_out="tar.gz a local folder, back up the same-named remote folder, and replace it (TTY: Host, user, local folder, then target ~/folder or absolute; never the remote home)" ;;
+            esac
+            ;;
         help_backup)
             case "${_mt_lang}" in
                 zh-Hant) _mt_out="把這個登入的 ~/.ssh/config 複製到 /var/sshd-cli（sudoer-adm 之後可免密碼 sudo sshd-cli backup-config）" ;;
@@ -2635,19 +2669,19 @@ app_menu_text() {
             ;;
         help_menu)
             case "${_mt_lang}" in
-                zh-Hant) _mt_out="編號樹：1 用戶端、2 伺服器端、5 sudoers、6 自我管理、7 語言、9 離開。語言 71 English、72 简体中文、73 繁體中文、74 Español、75 العربية、76 Français、77 Português、78 Русский、79 Deutsch、80 日本語、81 한국어、82 Nederlands、83 Ελληνικά。用戶端 11… dns/ssh/download/upload。伺服器 21… status/start/stop/restart。自我管理 61… install/version/about、67 self-install。子選單 0 返回。別名：main" ;;
-                es) _mt_out="Árbol numerado: 1 cliente, 2 servidor, 5 sudoers, 6 autogestión, 7 idioma, 9 Salir. Idiomas 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Cliente 11… dns/ssh/download/upload. Servidor 21… status/start/stop/restart. Autogestión 61… install/version/about, 67 self-install. Submenús 0 Atrás. Alias: main" ;;
-                fr) _mt_out="Arbre numéroté : 1 client, 2 serveur, 5 sudoers, 6 autogestion, 7 langue, 9 Quitter. Langues 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Client 11… dns/ssh/download/upload. Serveur 21… status/start/stop/restart. Autogestion 61… install/version/about, 67 self-install. Sous-menus 0 Retour. Alias : main" ;;
-                de) _mt_out="Nummerierter Baum: 1 Client, 2 Server, 5 sudoers, 6 Selbstverwaltung, 7 Sprache, 9 Beenden. Sprachen 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Client 11… dns/ssh/download/upload. Server 21… status/start/stop/restart. Selbstverwaltung 61… install/version/about, 67 self-install. Untermenüs 0 Zurück. Alias: main" ;;
-                zh-Hans) _mt_out="编号树：1 客户端、2 服务器端、5 sudoers、6 自我管理、7 语言、9 离开。语言 71 English、72 简体中文、73 繁體中文、74 Español、75 العربية、76 Français、77 Português、78 Русский、79 Deutsch、80 日本語、81 한국어、82 Nederlands、83 Ελληνικά。客户端 11… dns/ssh/download/upload。服务器 21… status/start/stop/restart。自我管理 61… install/version/about、67 self-install。子菜单 0 返回。别名：main" ;;
-                ja) _mt_out="番号の木: 1 クライアント、2 サーバー、5 sudoers、6 自己管理、7 言語、9 終了。言語 71 English、72 简体中文、73 繁體中文、74 Español、75 العربية、76 Français、77 Português、78 Русский、79 Deutsch、80 日本語、81 한국어、82 Nederlands、83 Ελληνικά。クライアント 11… dns/ssh/download/upload。サーバー 21… status/start/stop/restart。自己管理 61… install/version/about、67 self-install。サブメニュー 0 戻る。別名: main" ;;
-                ko) _mt_out="번호 나무: 1 클라이언트, 2 서버, 5 sudoers, 6 자기관리, 7 언어, 9 종료. 언어 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. 클라이언트 11… dns/ssh/download/upload. 서버 21… status/start/stop/restart. 자기관리 61… install/version/about, 67 self-install. 하위 메뉴 0 뒤로. 별칭: main" ;;
-                ar) _mt_out="شجرة مرقمة: 1 عميل، 2 خادم، 5 sudoers، 6 إدارة-ذاتية، 7 لغة، 9 خروج. اللغات 71 English، 72 简体中文، 73 繁體中文، 74 Español، 75 العربية، 76 Français، 77 Português، 78 Русский، 79 Deutsch، 80 日本語، 81 한국어، 82 Nederlands، 83 Ελληνικά. العميل 11… dns/ssh/download/upload. الخادم 21… status/start/stop/restart. الإدارة 61… install/version/about، 67 self-install. القوائم الفرعية 0 رجوع. الاسم البديل: main" ;;
-                pt) _mt_out="Árvore numerada: 1 cliente, 2 servidor, 5 sudoers, 6 autogestão, 7 idioma, 9 Sair. Idiomas 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Cliente 11… dns/ssh/download/upload. Servidor 21… status/start/stop/restart. Autogestão 61… install/version/about, 67 self-install. Submenus 0 Voltar. Apelido: main" ;;
-                ru) _mt_out="Нумерованное дерево: 1 клиент, 2 сервер, 5 sudoers, 6 самоуправление, 7 язык, 9 Выход. Языки 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Клиент 11… dns/ssh/download/upload. Сервер 21… status/start/stop/restart. Самоуправление 61… install/version/about, 67 self-install. Подменю 0 Назад. Псевдоним: main" ;;
-                nl) _mt_out="Genummerde boom: 1 client, 2 server, 5 sudoers, 6 zelfbeheer, 7 taal, 9 Afsluiten. Talen 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Client 11… dns/ssh/download/upload. Server 21… status/start/stop/restart. Zelfbeheer 61… install/version/about, 67 self-install. Submenu's 0 Terug. Alias: main" ;;
-                el) _mt_out="Αριθμημένο δέντρο: 1 πελάτης, 2 διακομιστής, 5 sudoers, 6 αυτοδιαχείριση, 7 γλώσσα, 9 Έξοδος. Γλώσσες 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Πελάτης 11… dns/ssh/download/upload. Διακομιστής 21… status/start/stop/restart. Αυτοδιαχείριση 61… install/version/about, 67 self-install. Υπομενού 0 Πίσω. Ψευδώνυμο: main" ;;
-                *) _mt_out="Numbered tree: 1 client-side, 2 server-side, 5 sudoers, 6 self-management, 7 language, 9 Exit. Language 71 English, 72 Simplified Chinese, 73 Traditional Chinese, 74 Spanish, 75 Arabic, 76 French, 77 Portuguese, 78 Russian, 79 German, 80 Japanese, 81 Korean, 82 Dutch, 83 Greek. Client 11… dns/ssh/download/upload; server 21… status/start/stop/restart; self-management 61… install/version/about, 67 self-install. Submenus 0 Back. Alias: main" ;;
+                zh-Hant) _mt_out="編號樹：1 用戶端、2 伺服器端、5 sudoers、6 自我管理、7 語言、9 離開。語言 71 English、72 简体中文、73 繁體中文、74 Español、75 العربية、76 Français、77 Português、78 Русский、79 Deutsch、80 日本語、81 한국어、82 Nederlands、83 Ελληνικά。用戶端 11… dns/ssh/download/upload/upplace。伺服器 21… status/start/stop/restart。自我管理 61… install/version/about、67 self-install。子選單 0 返回。別名：main" ;;
+                es) _mt_out="Árbol numerado: 1 cliente, 2 servidor, 5 sudoers, 6 autogestión, 7 idioma, 9 Salir. Idiomas 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Cliente 11… dns/ssh/download/upload/upplace. Servidor 21… status/start/stop/restart. Autogestión 61… install/version/about, 67 self-install. Submenús 0 Atrás. Alias: main" ;;
+                fr) _mt_out="Arbre numéroté : 1 client, 2 serveur, 5 sudoers, 6 autogestion, 7 langue, 9 Quitter. Langues 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Client 11… dns/ssh/download/upload/upplace. Serveur 21… status/start/stop/restart. Autogestion 61… install/version/about, 67 self-install. Sous-menus 0 Retour. Alias : main" ;;
+                de) _mt_out="Nummerierter Baum: 1 Client, 2 Server, 5 sudoers, 6 Selbstverwaltung, 7 Sprache, 9 Beenden. Sprachen 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Client 11… dns/ssh/download/upload/upplace. Server 21… status/start/stop/restart. Selbstverwaltung 61… install/version/about, 67 self-install. Untermenüs 0 Zurück. Alias: main" ;;
+                zh-Hans) _mt_out="编号树：1 客户端、2 服务器端、5 sudoers、6 自我管理、7 语言、9 离开。语言 71 English、72 简体中文、73 繁體中文、74 Español、75 العربية、76 Français、77 Português、78 Русский、79 Deutsch、80 日本語、81 한국어、82 Nederlands、83 Ελληνικά。客户端 11… dns/ssh/download/upload/upplace。服务器 21… status/start/stop/restart。自我管理 61… install/version/about、67 self-install。子菜单 0 返回。别名：main" ;;
+                ja) _mt_out="番号の木: 1 クライアント、2 サーバー、5 sudoers、6 自己管理、7 言語、9 終了。言語 71 English、72 简体中文、73 繁體中文、74 Español、75 العربية、76 Français、77 Português、78 Русский、79 Deutsch、80 日本語、81 한국어、82 Nederlands、83 Ελληνικά。クライアント 11… dns/ssh/download/upload/upplace。サーバー 21… status/start/stop/restart。自己管理 61… install/version/about、67 self-install。サブメニュー 0 戻る。別名: main" ;;
+                ko) _mt_out="번호 나무: 1 클라이언트, 2 서버, 5 sudoers, 6 자기관리, 7 언어, 9 종료. 언어 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. 클라이언트 11… dns/ssh/download/upload/upplace. 서버 21… status/start/stop/restart. 자기관리 61… install/version/about, 67 self-install. 하위 메뉴 0 뒤로. 별칭: main" ;;
+                ar) _mt_out="شجرة مرقمة: 1 عميل، 2 خادم، 5 sudoers، 6 إدارة-ذاتية، 7 لغة، 9 خروج. اللغات 71 English، 72 简体中文، 73 繁體中文، 74 Español، 75 العربية، 76 Français، 77 Português، 78 Русский، 79 Deutsch، 80 日本語، 81 한국어، 82 Nederlands، 83 Ελληνικά. العميل 11… dns/ssh/download/upload/upplace. الخادم 21… status/start/stop/restart. الإدارة 61… install/version/about، 67 self-install. القوائم الفرعية 0 رجوع. الاسم البديل: main" ;;
+                pt) _mt_out="Árvore numerada: 1 cliente, 2 servidor, 5 sudoers, 6 autogestão, 7 idioma, 9 Sair. Idiomas 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Cliente 11… dns/ssh/download/upload/upplace. Servidor 21… status/start/stop/restart. Autogestão 61… install/version/about, 67 self-install. Submenus 0 Voltar. Apelido: main" ;;
+                ru) _mt_out="Нумерованное дерево: 1 клиент, 2 сервер, 5 sudoers, 6 самоуправление, 7 язык, 9 Выход. Языки 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Клиент 11… dns/ssh/download/upload/upplace. Сервер 21… status/start/stop/restart. Самоуправление 61… install/version/about, 67 self-install. Подменю 0 Назад. Псевдоним: main" ;;
+                nl) _mt_out="Genummerde boom: 1 client, 2 server, 5 sudoers, 6 zelfbeheer, 7 taal, 9 Afsluiten. Talen 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Client 11… dns/ssh/download/upload/upplace. Server 21… status/start/stop/restart. Zelfbeheer 61… install/version/about, 67 self-install. Submenu's 0 Terug. Alias: main" ;;
+                el) _mt_out="Αριθμημένο δέντρο: 1 πελάτης, 2 διακομιστής, 5 sudoers, 6 αυτοδιαχείριση, 7 γλώσσα, 9 Έξοδος. Γλώσσες 71 English, 72 简体中文, 73 繁體中文, 74 Español, 75 العربية, 76 Français, 77 Português, 78 Русский, 79 Deutsch, 80 日本語, 81 한국어, 82 Nederlands, 83 Ελληνικά. Πελάτης 11… dns/ssh/download/upload/upplace. Διακομιστής 21… status/start/stop/restart. Αυτοδιαχείριση 61… install/version/about, 67 self-install. Υπομενού 0 Πίσω. Ψευδώνυμο: main" ;;
+                *) _mt_out="Numbered tree: 1 client-side, 2 server-side, 5 sudoers, 6 self-management, 7 language, 9 Exit. Language 71 English, 72 Simplified Chinese, 73 Traditional Chinese, 74 Spanish, 75 Arabic, 76 French, 77 Portuguese, 78 Russian, 79 German, 80 Japanese, 81 Korean, 82 Dutch, 83 Greek. Client 11… dns/ssh/download/upload/upplace; server 21… status/start/stop/restart; self-management 61… install/version/about, 67 self-install. Submenus 0 Back. Alias: main" ;;
             esac
             ;;
         about_title)
@@ -3597,6 +3631,7 @@ This requirement is satisfied when all of the following hold:
 | 2026-09-30 | v1.3.1: `help_fix_config` in the §2.6 `app_menu_text` fence. Live sample tokens follow `VERSION` **1.30.0**. | Grok (owner request) |
 | 2026-10-02 | v1.4.0: front **5**. Language numbers **50–69** (at most 20). Assigned **51–58**. Samples follow `VERSION` **1.31.0**. | Grok (owner request) |
 | 2026-10-02 | v1.5.0: order is **51** English, **52** Simplified Chinese, **53** Traditional Chinese, then native-speaker count through **63** Greek. Adds `ar`, `pt`, `ru`, `nl`, `el`. **50** and **64–69** stay unprinted. Samples follow `VERSION` **1.32.0**. | Grok (owner request) |
+| 2026-11-16 | v1.7.3: `client_19_long`, `help_upplace`, help tree names upplace. Samples follow `VERSION` **1.36.0**. | Grok (owner request) |
 | 2026-10-16 | v1.7.2: samples follow `VERSION` **1.35.1**. | Grok (owner request) |
 | 2026-10-14 | v1.7.1: samples follow `VERSION` **1.35.0**. | Grok (owner request) |
 | 2026-10-14 | v1.7.0: front **7** language. Block **70–89** (assigned **71–83**). **70** and **84–89** stay unprinted. Front **8** is not a row. Samples follow `VERSION` **1.34.0**. | Grok (owner request) |
@@ -3615,6 +3650,6 @@ Words this requirement uses. Each row is the term and the definition this file m
 | **Worked sample** | A markdown transcription of a live board, or of the opening of `help` and `about`. Bold is the short. Italic is the long. The version token is the live `VERSION`. The source choose-prompt ends with a space that the sample omits. |
 | **Do not capture `read`** | A `read`, and any helper whose body contains `read`, runs in the current shell. `app_cmd_menu_language` is that kind of helper. `app_menu_text` is not, and its body must stay free of those letters so a command substitution stays legal. |
 
-**Last Updated**: 2026-10-16 (1.7.2 samples follow VERSION **1.35.1**. 1.7.1 samples follow VERSION **1.35.0**. 1.7.0 front **7**, block **70–89** (assigned **71–83**); samples follow VERSION **1.34.0**. 1.6.0 adds the front **7** hide sentence; samples follow VERSION **1.33.0**. 1.5.0 assigns **51–63** in speaker order after English, Simplified Chinese, and Traditional Chinese; samples follow VERSION **1.32.0**. 1.4.0 front **5**, language block **50–69** (assigned **51–58**), samples follow VERSION **1.31.0**. 1.3.1 `help_fix_config` and live `VERSION` **1.30.0** in the samples. 1.3.0 worked samples and translation tables. 1.2.0 adds `ja`, `ko`, and human help/about. 1.1.0 adds `es`, `fr`, `de`, `zh-Hans`)
+**Last Updated**: 2026-11-16 (1.7.3 `client_19_long` and `help_upplace`. Samples follow VERSION **1.36.0**. 1.7.2 samples follow VERSION **1.35.1**. 1.7.1 samples follow VERSION **1.35.0**. 1.7.0 front **7**, block **70–89** (assigned **71–83**); samples follow VERSION **1.34.0**. 1.6.0 adds the front **7** hide sentence; samples follow VERSION **1.33.0**. 1.5.0 assigns **51–63** in speaker order after English, Simplified Chinese, and Traditional Chinese; samples follow VERSION **1.32.0**. 1.4.0 front **5**, language block **50–69** (assigned **51–58**), samples follow VERSION **1.31.0**. 1.3.1 `help_fix_config` and live `VERSION` **1.30.0** in the samples. 1.3.0 worked samples and translation tables. 1.2.0 adds `ja`, `ko`, and human help/about. 1.1.0 adds `es`, `fr`, `de`, `zh-Hans`)
 **Owner**: sshd-cli project maintainers
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

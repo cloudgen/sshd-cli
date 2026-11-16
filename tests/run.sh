@@ -39,6 +39,8 @@ export APP_NAME
 . "${TESTS_ROOT}/test_ssh_download.sh"
 # shellcheck source=test_os_transfer.sh
 . "${TESTS_ROOT}/test_os_transfer.sh"
+# shellcheck source=test_upplace.sh
+. "${TESTS_ROOT}/test_upplace.sh"
 
 PASS=0
 FAIL=0
@@ -67,6 +69,7 @@ run_test_fix_config
 run_test_config_backup
 run_test_ssh_download
 run_test_os_transfer
+run_test_upplace
 
 printf '\n== summary ==\n'
 printf 'PASS=%s FAIL=%s SKIP=%s\n' "${PASS}" "${FAIL}" "${SKIP}"

@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-interface.md  
-**Status**: Active (Version 1.14.16)  
+**Status**: Active (Version 1.14.17)  
 **Philosophy**: CIAO / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered)
 
 ## 1. Purpose
@@ -134,7 +134,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | **Primary executable** | Repo root `./sshd-cli` (POSIX `/bin/sh`, single-file for `curl \| sh`) |
 | **Dispatcher** | `app_main` (always invoked at end of script: `app_main "$@"` — no `${0##*/}` / APP_NAME basename gate; required for `curl \| sh`) |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION` default `1.35.1` (script header / config block: `VERSION="1.35.1"`) |
+| **Version SSOT** | `VERSION` default `1.36.0` (script header / config block: `VERSION="1.36.0"`) |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`, or `${PREFIX}/bin` when Termux `PREFIX/bin` exists; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Interactive rc write path** | `BASHRC` default `${HOME}/.bashrc`. `install` PATH ensure creates/modifies this file. Tests/CI **MAY** set `BASHRC` to a file in a temp folder. Dual mention: `requirement-shell-path-and-shell-support`. |
 | **Remote channel env (help surface)** | `REPO_USER` / `REPO_NAME` (defaults `cloudgen` / `sshd-cli`); `SCRIPT_URL` composed default `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/main/${APP_NAME}` (literal product default: `https://raw.githubusercontent.com/cloudgen/sshd-cli/main/sshd-cli`; override via env). **`help` / `about` MUST list these operator channel vars as designed — MUST NOT list `CHECKSUM`** (install-path runtime pin only; see `requirement-shell-automatic-checksum.md`). **`help` Environment also lists `BASHRC`.** |
@@ -168,6 +168,7 @@ When specializing product **B** from this bootstrap (**A → B only**):
 | `ssh` | Type 0 domain | `sshd_cmd_ssh` | OpenSSH client to a concrete Host alias from this login `~/.ssh/config` (TTY numbered pick then user with default; operand `<n\|name>`). Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli ssh 1` |
 | `download` | Type 0 domain | `sshd_cmd_download` | tar.gz a remote folder over ssh and extract into cwd (TTY Host pick, then user with default, then numbered previous folders or a typed path; `~/folder` allowed). When the gzip reader is MSYS2 or Git Bash, do not pipe that gzip on stdin (`requirement-shell-windows-git-bash-cli-coding`). From **1.35.1** the ship unit uses the finished file for that reader. Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli download 1 /opt/app` · `sshd-cli download 1 ~/box/app` |
 | `upload` | Type 0 domain | `sshd_cmd_upload` | tar.gz a **local** folder over ssh and extract under the remote login home (TTY Host pick, then user with default, then numbered previous **local** folders or a typed path; `~/folder` is this login). When the gzip reader is MSYS2 or Git Bash, do not pipe that gzip on stdin (`requirement-shell-windows-git-bash-cli-coding`). From **1.35.1** the ship unit uses the finished file for that reader. Dual mention: `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive`. Sample: `sshd-cli upload 1 ./box` · `sshd-cli upload 1 ~/box/app` |
+| `upplace` | Type 0 domain | `sshd_cmd_upplace` | tar.gz a local folder, back up the same-named remote folder as `name.yyyyMMdd.bak`, `scp` the archive to remote `/tmp`, expand it, and `cp -rP` onto the target. TTY order is Host, user, local folder, then target (`~/folder` or absolute). Never the remote home. A missing same-named directory returns 1 (the menu shows the front board). Dual mention: `requirement-domain-upplace` · `requirement-domain-sshd`. Sample: `sshd-cli upplace 1 ./app ~/sites/app` |
 | `menu` / `main` | Type 0 | `app_cmd_menu` | Numbered tree on a terminal (`main` is an unlisted alias of `menu`). Same handler as an interactive zero-cli-verb. Front **1** client-side / **2** server-side / **5** sudoers (POSIX Linux) / **6** self-management / **7** language / **9** Exit. **7** opens the language block **70–89** (not more than 20 languages): **71** English / **72** Simplified Chinese / **73** Traditional Chinese / **74** Spanish / **75** Arabic / **76** French / **77** Portuguese / **78** Russian / **79** German / **80** Japanese / **81** Korean / **82** Dutch / **83** Greek. **70** and **84–89** are reserved and are not printed. Front **8** is not a row. Dual mention: `requirement-shell-cli-default-interaction` · `requirement-shell-cli-language` · `requirement-domain-sshd` · `requirement-shell-interactive-vs-noninteractive` |
 | `wake-lock` | Type 0 | `sshd_cmd_wake_lock` | Acquire Android wake lock again (`termux-wake-lock`). Termux: fail closed if helper missing. Off Termux: success no-op. Dual mention: `requirement-shell-termux-ish` |
 | `wake-unlock` | Type 0 | `sshd_cmd_wake_unlock` | Release Android wake lock (`termux-wake-unlock`). Operator-owned. **MUST NOT** auto-run from `stop`. Dual mention: `requirement-shell-termux-ish` |
@@ -195,6 +196,7 @@ Every routed verb is named **here** and on a topic-owner. Help/`app_help` is **n
 | `help` | `requirement-shell-cli-zero-arguments` · `requirement-shell-automatic-checksum` | `sshd-cli help` |
 | `version-check` / `self-update` | `requirement-shell-self-management` | `sshd-cli version-check` |
 | `self-uninstall` | `requirement-shell-self-management` · `requirement-shell-path-and-shell-support` | `sshd-cli --force self-uninstall` |
+| `upplace` | `requirement-domain-upplace` · `requirement-domain-sshd` | `sshd-cli upplace 1 ./app ~/sites/app` |
 | `status` / `start` / `stop` / `restart` / `port` / `config` / `host-keys` / `auth-keys` / `dns` / `fix-config` / `ssh` / `download` / `upload` / `menu` | `requirement-domain-sshd` | `sshd-cli status` · `sshd-cli dns list` · `sshd-cli fix-config` · `sshd-cli ssh 1` · `sshd-cli download 1 /opt/app` · `sshd-cli upload 1 ./box` |
 | `backup-config` / `sync-config` / `sync-from-remote` | `requirement-shell-config-backup` · `requirement-shell-sudoer` · `requirement-domain-sshd` | `sshd-cli backup-config` · `sshd-cli sync-from-remote user@host` |
 | `print-sudoers` / `print-sudoers-install-script` / `generate-sudoer-request` / `submit-sudoer-request` / `remove-project-sudoers` | `requirement-shell-sudoer` | `sshd-cli generate-sudoer-request` |
@@ -227,8 +229,8 @@ if [ -z "${COMMAND-}" ]; then
     exit $?
 fi
 # rc-test operands accumulate then: set -- ${RC_TEST_OPERANDS}; path_rc_test "$@"
-# Domain verbs (status|start|stop|restart|port|config|host-keys|auth-keys|dns|ssh|download|upload|menu|main|wake-lock|wake-unlock)
-# share the same parse pass as Type 0. Operands after port/dns/ssh/download/upload/… go in DOMAIN_OPERANDS.
+# Domain verbs (status|start|stop|restart|port|config|host-keys|auth-keys|dns|ssh|download|upload|upplace|menu|main|wake-lock|wake-unlock)
+# share the same parse pass as Type 0. Operands after port/dns/ssh/download/upload/upplace/… go in DOMAIN_OPERANDS.
 ```
 
 #### Dispatcher acceptance criteria (this project)
@@ -345,6 +347,6 @@ This requirement is satisfied for the sshd-cli shell CLI when all of the followi
 
 ---
 
-**Last Updated**: 2026-10-16 (1.14.16 product `VERSION="1.35.1"` and the MSYS reader uses the finished file. 1.14.15 MSYS2 / Git Bash gzip reader points at `requirement-shell-windows-git-bash-cli-coding`. Ship unit of that revision still piped. 1.14.14 product `VERSION="1.35.0"`. 1.14.13 front **5** sudoers **51–55**, front **6** self-management **61–67**, front **7** language **71–83**. Product `VERSION="1.34.0"`. 1.14.12 unknown-token exit points at `requirement-shell-exit-condition`. 1.14.11 product `VERSION="1.33.0"`. 1.14.10 language rows **51–63** (`ar`, `pt`, `ru`, `nl`, `el`). Product `VERSION="1.32.0"`. 1.14.9 front **5** language, block **50–69**. Product `VERSION="1.31.0"`. 1.14.8 `fix-config` and the automatic client-config pass. Product `VERSION="1.30.0"`. 1.14.7 language **67–68**; human help and about follow the saved language. 1.14.6 language **63–66**. 1.14.5 front **6** language. 1.14.4 `menu`/`main` handler is `app_cmd_menu`. Zero-cli-verb gate is live after flag parse. Prior: 2026-09-27 `about` cache lines)  
+**Last Updated**: 2026-11-16 (1.14.17 product `VERSION="1.36.0"` and `upplace` points at `requirement-domain-upplace`. 1.14.16 product `VERSION="1.35.1"` and the MSYS reader uses the finished file. 1.14.15 MSYS2 / Git Bash gzip reader points at `requirement-shell-windows-git-bash-cli-coding`. Ship unit of that revision still piped. 1.14.14 product `VERSION="1.35.0"`. 1.14.13 front **5** sudoers **51–55**, front **6** self-management **61–67**, front **7** language **71–83**. Product `VERSION="1.34.0"`. 1.14.12 unknown-token exit points at `requirement-shell-exit-condition`. 1.14.11 product `VERSION="1.33.0"`. 1.14.10 language rows **51–63** (`ar`, `pt`, `ru`, `nl`, `el`). Product `VERSION="1.32.0"`. 1.14.9 front **5** language, block **50–69**. Product `VERSION="1.31.0"`. 1.14.8 `fix-config` and the automatic client-config pass. Product `VERSION="1.30.0"`. 1.14.7 language **67–68**; human help and about follow the saved language. 1.14.6 language **63–66**. 1.14.5 front **6** language. 1.14.4 `menu`/`main` handler is `app_cmd_menu`. Zero-cli-verb gate is live after flag parse. Prior: 2026-09-27 `about` cache lines)  
 **Owner**: sshd-cli project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; CIAO Principles 1, 2, 3, 5, 6, 10, 16, 4, 20 (v2.10.2) (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
